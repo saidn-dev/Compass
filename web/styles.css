@@ -1,0 +1,25 @@
+/* Look and feel: colour tokens, light/dark themes, layout. */
+:root {
+  --bg: #ffffff;
+  --text: #1a1a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121212;
+    --text: #eeeeee;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --text: #eeeeee;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  padding: 16px;
+}
