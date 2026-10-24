@@ -43,7 +43,7 @@ Verified on this machine: Python 3.12.10, Node 25.6.1, OpenJDK 17.0.20, git pres
 - Onboarding asks which modules to enable; each module works with zero integrations.
 - Stack must be languages the user can edit: Python, Java, JavaScript, HTML, CSS, API.
 
-## My calls (flagged for your review)
+## My calls (1 and 2 confirmed by the user on 2026-10-23)
 1. **Data lives in SQLite on the server, not browser `localStorage`** (README v1 said localStorage). Reason: you asked for an API and Python, and this is the foundation v2 needs. Cost: v1 now needs `python start.py` instead of double-clicking an HTML file.
 2. **Java's job is the CSV importer CLI only.** It is the one place Java is a natural fit and it is cleanly separable. It is the last task and can be dropped without affecting anything else. If you would rather have Java as the server, say so before approval and the plan changes shape.
 3. **Java uses the JDK only** (no Maven/Gradle installed, no dependencies): `javac` to build, a ~40-line test runner instead of JUnit.
@@ -147,11 +147,11 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 **Interfaces:**
 - Produces: `create_app(db_path: str = "compass.db") -> FastAPI`; `HostOriginMiddleware` rejecting requests whose `Host` is not `127.0.0.1:<port>` or `localhost:<port>`, whose `Origin` (when present) is not the same origin, or whose write method (`POST/PUT/DELETE`) lacks `Content-Type: application/json` (bodyless `DELETE` exempt).
 
-- [ ] **Step 1: Write failing tests** (pytest + `fastapi.testclient.TestClient`): `GET /health` with `Host: 127.0.0.1:8765` -> 200 `{"status":"ok"}`; `Host: evil.com` -> 403; `Host: 127.0.0.1:8765` + `Origin: https://evil.com` -> 403; `POST /api/settings` with `Content-Type: text/plain` -> 415; no CORS headers (`access-control-allow-origin`) on any response.
-- [ ] **Step 2: Run** `python -m pytest server/tests/test_security.py -v` -> FAIL (module missing).
-- [ ] **Step 3: Implement** `create_app` and the middleware; error body uses the Global Constraints error shape. After first successful `pip install`, pin versions by writing `pip freeze` output for the runtime packages into `requirements.txt`.
-- [ ] **Step 4: Run** the same command -> PASS.
-- [ ] **Step 5: Commit** `feat(server): scaffold with origin protection`.
+- [x] **Step 1: Write failing tests** (pytest + `fastapi.testclient.TestClient`): `GET /health` with `Host: 127.0.0.1:8765` -> 200 `{"status":"ok"}`; `Host: evil.com` -> 403; `Host: 127.0.0.1:8765` + `Origin: https://evil.com` -> 403; `POST /api/settings` with `Content-Type: text/plain` -> 415; no CORS headers (`access-control-allow-origin`) on any response.
+- [x] **Step 2: Run** `python -m pytest server/tests/test_security.py -v` -> FAIL (module missing).
+- [x] **Step 3: Implement** `create_app` and the middleware; error body uses the Global Constraints error shape. After first successful `pip install`, pin versions by writing `pip freeze` output for the runtime packages into `requirements.txt`.
+- [x] **Step 4: Run** the same command -> PASS.
+- [x] **Step 5: Commit** `feat(server): scaffold with origin protection`.
 
 ### Task 2: Areas, dates, status, progress, trend
 
@@ -166,8 +166,9 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
   - `area_progress(value, target, mode) -> float | None` (percent, clamped 0-200, `None` if no data or `target <= 0`)
   - `trend(series: list[float | None]) -> Literal["up","down","flat","none"]` (later-half mean vs earlier-half mean, 5% threshold, `none` with fewer than 2 points)
 
-- [ ] **Step 1: Write failing tests:** `last_n_dates("2026-10-21", 7)` is 7 distinct ascending keys; across `2026-03-29` (EU DST) and `2026-11-01` (US DST) still 7 distinct (Review Focus 4); status up `7.5/7.5 -> on_track`, `7.4 -> behind`; limit `100/100 -> on_track`, `101 -> behind`; `None -> no_data`; `area_progress(5, 0, "up") is None` (Review Focus 6); `area_value` sums study, averages sleep ignoring gaps, takes latest spending; `trend([5,5,5,8,8,8,8]) == "up"`; `trend([None]*6 + [6]) == "none"`.
-- [ ] **Step 2: Run** `python -m pytest server/tests/test_areas.py -v` -> FAIL. **Step 3: Implement** in `areas.py`; iterate dates with `timedelta`, not epoch seconds. **Step 4: Run** -> PASS. **Step 5: Commit** `feat(server): life areas and status rules`.
+- [x] **Step 1: Write failing tests:** `last_n_dates("2026-10-21", 7)` is 7 distinct ascending keys; across `2026-03-29` (EU DST) and `2026-11-01` (US DST) still 7 distinct (Review Focus 4); status up `7.5/7.5 -> on_track`, `7.4 -> behind`; limit `100/100 -> on_track`, `101 -> behind`; `None -> no_data`; `area_progress(5, 0, "up") is None` (Review Focus 6); `area_value` sums study, averages sleep ignoring gaps, takes latest spending; `trend([5,5,5,8,8,8,8]) == "up"`; `trend([None]*6 + [6]) == "none"`.
+- [x] **Step 2: Run** `python -m pytest server/tests/test_areas.py -v` -> FAIL. **Step 3: Implement** in `areas.py`; iterate dates with `timedelta`, not epoch seconds. **Step 4: Run** -> PASS (29 tests).
+- [ ] **Step 5: Commit** `feat(server): life areas and status rules`.
 
 ### Task 3: Day model and normalization (gap semantics)
 
@@ -280,7 +281,7 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
 - [ ] **Step 1: Write failing tests** in `CsvReaderTest.java` run by `TestRunner` (prints PASS/FAIL per test, exit 1 on any failure) (Review Focus 9): BOM stripped; `"a,b",c` yields 2 cells; `""` escaped quote; blank value skipped, not 0; bad date reported in `skipped`; duplicate date keeps last; `--field` outside the allowed list rejected.
 - [ ] **Step 2: Run** `./tools/importer/build.ps1` -> compile error / FAIL (classes missing).
 - [ ] **Step 3: Implement** with JDK only; `build.ps1` runs `javac -d out` for `src` and `test`, then `java -cp out dev.compass.importer.TestRunner`; a second mode builds a runnable `out` for `java -cp out dev.compass.importer.Main ...`.
-- [ ] **Step 4: Run** build script -> all PASS. **Step 5: Live check:** with the server running and a 3-row sample CSV in `tools/importer/sample.csv`, run `--dry-run`, then without it; `GET /api/days/<date>` shows the stored step count and other fields untouched. **Step 6: Commit** `feat(importer): Java CSV importer for steps and fasting`.
+- [ ] **Step 4: Run** build script -> all PASS. **Step 5: Live check:** with the server running and a 3-row sample CSV in `tools/importer/sample.csv`, `--dry-run`, then without it; `GET /api/days/<date>` shows the stored step count and other fields untouched. **Step 6: Commit** `feat(importer): Java CSV importer for steps and fasting`.
 
 ### Task 13: Launcher, QA pass, documentation
 
