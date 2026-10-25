@@ -178,8 +178,9 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 - Consumes: `AREAS` field names (Task 2)
 - Produces: `normalize_day(raw: dict, date: str) -> dict` (always returns a complete Day dict) and pydantic models `Target`, `Goal`, `Settings`
 
-- [ ] **Step 1: Write failing tests (Review Focus 1):** for every numeric field, `""`, `"  "`, `None`, `"abc"`, `-3`, `float("nan")` -> `None`; `"7.5"` -> `7.5`; `0` stays `0`; `sleep_hours=30` -> `None` (valid 0-24); `steps=8000.7` -> `8000`; `spend_pct_of_budget` valid 0-1000; hour fields 0-24; more than 3 tasks -> keep first 3; blank task text dropped; `note` coerced to str, truncated at 5000; `habits` keeps only bool values; unknown keys dropped.
-- [ ] **Step 2-5:** run (FAIL), implement, run (PASS), commit `feat(server): day normalization`.
+- [x] **Step 1: Write failing tests (Review Focus 1):** for every numeric field, `""`, `"  "`, `None`, `"abc"`, `-3`, `float("nan")` -> `None`; `"7.5"` -> `7.5`; `0` stays `0`; `sleep_hours=30` -> `None` (valid 0-24); `steps=8000.7` -> `8000`; `spend_pct_of_budget` valid 0-1000; hour fields 0-24; more than 3 tasks -> keep first 3; blank task text dropped; `note` coerced to str, truncated at 5000; `habits` keeps only bool values; unknown keys dropped.
+- [x] **Step 2-4:** run (FAIL), implement, run (PASS) (95 tests).
+- [ ] **Step 5:** commit `feat(server): day normalization`.
 
 ### Task 4: SQLite repository
 
@@ -189,8 +190,9 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 - Consumes: `normalize_day`, `Settings` (Task 3)
 - Produces: `Repository(path: str)` with `get_day(date) -> dict`, `put_day(day: dict) -> None`, `days_between(start: str, end: str) -> list[dict]`, `get_settings() -> Settings`, `put_settings(s: Settings) -> None`, `export_all() -> dict`, `import_all(data: dict) -> None` (raises `ValueError` on bad input, all-or-nothing in one transaction), `delete_all() -> None`
 
-- [ ] **Step 1: Write failing tests (Review Focus 5)** using a temp-file DB: round-trip day and settings; `get_day` for an unknown date returns an empty Day; `export_all()` then `import_all()` into a fresh DB yields identical data; `import_all` with wrong `schema`, a non-dict, or an invalid day raises `ValueError` and leaves prior data intact (transaction rolled back); a note containing `'; DROP TABLE days;--` round-trips and the table survives; `delete_all()` empties days and resets settings to defaults (`onboarded=False`).
-- [ ] **Step 2-5:** run (FAIL), implement (parameterized SQL only, `PRAGMA user_version` or `meta.schema_version`), run (PASS), commit `feat(server): sqlite repository`.
+- [x] **Step 1: Write failing tests (Review Focus 5)** using a temp-file DB: round-trip day and settings; `get_day` for an unknown date returns an empty Day; `export_all()` then `import_all()` into a fresh DB yields identical data; `import_all` with wrong `schema`, a non-dict, or an invalid day raises `ValueError` and leaves prior data intact (transaction rolled back); a note containing `'; DROP TABLE days;--` round-trips and the table survives; `delete_all()` empties days and resets settings to defaults (`onboarded=False`).
+- [x] **Step 2-4:** run (FAIL), implement (parameterized SQL only, `meta.schema_version`), run (PASS) (23 tests).
+- [ ] **Step 5:** commit `feat(server): sqlite repository`.
 
 ### Task 5: Settings and onboarding rules
 
