@@ -111,7 +111,7 @@ def test_unknown_keys_dropped_and_shape_complete():
 
 
 def test_bad_date_is_rejected():
-    for bad in ["2026-13-01", "yesterday", ""]:
+    for bad in ["2026-13-01", "yesterday", "", "20261020", "2026-W43-3", "2026-10-20T00:00"]:
         with pytest.raises(ValueError):
             normalize_day({}, bad)
 

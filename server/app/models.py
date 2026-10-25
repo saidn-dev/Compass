@@ -62,10 +62,31 @@ def _habits(raw: object) -> dict[str, bool]:
     return {str(k): v for k, v in raw.items() if isinstance(v, bool)}
 
 
+def check_date_key(date_key: str) -> str:
+    """Return date_key if it is a real YYYY-MM-DD date, else raise ValueError."""
+    try:
+        if date.fromisoformat(date_key).isoformat() == date_key:
+            return date_key
+    except (TypeError, ValueError):
+        pass
+    raise ValueError(f"Dates must look like YYYY-MM-DD, got {date_key!r}.")
+
+
+def merge_numbers(day: dict, raw: dict) -> dict:
+    """Copy only the numeric fields found in raw onto day. Raises ValueError on a bad value."""
+    fields = [f for f in NUMERIC_FIELDS if f in raw]
+    if not fields:
+        raise ValueError("No numeric values to save.")
+    clean = normalize_day({f: raw[f] for f in fields}, day["date"])
+    for f in fields:
+        if clean[f] is None:
+            raise ValueError(f"Bad value for {f}: {raw[f]!r}.")
+    return {**day, **{f: clean[f] for f in fields}}
+
+
 def normalize_day(raw: dict, date_key: str) -> dict:
     """A complete, clean Day for date_key. Raises ValueError on a bad date."""
-    date.fromisoformat(date_key)
-    day: dict = {"date": date_key}
+    day: dict = {"date": check_date_key(date_key)}
     for field, (low, high) in NUMERIC_FIELDS.items():
         value = _number(raw.get(field), low, high)
         if value is not None and field in WHOLE_NUMBER_FIELDS:

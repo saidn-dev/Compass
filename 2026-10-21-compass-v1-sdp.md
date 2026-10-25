@@ -202,8 +202,8 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 - Consumes: `AREAS` (Task 2), `Settings` (Task 3)
 - Produces: `select_modules(ids: list[str]) -> list[str]` (raises `ValueError`: empty, > 5, unknown id; dedupes, keeps order); `apply_onboarding(s: Settings, ids: list[str]) -> Settings` (targets only for enabled modules from `AREAS` defaults, `onboarded=True`); `set_target(s: Settings, area_id: str, target: float, mode: str) -> Settings` (raises `ValueError` if `target <= 0`)
 
-- [ ] **Step 1: Write failing tests:** 0 ids, 6 ids, unknown id each raise; duplicates collapse; onboarding creates exactly one target per enabled module; `set_target(..., 0, ...)` raises.
-- [ ] **Step 2-5:** run (FAIL), implement, run (PASS), commit `feat(server): onboarding and settings rules`.
+- [x] **Step 1: Write failing tests:** 0 ids, 6 ids, unknown id each raise; duplicates collapse; onboarding creates exactly one target per enabled module; `set_target(..., 0, ...)` raises.
+- [x] **Step 2-5:** run (FAIL), implement, run (PASS) (16 tests), commit `feat(server): onboarding and settings rules`.
 
 ### Task 6: Habits, tasks, goals logic
 
@@ -212,8 +212,8 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 **Interfaces:**
 - Produces: `toggle_habit(day: dict, habit_id: str) -> dict`; `habit_completion(days: list[dict], habits: list[dict]) -> float | None` (percent of habit-days done, counting only days that have any logging; `None` if no habits or no logged days); `add_task(day: dict, text: str) -> dict` (raises `ValueError` on blank or a 4th task); `toggle_task(day: dict, index: int) -> dict`; `add_goal(goals: list[Goal], goal: Goal) -> list[Goal]` (raises `ValueError` on a 4th; percent clamped 0-100)
 
-- [ ] **Step 1: Write failing tests** for each rule, including that a day with nothing logged is not counted as missed.
-- [ ] **Step 2-5:** run (FAIL), implement, run (PASS), commit `feat(server): habits, tasks, goals rules`.
+- [x] **Step 1: Write failing tests** for each rule, including that a day with nothing logged is not counted as missed.
+- [x] **Step 2-5:** run (FAIL), implement, run (PASS) (19 tests), commit `feat(server): habits, tasks, goals rules`.
 
 ### Task 7: Rules-based daily brief
 
@@ -225,8 +225,8 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 
 Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(target - value) / target` for "up", `(value - target) / target` for "limit"; the largest positive is "furthest behind". Sentence 1 names it with value and target (e.g. "Sleep is furthest behind: 6.4 h average against 7.5 h."). Sentence 2 = weakest day if >= 4 data points. Sentence 3 = the area's `suggestion` (<= 30 min). If nothing is behind, sentence 1 says what is going well.
 
-- [ ] **Step 1: Write failing tests:** (a) sleep behind, rest on track -> sentence 1 mentions "Sleep" and "6.4"; (b) gaps excluded from averages; (c) all-gap week -> one sentence "Log today's numbers to get your first brief." and empty `facts` (Review Focus 6); (d) average sleep < 5 h adds a sentence containing "talk to a doctor" and no words "diet", "dose", "medication" (Review Focus 7); (e) disabled modules never appear; (f) 3-4 sentences when data exists; (g) every number in the sentences appears in `facts`; (h) no "â€”" or "â€“" in output.
-- [ ] **Step 2-5:** run (FAIL), implement, run (PASS), commit `feat(server): rules-based brief`.
+- [x] **Step 1: Write failing tests:** (a) sleep behind, rest on track -> sentence 1 mentions "Sleep" and "6.4"; (b) gaps excluded from averages; (c) all-gap week -> one sentence "Log today's numbers to get your first brief." and empty `facts` (Review Focus 6); (d) average sleep < 5 h adds a sentence containing "talk to a doctor" and no words "diet", "dose", "medication" (Review Focus 7); (e) disabled modules never appear; (f) 3-4 sentences when data exists; (g) every number in the sentences appears in `facts`; (h) no "â€”" or "â€“" in output.
+- [x] **Step 2-5:** run (FAIL), implement, run (PASS) (22 tests), commit `feat(server): rules-based brief`.
 
 ### Task 8: REST routes and API contract tests
 
@@ -236,10 +236,10 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
 - Consumes: Tasks 1-7
 - Produces: every endpoint in the API contract table, mounted by `create_app`; `/docs` stays available.
 
-- [ ] **Step 1: Write failing tests (TestClient, temp DB, correct Host header):** fresh app `GET /api/settings` shows `onboarded=false`; `POST /api/onboarding` with 6 modules -> 422 error shape; onboarding with 3 -> settings updated; `PUT /api/days/2026-10-20` with `sleep_hours: ""` stores `null`; `PUT` with 4 tasks -> 422; `POST /api/days/bulk` merges only numeric fields and reports `skipped` for bad dates/values, never overwrites tasks/notes/habits; `GET /api/dashboard?date=2026-10-21` returns brief and one entry per enabled area with `status` in words; export -> import round-trip; `POST /api/import` of 3 MB body -> 413, bad JSON -> 400, and data unchanged (Review Focus 5); `DELETE /api/data` without `X-Confirm` -> 400, with it -> 200 and `GET /api/settings` shows `onboarded=false` (Review Focus 8).
-- [ ] **Step 2: Run** `python -m pytest server/tests -v` -> new tests FAIL.
-- [ ] **Step 3: Implement** routes as thin glue over the repository and rule modules (no rules in routes); map `ValueError` to the 422 error shape; enforce the 2 MB import cap by checking `Content-Length` and the read size.
-- [ ] **Step 4: Run** full suite -> PASS. **Step 5: Commit** `feat(server): REST API`.
+- [x] **Step 1: Write failing tests (TestClient, temp DB, correct Host header):** fresh app `GET /api/settings` shows `onboarded=false`; `POST /api/onboarding` with 6 modules -> 422 error shape; onboarding with 3 -> settings updated; `PUT /api/days/2026-10-20` with `sleep_hours: ""` stores `null`; `PUT` with 4 tasks -> 422; `POST /api/days/bulk` merges only numeric fields and reports `skipped` for bad dates/values, never overwrites tasks/notes/habits; `GET /api/dashboard?date=2026-10-21` returns brief and one entry per enabled area with `status` in words; export -> import round-trip; `POST /api/import` of 3 MB body -> 413, bad JSON -> 400, and data unchanged (Review Focus 5); `DELETE /api/data` without `X-Confirm` -> 400, with it -> 200 and `GET /api/settings` shows `onboarded=false` (Review Focus 8).
+- [x] **Step 2: Run** `python -m pytest server/tests -v` -> new tests FAIL.
+- [x] **Step 3: Implement** routes as thin glue over the repository and rule modules (no rules in routes); map `ValueError` to the 422 error shape; enforce the 2 MB import cap by checking `Content-Length` and the read size.
+- [x] **Step 4: Run** full suite -> PASS (244 tests). **Step 5: Commit** `feat(server): REST API`.
 
 ### Task 9: Front-end shell, renderers, escaping (HTML, CSS, JS)
 
