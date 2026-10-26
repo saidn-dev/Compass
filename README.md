@@ -1,198 +1,189 @@
 # Compass
 
-A personal life dashboard that reads your week at a glance and tells you what to do next.
+A local, single-user life dashboard that reads your last seven days and tells you what to do next.
 
-Compass puts the parts of your life you actually track (sleep, movement, study, work, money, habits, goals) on one page. A short AI-written brief sits at the top: what needs attention today, what is going well, and one concrete next step.
+You log a few numbers a day (sleep, steps, study, work, spending, fasting). Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
 
-It is built for one person, for daily use, in under five minutes a day.
-
----
-
-## The problem
-
-Most life-tracking tools fall into one of two traps:
-
-- **Too many inputs.** Apps that want a log for every metric get abandoned within two weeks.
-- **Data without direction.** Charts show what happened, but nobody says what to do about it.
-
-Compass keeps the inputs small and makes the output a decision, not a report.
+> **Status: work in progress.** The Python API is complete and tested. The web page, launcher and Java CSV importer are not finished yet, so there is no one-command way to use the app today. See [Project status](#project-status).
 
 ---
 
-## Who it's for
+## How it works
 
-- A student or early-career person balancing classes, part-time or freelance work, and a personal budget.
-- Someone who wants a daily check-in, not a productivity system.
-- A person who would rather read one honest sentence about their week than scan five charts.
+```text
+ Browser page (HTML, CSS, vanilla JS)      Java CSV importer (CLI)
+            |                                        |
+            |  JSON over http://127.0.0.1:8765       |  POST /api/days/bulk
+            v                                        v
+   +-------------------------------------------------------+
+   |  Python server (FastAPI)                              |
+   |  all rules: areas, status, trend, daily brief         |
+   |                     |                                 |
+   |                  SQLite (compass.db)                  |
+   +-------------------------------------------------------+
+```
 
----
+The server owns every rule. The page only draws what the API returns. Data lives in SQLite on your machine, not in the browser.
 
-## What it does (version 1)
+## Features (v1)
 
-### 1. Daily brief
-The first thing on the page. Three to four sentences, generated from the last seven days of data:
-- The area furthest behind its target, with the specific number.
-- One pattern worth noticing (for example, "sleep drops on Thursdays").
-- One suggested action for today, limited to something that takes 30 minutes or less.
+| Feature | What it does |
+|---|---|
+| **Onboarding** | Pick 1 to 5 of six modules; each gets a default target |
+| **Daily brief** | 3-4 sentences from the last 7 days, plus the numbers it used |
+| **Area cards** | Value, progress, 7-day trend, and status in words: "On track", "Behind", "No data" |
+| **Today's focus** | Up to 3 tasks a day |
+| **Habits** | 7-day yes/no grid with a weekly completion rate |
+| **Goals** | Up to 3, each with a percent and one line of context |
+| **Quick capture** | A daily note (up to 5000 characters) |
+| **Your data** | Export to one JSON file, import it back, or delete everything |
 
-### 2. Life areas
-Five cards, each with the current value, progress against a target, and a seven-day trend:
+The six modules and their default targets:
 
-| Area | Input | Target example |
+| Module | 7-day value | Default target |
 |---|---|---|
-| Sleep | Hours per night | 7.5 h average |
-| Movement | Steps per day | 8,000 |
-| Study | Hours per week | 12 h |
-| Work | Paid hours per week | 16 h |
-| Spending | Percent of monthly budget used | 100% limit |
+| Sleep | average hours | 7.5 h, more is better |
+| Movement | average steps | 8,000, more is better |
+| Study | total hours | 12 h, more is better |
+| Work | total paid hours | 16 h, more is better |
+| Spending | latest % of monthly budget | 100%, stay under |
+| Fasting | average hours | 16 h, more is better |
 
-Targets are yours to set. Each card shows status ("On track" or "Behind") in plain words, not color alone.
+**Blank is a gap, never zero.** A missing value never counts against you, and a real `0` stays `0`. If the 7-day sleep average falls under 5 h, the brief suggests talking to a doctor. Compass gives no medical or financial advice, and v1 makes no AI model calls.
 
-### 3. Today's focus
-Up to three tasks for the day, with a checkbox for each. Completed tasks stay visible but muted until tomorrow.
+## Privacy and security
 
-### 4. Habits
-A seven-day grid of yes/no habits (for example: morning walk, reading, no phone before 8, deep work block). Each habit is one tap per day. The page shows a weekly completion rate.
+Compass talks only to its own server. No CDN, web fonts, or analytics.
 
-### 5. Goals
-Three or fewer active goals, each with a percent complete and one line of context. Goals are edited by hand, not inferred.
-
-### 6. Quick capture
-A notes box for thoughts that don't fit elsewhere. It saves automatically.
-
----
-
-## What it does not do (on purpose)
-
-- **No social feeds, streaks shaming, or badges.** Missing a day should not make the page feel like a failure.
-- **No automatic tracking of your private messages or browsing.** Compass only uses what you enter or explicitly connect.
-- **No medical advice.** Sleep and movement numbers are for awareness. If something feels wrong, the brief says to talk to a doctor, not to change a dose or diet.
-- **No financial advice.** Spending shows against a budget you set. It does not recommend investments or products.
-- **No more than five life areas in version 1.** More areas means more daily work and weaker answers.
-
----
-
-## How the AI works
-
-Compass is designed to run in two modes, and version 1 uses the first.
-
-**Mode A: rules-based brief (version 1).** Simple, free, and fully offline. The brief is built from fixed rules: which area is furthest behind, average values, the weakest day, habit completion. It is predictable and easy to check.
-
-**Mode B: model-written brief (later).** An AI model rewrites the rule-based facts into natural language and can notice patterns the rules miss. It gets only your numbers and the targets you set, never raw notes. The model cannot change the facts. If it is unavailable, the page falls back to Mode A.
-
-The brief always shows the numbers it used, so you can check it.
-
----
-
-## Privacy
-
-- Data is stored in your browser (version 1). Nothing is sent to a server.
-- If Mode B is enabled, only the summarised numbers for the last seven days are sent to the model provider. Quick capture notes are never sent unless you turn that on.
-- You can export everything as a single JSON file and delete it all from the settings screen.
-
----
-
-## Data model
-
-```
-Day {
-  date: "2026-10-20"
-  sleep_hours: number | null
-  steps: number | null
-  study_hours: number | null
-  work_hours: number | null
-  spend_pct_of_budget: number | null
-  habits: { [habit_id]: boolean }
-  tasks: [{ text, done }]
-  note: string
-}
-
-Target {
-  area_id: string
-  target: number
-  mode: "up" | "limit"      // "up" = more is better, "limit" = stay under
-}
-
-Goal {
-  name: string
-  percent: number           // 0 to 100
-  detail: string
-}
-```
-
-Missing values are shown as gaps, never as zero. A gap does not count against you in the brief.
-
----
-
-## Screens
-
-1. **Home (the only screen in version 1).** Brief, life areas, focus, habits, goals, quick capture, in that order.
-2. **Settings.** Targets, habit list, goal list, theme (light, dark, system), export and delete.
-
-Layout is one column on phones, a two- or three-column grid on wider screens. Light and dark themes both follow the system setting by default.
-
----
-
-## Tech (version 1)
-
-- One HTML file, no build step, no framework.
-- Plain CSS with theme tokens for light and dark.
-- Storage in `localStorage`, with a JSON export.
-- No external requests.
-
-This keeps setup to "open the file" and makes the code easy to read and change.
-
----
-
-## Roadmap
-
-**Version 1: Standalone page (current build)**
-- Rules-based brief
-- Five life areas, habits, goals, focus, quick capture
-- Local storage and JSON export
-
-**Version 2: Smarter brief**
-- Optional model-written brief, with rule-based fallback
-- Weekly review screen that compares this week to the last four
-- Gentle suggestions for habits that keep getting skipped
-
-**Version 3: Connections (optional)**
-- Import sleep and steps from a phone health app or a CSV export
-- Calendar import for study and work hours
-- Hosted version with sign-in, if you want to use it across devices
-
-Each version stays optional. The core page should work fine with no connections at all.
-
----
-
-## Success measures
-
-Compass is working if, after four weeks:
-
-- You open it at least five days a week.
-- Logging a full day takes under five minutes.
-- You can name one thing you changed because of the brief.
-- You stop checking it out of habit and start using it to decide something.
-
----
-
-## Open questions
-
-- Should the brief run once each morning, or update live as you log?
-- Should weekends use different targets?
-- Is a seven-day window enough, or should the brief look at a longer period once there is data?
-
----
-
-## Status
-
-Concept and version 1 prototype. Feedback welcome.
+- The server is meant to bind to `127.0.0.1` only (default port `8765`).
+- Requests with a `Host` other than `127.0.0.1` or `localhost`, or with a foreign `Origin`, get `403`.
+- Writes (`POST`, `PUT`, `DELETE`) with a body that is not `application/json` get `415`. This stops other websites open in your browser from writing to the local API.
+- `DELETE /api/data` refuses to run without the header `X-Confirm: delete-all`.
+- Imports are capped at 2 MB and are all-or-nothing: a bad backup leaves existing data untouched.
 
 ---
 
 ## Getting started
 
-1. Open `compass.html` in any modern browser.
-2. Go to **Settings** and set one target per area.
-3. Log today's numbers. Leave anything you don't know blank.
-4. Read the brief. Do one thing it suggests.
+### Prerequisites
+
+| Tool | Version | Needed for |
+|---|---|---|
+| Python | 3.12 | server and tests |
+| Node.js | with built-in `node:test` | web tests (in progress) |
+| JDK | 17, no Maven or Gradle | CSV importer (in progress) |
+
+### Install
+
+```bash
+git clone https://github.com/saidn-dev/Compass.git
+cd Compass
+python -m venv .venv
+```
+
+Activate the virtual environment, then install the server and test dependencies:
+
+```powershell
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+```
+
+```bash
+# macOS / Linux
+source .venv/bin/activate
+```
+
+```bash
+pip install -r server/requirements-dev.txt
+```
+
+### Run the tests
+
+From the repository root:
+
+```bash
+python -m pytest server/tests
+```
+
+All 244 server tests should pass.
+
+### Try the API
+
+The launcher (`python start.py`) is not written yet. Until it is, you can start the server directly and explore the API in the browser at `http://127.0.0.1:8765/docs`:
+
+```bash
+python -m uvicorn app.main:app --app-dir server --host 127.0.0.1 --port 8765
+```
+
+<!-- TODO: replace this section with `python start.py` once Task 13 is done. -->
+
+The database file `compass.db` is created in the folder you start the server from. It is ignored by git.
+
+---
+
+## API
+
+All endpoints take and return JSON. Errors always look like `{"error": {"code": "...", "message": "..."}}`.
+
+| Method and path | Purpose |
+|---|---|
+| `GET /health` | `{"status": "ok"}` |
+| `GET /api/settings` | Read settings |
+| `PUT /api/settings` | Replace settings (validated) |
+| `POST /api/onboarding` | `{"modules": [...]}`: enable modules and set default targets |
+| `GET /api/days/{date}` | Read one day (`YYYY-MM-DD`); empty day if none |
+| `PUT /api/days/{date}` | Save one day; blank or invalid numbers become `null` |
+| `POST /api/days/bulk` | Merge numeric fields only; returns `{"saved", "skipped"}` |
+| `GET /api/dashboard?date=YYYY-MM-DD` | Brief, area cards and habit grid; date defaults to local today |
+| `GET /api/export` | Full JSON backup |
+| `POST /api/import` | Replace all data from a backup (max 2 MB) |
+| `DELETE /api/data` | Delete everything; needs `X-Confirm: delete-all` |
+
+With the server running, you can check the dashboard and the Host guard from the command line:
+
+```bash
+curl http://127.0.0.1:8765/api/dashboard
+curl -H "Host: evil.com" http://127.0.0.1:8765/health
+```
+
+The first returns the dashboard JSON. The second returns `403` with the error code `forbidden_host`.
+
+---
+
+## Project layout
+
+| Path | Language | Contents |
+|---|---|---|
+| `server/app/` | Python | API, rules (`areas.py`, `brief.py`, `lists.py`, `settings_rules.py`), SQLite (`db.py`), security (`security.py`) |
+| `server/tests/` | Python | pytest suite |
+| `web/` | HTML, CSS, JS | `index.html`, `styles.css`, `js/`; `preview.html` is a static design preview |
+| `web/tests/` | JS | `node:test` tests for the renderers |
+| `tools/importer/` | Java | CSV importer for steps and fasting |
+| `start.py` | Python | one-command launcher |
+| `docs/` | Markdown | product spec and QA checklist |
+
+## Project status
+
+| Part | State |
+|---|---|
+| Server: rules, database, REST API, security (Tasks 1-8) | Done, 244 tests passing |
+| Web page: `index.html`, `styles.css` (Task 9) | Written; dark theme only for now |
+| Web page: JavaScript (Tasks 9-11) | In progress (`web/js/` holds task notes only) |
+| Server serving the `web/` folder | Not yet |
+| Java CSV importer (Task 12) | Planned; `Main.java` is a stub |
+| Launcher `start.py` and QA pass (Task 13) | Planned; `start.py` is a stub |
+
+**Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server.
+
+## Documentation
+
+- [docs/product-spec.md](docs/product-spec.md): the original product spec. Parts are out of date: v1 stores data in SQLite on a local server instead of the browser's `localStorage`, and starts with `python start.py` instead of opening an HTML file.
+- [2026-10-21-compass-v1-sdp.md](2026-10-21-compass-v1-sdp.md): the v1 implementation plan, with every rule, constraint and task.
+- [FEATURES.md](FEATURES.md): features in build order.
+- [docs/qa-checklist.md](docs/qa-checklist.md): manual checks before v1 is called done.
+
+<!-- TODO: the SDP's "Spec:" line still points to README.md; update it to docs/product-spec.md. -->
+
+## License
+
+Compass is released under the [MIT License](LICENSE).
