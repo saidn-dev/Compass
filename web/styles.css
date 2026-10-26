@@ -1,25 +1,972 @@
-/* Look and feel: colour tokens, light/dark themes, layout. */
+/* Look and feel: colour tokens (dark only for now), layout.
+
+   Markup the renderers in js/render.js should produce (see preview.html for a
+   filled-in example of every one):
+
+   renderBrief       div.brief > p.brief-text (one per sentence)
+                       + details.brief-facts > summary + ul > li
+   renderAreaCard    article.card.area-card[data-status="on_track|behind|no_data"]
+                       > div.card-head > h3.card-title + span.status
+                       > p.card-value > span.value + span.unit
+                       > p.card-target
+                       > div.progress[style="--progress: 85%"] > span.progress-bar
+                       > p.trend[data-trend="up|down|flat|none"]
+   renderOnboarding  fieldset.module-picker > legend + p.hint
+                       > div.module-options > label.module-option
+                         > input[type=checkbox] + span.module-name + span.module-detail
+   renderHabitGrid   table.habit-grid > thead th[scope=col] (days)
+                       > tbody tr > th[scope=row] (habit name)
+                         + td > button.habit-cell[aria-pressed="true|false"]
+                         (add data-gap on the button when that day has no logging)
+   renderGoals       ul.goal-list > li.goal > div.goal-head > span.goal-name + span.goal-percent
+                       + div.progress + p.goal-detail
+   renderTasks       ul.task-list > li.task(.is-done) > label > input[type=checkbox] + span.task-text
+   Empty states      p.empty
+   Settings lists    ul.edit-list > li > span + div.button-row (buttons .btn-small)
+   Target rows       div.target-row > label + div.input-unit + select
+*/
+
+/* ---------- Tokens ----------
+   Every colour lives here. Change one value and it changes everywhere. */
 :root {
-  --bg: #ffffff;
-  --text: #1a1a1a;
+  --bg: #121418;          /* page background */
+  --surface: #1a1d22;     /* cards and panels */
+  --surface-2: #23272e;   /* empty progress bars, hover */
+  --text: #e9e7e2;
+  --text-muted: #a4a8b0;
+  --border: #2f343c;
+  --accent: #84b6e3;      /* buttons, links, ticked habits */
+  --accent-text: #0e1a26; /* text on top of --accent */
+  --accent-soft: #1d2b3a;
+  --good: #74d095;        /* "On track" */
+  --good-soft: #17301f;
+  --warn: #f2a65e;        /* "Behind" */
+  --warn-soft: #3a2615;
+  --danger: #f08a8a;      /* errors, delete */
+  --danger-soft: #3a1b1c;
+  --focus: #84b6e3;       /* keyboard focus outline */
+  --shadow: none;
+
+  --radius: 12px;
+  --radius-small: 8px;
+  --gap: 16px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  color-scheme: dark;     /* makes scrollbars and form controls dark too */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121212;
-    --text: #eeeeee;
-  }
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-:root[data-theme="dark"] {
-  --bg: #121212;
-  --text: #eeeeee;
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
+  margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, sans-serif;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 12px;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 1.6rem;
+}
+
+h2 {
+  font-size: 1.1rem;
+}
+
+h3 {
+  font-size: 1rem;
+}
+
+p {
+  margin: 0 0 8px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: var(--radius-small);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+.hint,
+.lead {
+  color: var(--text-muted);
+}
+
+.hint {
+  font-size: 0.9rem;
+}
+
+.lead {
+  font-size: 1.05rem;
+  max-width: 60ch;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 4px 0;
+}
+
+/* ---------- Header ---------- */
+.site-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+
+.brand {
   margin: 0;
+  font-weight: 700;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Small compass needle drawn in CSS, no image request. */
+.brand-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  position: relative;
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 0;
+  height: 0;
+  margin-left: -4px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 7px solid var(--accent);
+}
+
+.today {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.site-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.site-nav .btn[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---------- Layout ---------- */
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+main:focus {
+  outline: none;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.loading {
+  color: var(--text-muted);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 16px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
+.stat {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.card-grid,
+.dashboard-grid,
+.settings-grid {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 601px) {
+  .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-grid,
+  .settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  .dashboard-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .panel-habits {
+    grid-column: span 2;
+  }
+}
+
+.view-onboarding {
+  max-width: 720px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--surface-2);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-primary:hover {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.btn-danger {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn-small {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 0.875rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The import <label class="btn"> needs to show focus from its hidden input. */
+.button-row:has(#import-file:focus-visible) label[for="import-file"] {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Forms ---------- */
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 140px;
+  line-height: 1.5;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.field-narrow {
+  max-width: 160px;
+}
+
+.input-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-unit input {
+  flex: 1;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.input-unit .unit {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  min-width: 3ch;
+}
+
+.log-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 420px) {
+  .log-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.log-form .form-actions {
+  grid-column: 1 / -1;
+}
+
+.stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.inline-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.form-actions-end {
+  justify-content: flex-end;
+}
+
+.form-error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 4px solid var(--danger);
+  background: var(--danger-soft);
+  color: var(--text);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.save-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* ---------- Banner ---------- */
+.banner {
+  max-width: 1168px;
+  margin: 12px auto 0;
+  padding: 8px 8px 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--danger);
+  border-left-width: 4px;
+  background: var(--danger-soft);
+  border-radius: var(--radius-small);
+  width: calc(100% - 32px);
+}
+
+.banner-message {
+  margin: 0;
+  flex: 1;
+}
+
+/* ---------- Brief ---------- */
+.panel-brief {
+  border-left: 4px solid var(--accent);
+}
+
+.brief-text {
+  font-size: 1.1rem;
+  max-width: 70ch;
+}
+
+.brief-facts {
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
+.brief-facts summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  width: fit-content;
+}
+
+.brief-facts ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Area cards ---------- */
+.section-areas h2 {
+  margin-bottom: 12px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.card-value {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-value .value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.card-value .unit {
+  margin-left: 4px;
+  color: var(--text-muted);
+}
+
+.card-target,
+.trend {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Status: always words, with a shape too, so colour is never the only signal. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.area-card[data-status="on_track"] .status {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.area-card[data-status="on_track"] .status::before {
+  background: currentColor;
+}
+
+.area-card[data-status="behind"] .status {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.area-card[data-status="behind"] .status::before {
+  border-radius: 1px;
+  transform: rotate(45deg);
+  background: currentColor;
+}
+
+.area-card[data-status="no_data"] .status::before {
+  border-style: dashed;
+}
+
+.area-card[data-status="no_data"] .card-value .value {
+  color: var(--text-muted);
+}
+
+/* Progress bar. Set --progress (0% to 100%) inline; values over 100 clamp visually. */
+.progress {
+  --progress: 0%;
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.progress-bar {
+  display: block;
+  height: 100%;
+  width: min(var(--progress), 100%);
+  background: var(--accent);
+  border-radius: inherit;
+}
+
+.area-card[data-status="on_track"] .progress-bar {
+  background: var(--good);
+}
+
+.area-card[data-status="behind"] .progress-bar {
+  background: var(--warn);
+}
+
+.trend::before {
+  display: inline-block;
+  width: 1.2em;
+  font-weight: 700;
+}
+
+.trend[data-trend="up"]::before {
+  content: "\2197";
+}
+
+.trend[data-trend="down"]::before {
+  content: "\2198";
+}
+
+.trend[data-trend="flat"]::before {
+  content: "\2192";
+}
+
+.trend[data-trend="none"]::before {
+  content: "\00b7";
+}
+
+/* ---------- Onboarding / module picker ---------- */
+.module-picker {
+  border: 0;
+  margin: 0 0 8px;
+  padding: 0;
+  min-width: 0;
+}
+
+.module-picker legend {
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.module-options {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+  margin-top: 8px;
+}
+
+@media (min-width: 520px) {
+  .module-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.module-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.module-option:hover {
+  border-color: var(--accent);
+}
+
+.module-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.module-option:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.module-name {
+  font-weight: 600;
+}
+
+.module-detail {
+  grid-column: 2;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Focus tasks ---------- */
+.task-list,
+.goal-list,
+.edit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.task + .task {
+  border-top: 1px solid var(--border);
+}
+
+.task label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.task input {
+  margin-top: 3px;
+}
+
+.task-text {
+  overflow-wrap: anywhere;
+}
+
+.task.is-done .task-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+/* ---------- Habits ---------- */
+.habit-scroll {
+  overflow-x: auto;
+}
+
+.habit-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.habit-grid th,
+.habit-grid td {
+  padding: 4px;
+  text-align: center;
+}
+
+.habit-grid thead th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.habit-grid tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding-right: 12px;
+  min-width: 8em;
+  overflow-wrap: anywhere;
+}
+
+.habit-cell {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--accent-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+}
+
+.habit-cell:hover {
+  border-color: var(--accent);
+}
+
+.habit-cell[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.habit-cell[aria-pressed="true"]::before {
+  content: "\2713";
+}
+
+/* No logging that day: a gap, not a miss. */
+.habit-cell[data-gap] {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* ---------- Goals ---------- */
+.goal + .goal {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.goal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.goal-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.goal-percent {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.goal-detail {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Settings ---------- */
+.edit-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.edit-list li > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.target-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.target-row label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+@media (min-width: 420px) {
+  .target-row {
+    grid-template-columns: 7em minmax(0, 1fr) 9em;
+  }
+}
+
+.danger-zone {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Dialog ---------- */
+.dialog {
+  max-width: min(440px, calc(100% - 32px));
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn,
+  .habit-cell,
+  .module-option {
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
 }

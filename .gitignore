@@ -3,3 +3,7 @@ __pycache__/
 .pytest_cache/
 compass.db
 .claude/
+
+# research notes and data exports (personal, keep out of the repo)
+sherlocks-research/
+compass-*.json

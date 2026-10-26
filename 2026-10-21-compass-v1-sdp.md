@@ -2,6 +2,8 @@
 
 **How to use this plan:** work through the tasks in order. Each step has a checkbox (`- [ ]`) so you can tick it off as you go.
 
+**Commit rule:** the user reviews and makes every commit. A "Commit" step means "hand the work over for review"; Claude never commits or merges, and only runs `git push` when the user asks (so they can pull elsewhere).
+
 **Goal:** Ship Compass v1: a local, single-user life dashboard with onboarding-selected modules, a rules-based daily brief, area cards, focus tasks, habits, goals and quick capture, backed by a small local REST API.
 
 **Architecture:** A Python (FastAPI + SQLite) server on `127.0.0.1` owns all rules (areas, status, trend, brief) and exposes a JSON REST API. A plain HTML/CSS/vanilla-JS front end is served by that same server and only renders what the API returns. A small Java command-line tool imports CSV exports (steps, fasting) through the API. v2 (TickTick, Google Calendar, AI assistant) later extends the same Python server, so v1 is its foundation.

@@ -1,0 +1,251 @@
+<!doctype html>
+<!-- Static design preview: every component filled with sample data, no JS.
+     Use it as the markup reference for js/render.js. Safe to delete later. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Compass preview</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <p class="brand"><span class="brand-mark" aria-hidden="true"></span>Compass</p>
+      <p class="today">Monday 26 October</p>
+      <nav class="site-nav" aria-label="Main">
+        <button type="button" class="btn btn-ghost" aria-current="page">Home</button>
+        <button type="button" class="btn btn-ghost">Settings</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="banner" role="alert">
+    <p class="banner-message">Could not save: steps must be a number between 0 and 200000.</p>
+    <button type="button" class="btn btn-ghost btn-small">Dismiss</button>
+  </div>
+
+  <main>
+    <div class="view view-dashboard">
+      <section class="panel panel-brief" aria-labelledby="brief-title">
+        <h2 id="brief-title">Today's brief</h2>
+        <div class="brief">
+          <p class="brief-text">Sleep is furthest behind: 6.4 h average against 7.5 h.</p>
+          <p class="brief-text">Lowest was Thursday (5.5 h).</p>
+          <p class="brief-text">Set a wind-down alarm 30 minutes before bed tonight.</p>
+          <details class="brief-facts">
+            <summary>Numbers used</summary>
+            <ul>
+              <li>Sleep: 6.4 h (target 7.5 h, more is better)</li>
+              <li>Study: 9 h (target 12 h, more is better)</li>
+              <li>Spending: 64% (limit 100%)</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
+      <section class="section-areas" aria-labelledby="areas-title">
+        <h2 id="areas-title">Life areas</h2>
+        <div class="card-grid">
+          <article class="card area-card" data-status="behind" aria-label="Sleep: 6.4 h against a target of 7.5 h, Behind">
+            <div class="card-head"><h3 class="card-title">Sleep</h3><span class="status">Behind</span></div>
+            <p class="card-value"><span class="value">6.4</span><span class="unit">h</span></p>
+            <p class="card-target">7-day average, target 7.5 h</p>
+            <div class="progress" style="--progress: 85%"><span class="progress-bar"></span></div>
+            <p class="trend" data-trend="down">Trending down</p>
+          </article>
+          <article class="card area-card" data-status="on_track" aria-label="Movement: 9120 steps against a target of 8000 steps, On track">
+            <div class="card-head"><h3 class="card-title">Movement</h3><span class="status">On track</span></div>
+            <p class="card-value"><span class="value">9,120</span><span class="unit">steps</span></p>
+            <p class="card-target">7-day average, target 8,000</p>
+            <div class="progress" style="--progress: 114%"><span class="progress-bar"></span></div>
+            <p class="trend" data-trend="up">Trending up</p>
+          </article>
+          <article class="card area-card" data-status="behind" aria-label="Study: 9 h against a target of 12 h, Behind">
+            <div class="card-head"><h3 class="card-title">Study</h3><span class="status">Behind</span></div>
+            <p class="card-value"><span class="value">9</span><span class="unit">h</span></p>
+            <p class="card-target">This week, target 12 h</p>
+            <div class="progress" style="--progress: 75%"><span class="progress-bar"></span></div>
+            <p class="trend" data-trend="flat">Steady</p>
+          </article>
+          <article class="card area-card" data-status="on_track" aria-label="Spending: 64% against a limit of 100%, On track">
+            <div class="card-head"><h3 class="card-title">Spending</h3><span class="status">On track</span></div>
+            <p class="card-value"><span class="value">64</span><span class="unit">%</span></p>
+            <p class="card-target">Of budget, limit 100%</p>
+            <div class="progress" style="--progress: 64%"><span class="progress-bar"></span></div>
+            <p class="trend" data-trend="up">Trending up</p>
+          </article>
+          <article class="card area-card" data-status="no_data" aria-label="Fasting: no data, target 16 h">
+            <div class="card-head"><h3 class="card-title">Fasting</h3><span class="status">No data</span></div>
+            <p class="card-value"><span class="value">-</span></p>
+            <p class="card-target">7-day average, target 16 h</p>
+            <div class="progress"><span class="progress-bar"></span></div>
+            <p class="trend" data-trend="none">Not enough data</p>
+          </article>
+        </div>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel panel-log" aria-labelledby="log-title">
+          <h2 id="log-title">Log today</h2>
+          <p class="hint">Leave anything you don't know blank. Blank is a gap, not zero.</p>
+          <form class="log-form" novalidate>
+            <div class="field">
+              <label for="p-sleep">Sleep</label>
+              <div class="input-unit"><input id="p-sleep" type="number" value="6.5"><span class="unit">h</span></div>
+            </div>
+            <div class="field">
+              <label for="p-steps">Steps</label>
+              <div class="input-unit"><input id="p-steps" type="number"><span class="unit">steps</span></div>
+            </div>
+            <div class="field">
+              <label for="p-study">Study</label>
+              <div class="input-unit"><input id="p-study" type="number" value="2"><span class="unit">h</span></div>
+            </div>
+            <div class="field">
+              <label for="p-spend">Budget used this month</label>
+              <div class="input-unit"><input id="p-spend" type="number" value="64"><span class="unit">%</span></div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save today</button>
+              <p class="save-status">Saved 18:42</p>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel panel-focus" aria-labelledby="focus-title">
+          <h2 id="focus-title">Today's focus</h2>
+          <ul class="task-list">
+            <li class="task is-done"><label><input type="checkbox" checked><span class="task-text">Finish OS lab report</span></label></li>
+            <li class="task"><label><input type="checkbox"><span class="task-text">Send invoice to client</span></label></li>
+            <li class="task"><label><input type="checkbox"><span class="task-text">&lt;script&gt;alert(1)&lt;/script&gt; (escaped text example)</span></label></li>
+          </ul>
+          <form class="inline-form" novalidate>
+            <label for="p-task" class="visually-hidden">New focus task</label>
+            <input id="p-task" type="text" placeholder="Add a task (up to 3)" disabled>
+            <button type="submit" class="btn" disabled>Add</button>
+          </form>
+          <p class="form-error">You already have 3 tasks today. Finish or remove one first.</p>
+        </section>
+
+        <section class="panel panel-goals" aria-labelledby="goals-title">
+          <h2 id="goals-title">Goals</h2>
+          <ul class="goal-list">
+            <li class="goal">
+              <div class="goal-head"><span class="goal-name">Apply to CERN summer programme</span><span class="goal-percent">40%</span></div>
+              <div class="progress" style="--progress: 40%"><span class="progress-bar"></span></div>
+              <p class="goal-detail">Draft motivation letter by Friday.</p>
+            </li>
+            <li class="goal">
+              <div class="goal-head"><span class="goal-name">Save for a new laptop</span><span class="goal-percent">72%</span></div>
+              <div class="progress" style="--progress: 72%"><span class="progress-bar"></span></div>
+              <p class="goal-detail">Two more freelance invoices.</p>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel panel-habits" aria-labelledby="habits-title">
+          <div class="panel-head">
+            <h2 id="habits-title">Habits</h2>
+            <p class="stat">71% this week</p>
+          </div>
+          <div class="habit-scroll">
+            <table class="habit-grid">
+              <thead>
+                <tr><th scope="col"><span class="visually-hidden">Habit</span></th><th scope="col">Tue</th><th scope="col">Wed</th><th scope="col">Thu</th><th scope="col">Fri</th><th scope="col">Sat</th><th scope="col">Sun</th><th scope="col">Mon</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Morning walk</th>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Morning walk, Tuesday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Morning walk, Wednesday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="false" aria-label="Morning walk, Thursday, not done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Morning walk, Friday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="false" data-gap aria-label="Morning walk, Saturday, nothing logged"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Morning walk, Sunday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="false" aria-label="Morning walk, Monday, not done"></button></td>
+                </tr>
+                <tr>
+                  <th scope="row">Read 20 minutes</th>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Read, Tuesday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="false" aria-label="Read, Wednesday, not done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Read, Thursday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Read, Friday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="false" data-gap aria-label="Read, Saturday, nothing logged"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Read, Sunday, done"></button></td>
+                  <td><button type="button" class="habit-cell" aria-pressed="true" aria-label="Read, Monday, done"></button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel panel-capture" aria-labelledby="capture-title">
+          <div class="panel-head">
+            <h2 id="capture-title">Quick capture</h2>
+            <p class="save-status">Saved</p>
+          </div>
+          <label for="p-note" class="visually-hidden">Notes for today</label>
+          <textarea id="p-note" rows="6">Ask lecturer about the networking assignment deadline.</textarea>
+        </section>
+      </div>
+
+      <!-- ---- Onboarding picker (renderOnboarding) ---- -->
+      <section class="panel view-onboarding" aria-labelledby="ob-title">
+        <h2 id="ob-title">Onboarding picker</h2>
+        <fieldset class="module-picker">
+          <legend>Modules</legend>
+          <p class="hint">Choose up to 5.</p>
+          <div class="module-options">
+            <label class="module-option"><input type="checkbox" checked><span class="module-name">Sleep</span><span class="module-detail">Hours per night, target 7.5 h</span></label>
+            <label class="module-option"><input type="checkbox" checked><span class="module-name">Movement</span><span class="module-detail">Steps per day, target 8,000</span></label>
+            <label class="module-option"><input type="checkbox" checked><span class="module-name">Study</span><span class="module-detail">Hours per week, target 12 h</span></label>
+            <label class="module-option"><input type="checkbox"><span class="module-name">Work</span><span class="module-detail">Paid hours per week, target 16 h</span></label>
+            <label class="module-option"><input type="checkbox" checked><span class="module-name">Spending</span><span class="module-detail">Percent of budget, limit 100%</span></label>
+            <label class="module-option"><input type="checkbox" checked><span class="module-name">Fasting</span><span class="module-detail">Hours per day, target 16 h</span></label>
+          </div>
+        </fieldset>
+      </section>
+
+      <!-- ---- Settings pieces ---- -->
+      <div class="settings-grid">
+        <section class="panel" aria-labelledby="st-title">
+          <h2 id="st-title">Targets</h2>
+          <div class="target-list">
+            <div class="target-row">
+              <label for="t-sleep">Sleep</label>
+              <div class="input-unit"><input id="t-sleep" type="number" value="7.5"><span class="unit">h</span></div>
+              <select aria-label="Sleep mode"><option selected>More is better</option><option>Stay under</option></select>
+            </div>
+            <div class="target-row">
+              <label for="t-spend">Spending</label>
+              <div class="input-unit"><input id="t-spend" type="number" value="100"><span class="unit">%</span></div>
+              <select aria-label="Spending mode"><option>More is better</option><option selected>Stay under</option></select>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sh-title">
+          <h2 id="sh-title">Habits</h2>
+          <ul class="edit-list">
+            <li><span>Morning walk</span><div class="button-row"><button type="button" class="btn btn-small">Remove</button></div></li>
+            <li><span>Read 20 minutes</span><div class="button-row"><button type="button" class="btn btn-small">Remove</button></div></li>
+          </ul>
+          <div class="danger-zone">
+            <h3>Delete everything</h3>
+            <p class="hint">Removes all days, habits, goals and settings.</p>
+            <button type="button" class="btn btn-danger">Delete everything</button>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Empty states</h2>
+        <p class="empty">No habits yet. Add one in Settings.</p>
+        <p class="empty">No goals yet.</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

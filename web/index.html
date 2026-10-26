@@ -3,14 +3,260 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>Compass</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main id="app">
-    <h1>Compass</h1>
-    <p>Loading...</p>
+  <a class="skip-link" href="#app">Skip to content</a>
+
+  <header class="site-header">
+    <div class="site-header-inner">
+      <p class="brand"><span class="brand-mark" aria-hidden="true"></span>Compass</p>
+      <p class="today" id="today-label"></p>
+      <nav class="site-nav" aria-label="Main">
+        <button type="button" class="btn btn-ghost" id="nav-home" aria-current="page">Home</button>
+        <button type="button" class="btn btn-ghost" id="nav-settings">Settings</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Error banner. JS: put the message in #error-message and remove `hidden`. -->
+  <div class="banner" id="error-banner" role="alert" hidden>
+    <p class="banner-message" id="error-message"></p>
+    <button type="button" class="btn btn-ghost btn-small" id="error-dismiss">Dismiss</button>
+  </div>
+
+  <main id="app" tabindex="-1">
+    <!-- Shown until the first view is ready. JS: hide it once loaded. -->
+    <p class="loading" id="loading">Loading...</p>
+
+    <!-- ============ Onboarding (shown when settings.onboarded is false) ============ -->
+    <section class="view view-onboarding" id="onboarding-view" aria-labelledby="onboarding-title" hidden>
+      <h1 id="onboarding-title">Welcome to Compass</h1>
+      <p class="lead">Pick the parts of your life you want to track. You can change this later in Settings.</p>
+      <form id="onboarding-form" class="panel" novalidate>
+        <!-- renderOnboarding(areas, selectedIds) goes here -->
+        <div id="onboarding-options"></div>
+        <p class="form-error" id="onboarding-error" role="alert" hidden></p>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Start</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ Home / dashboard ============ -->
+    <div class="view view-dashboard" id="dashboard-view" hidden>
+      <h1 class="visually-hidden">Your dashboard</h1>
+
+      <section class="panel panel-brief" aria-labelledby="brief-title">
+        <h2 id="brief-title">Today's brief</h2>
+        <!-- renderBrief(brief) goes here -->
+        <div id="brief"></div>
+      </section>
+
+      <section class="section-areas" aria-labelledby="areas-title">
+        <h2 id="areas-title">Life areas</h2>
+        <!-- one renderAreaCard(area) per enabled module goes here -->
+        <div class="card-grid" id="area-cards"></div>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel panel-log" aria-labelledby="log-title">
+          <h2 id="log-title">Log today</h2>
+          <p class="hint">Leave anything you don't know blank. Blank is a gap, not zero.</p>
+          <!-- JS: remove `hidden` from the .field[data-area] of each enabled module. -->
+          <form id="log-form" class="log-form" novalidate>
+            <div class="field" data-area="sleep" hidden>
+              <label for="log-sleep_hours">Sleep</label>
+              <div class="input-unit">
+                <input id="log-sleep_hours" name="sleep_hours" type="number" inputmode="decimal" min="0" max="24" step="0.1">
+                <span class="unit">h</span>
+              </div>
+            </div>
+            <div class="field" data-area="steps" hidden>
+              <label for="log-steps">Steps</label>
+              <div class="input-unit">
+                <input id="log-steps" name="steps" type="number" inputmode="numeric" min="0" max="200000" step="1">
+                <span class="unit">steps</span>
+              </div>
+            </div>
+            <div class="field" data-area="study" hidden>
+              <label for="log-study_hours">Study</label>
+              <div class="input-unit">
+                <input id="log-study_hours" name="study_hours" type="number" inputmode="decimal" min="0" max="24" step="0.25">
+                <span class="unit">h</span>
+              </div>
+            </div>
+            <div class="field" data-area="work" hidden>
+              <label for="log-work_hours">Paid work</label>
+              <div class="input-unit">
+                <input id="log-work_hours" name="work_hours" type="number" inputmode="decimal" min="0" max="24" step="0.25">
+                <span class="unit">h</span>
+              </div>
+            </div>
+            <div class="field" data-area="spending" hidden>
+              <label for="log-spend_pct_of_budget">Budget used this month</label>
+              <div class="input-unit">
+                <input id="log-spend_pct_of_budget" name="spend_pct_of_budget" type="number" inputmode="decimal" min="0" max="1000" step="1">
+                <span class="unit">%</span>
+              </div>
+            </div>
+            <div class="field" data-area="fasting" hidden>
+              <label for="log-fasting_hours">Fasting</label>
+              <div class="input-unit">
+                <input id="log-fasting_hours" name="fasting_hours" type="number" inputmode="decimal" min="0" max="24" step="0.5">
+                <span class="unit">h</span>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save today</button>
+              <p class="save-status" id="log-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel panel-focus" aria-labelledby="focus-title">
+          <h2 id="focus-title">Today's focus</h2>
+          <!-- renderTasks(tasks) goes here -->
+          <div id="tasks"></div>
+          <form id="task-form" class="inline-form" novalidate>
+            <label for="task-text" class="visually-hidden">New focus task</label>
+            <input id="task-text" name="text" type="text" maxlength="200" placeholder="Add a task (up to 3)" autocomplete="off">
+            <button type="submit" class="btn">Add</button>
+          </form>
+          <p class="form-error" id="task-error" role="alert" hidden></p>
+        </section>
+
+        <section class="panel panel-habits" aria-labelledby="habits-title">
+          <div class="panel-head">
+            <h2 id="habits-title">Habits</h2>
+            <p class="stat" id="habit-completion"></p>
+          </div>
+          <!-- renderHabitGrid(grid, habits) goes here -->
+          <div class="habit-scroll" id="habit-grid"></div>
+        </section>
+
+        <section class="panel panel-goals" aria-labelledby="goals-title">
+          <h2 id="goals-title">Goals</h2>
+          <!-- renderGoals(goals) goes here -->
+          <div id="goals"></div>
+        </section>
+
+        <section class="panel panel-capture" aria-labelledby="capture-title">
+          <div class="panel-head">
+            <h2 id="capture-title">Quick capture</h2>
+            <p class="save-status" id="note-status" role="status" aria-live="polite"></p>
+          </div>
+          <label for="note" class="visually-hidden">Notes for today</label>
+          <textarea id="note" name="note" rows="6" maxlength="5000" placeholder="Anything on your mind. Saves automatically."></textarea>
+        </section>
+      </div>
+    </div>
+
+    <!-- ============ Settings ============ -->
+    <div class="view view-settings" id="settings-view" hidden>
+      <h1>Settings</h1>
+
+      <div class="settings-grid">
+        <section class="panel" aria-labelledby="set-modules-title">
+          <h2 id="set-modules-title">Modules</h2>
+          <form id="modules-form" novalidate>
+            <!-- renderOnboarding(areas, selectedIds) can be reused here -->
+            <div id="settings-modules"></div>
+            <p class="form-error" id="modules-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save modules</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" aria-labelledby="set-targets-title">
+          <h2 id="set-targets-title">Targets</h2>
+          <p class="hint">"More is better" counts as on track at or above the target. "Stay under" counts as on track at or below it.</p>
+          <form id="targets-form" novalidate>
+            <!-- one .target-row per enabled module goes here (see styles.css) -->
+            <div class="target-list" id="settings-targets"></div>
+            <p class="form-error" id="targets-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save targets</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" aria-labelledby="set-habits-title">
+          <h2 id="set-habits-title">Habits</h2>
+          <!-- ul.edit-list of habits with a Remove button each goes here -->
+          <div id="settings-habits"></div>
+          <form id="habit-form" class="inline-form" novalidate>
+            <label for="habit-name" class="visually-hidden">New habit</label>
+            <input id="habit-name" name="name" type="text" maxlength="80" placeholder="New habit, e.g. Morning walk" autocomplete="off">
+            <button type="submit" class="btn">Add</button>
+          </form>
+          <p class="form-error" id="habit-error" role="alert" hidden></p>
+        </section>
+
+        <section class="panel" aria-labelledby="set-goals-title">
+          <h2 id="set-goals-title">Goals</h2>
+          <p class="hint">Up to 3 active goals.</p>
+          <!-- ul.edit-list of goals with Edit / Remove buttons goes here -->
+          <div id="settings-goals"></div>
+          <form id="goal-form" class="stack-form" novalidate>
+            <div class="field">
+              <label for="goal-name">Goal</label>
+              <input id="goal-name" name="name" type="text" maxlength="80" autocomplete="off">
+            </div>
+            <div class="field field-narrow">
+              <label for="goal-percent">Percent done</label>
+              <div class="input-unit">
+                <input id="goal-percent" name="percent" type="number" inputmode="numeric" min="0" max="100" step="1">
+                <span class="unit">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="goal-detail">One line of context</label>
+              <input id="goal-detail" name="detail" type="text" maxlength="200" autocomplete="off">
+            </div>
+            <p class="form-error" id="goal-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save goal</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" aria-labelledby="set-data-title">
+          <h2 id="set-data-title">Your data</h2>
+          <p class="hint">Everything is stored on this computer. Export makes one JSON file you can import later.</p>
+          <div class="button-row">
+            <button type="button" class="btn" id="export-button">Export</button>
+            <label class="btn" for="import-file">Import</label>
+            <input class="visually-hidden" id="import-file" type="file" accept="application/json,.json">
+          </div>
+          <p class="form-error" id="import-error" role="alert" hidden></p>
+          <p class="save-status" id="data-status" role="status" aria-live="polite"></p>
+
+          <div class="danger-zone">
+            <h3>Delete everything</h3>
+            <p class="hint">Removes all days, habits, goals and settings. This cannot be undone. Export first if you might want it back.</p>
+            <button type="button" class="btn btn-danger" id="delete-button">Delete everything</button>
+          </div>
+        </section>
+      </div>
+    </div>
   </main>
+
+  <!-- Confirm dialog for delete. JS: showModal(); on "Delete" send X-Confirm: delete-all. -->
+  <dialog class="dialog" id="delete-dialog" aria-labelledby="delete-dialog-title">
+    <form method="dialog">
+      <h2 id="delete-dialog-title">Delete everything?</h2>
+      <p>All your days, habits, goals and settings will be removed and Compass will start over.</p>
+      <div class="form-actions form-actions-end">
+        <button type="submit" class="btn" value="cancel" autofocus>Cancel</button>
+        <button type="submit" class="btn btn-danger" value="confirm">Delete</button>
+      </div>
+    </form>
+  </dialog>
+
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
