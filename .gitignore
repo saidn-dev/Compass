@@ -7,3 +7,6 @@ compass.db
 # research notes and data exports (personal, keep out of the repo)
 sherlocks-research/
 compass-*.json
+
+# compiled Java importer
+tools/importer/out/

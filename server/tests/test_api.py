@@ -296,3 +296,34 @@ def test_unknown_route_uses_error_shape(client):
 
 def test_api_docs_stay_available(client):
     assert client.get("/docs", headers=HOST).status_code == 200
+
+
+# --- web page and module list ---
+
+def test_areas_lists_every_module_with_defaults(client):
+    r = client.get("/api/areas", headers=HOST)
+    assert r.status_code == 200
+    areas = r.json()
+    assert [a["id"] for a in areas] == ["sleep", "steps", "study", "work", "spending", "fasting"]
+    sleep = areas[0]
+    assert sleep == {"id": "sleep", "label": "Sleep", "unit": "h", "default_target": 7.5, "default_mode": "up"}
+
+
+def test_home_page_is_served(client):
+    r = client.get("/", headers=HOST)
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "<title>Compass</title>" in r.text
+
+
+def test_page_files_are_served(client):
+    assert client.get("/styles.css", headers=HOST).status_code == 200
+    assert client.get("/js/app.js", headers=HOST).status_code == 200
+
+
+def test_page_is_protected_by_host_check(client):
+    assert client.get("/", headers={"Host": "evil.com"}).status_code == 403
+
+
+def test_missing_page_file_uses_error_shape(client):
+    assert_error(client.get("/nope.html", headers=HOST), 404)

@@ -1,30 +1,48 @@
 // Talks to the server. The only file that calls fetch().
-//
-// YOUR TASK (Tasks 10-11): write small functions that call the server and return its JSON.
-// The server is the same place the page came from, so just use paths like "/api/settings".
-//
-// 1. request(method, path, body)
-//    The one helper everything else uses.
-//    - Call fetch(path, { method, headers, body }).
-//    - If there is a body, send it as JSON: header "Content-Type: application/json"
-//      and body JSON.stringify(body). (The server refuses writes without this header.)
-//    - If the response is not ok, read the JSON. It looks like
-//      { error: { code, message } }. Throw an ApiError with that code and message.
-//    - Otherwise return the JSON.
-//
-// 2. class ApiError extends Error, with a .code field. app.js shows .message to the user.
-//
-// 3. The functions app.js will call (each is one line using request):
-//    getSettings()          GET    /api/settings
-//    putSettings(settings)  PUT    /api/settings
-//    postOnboarding(ids)    POST   /api/onboarding   body { modules: ids }
-//    getDashboard(date)     GET    /api/dashboard?date=YYYY-MM-DD
-//    getDay(date)           GET    /api/days/YYYY-MM-DD
-//    putDay(date, day)      PUT    /api/days/YYYY-MM-DD   body = the whole day
-//    exportData()           GET    /api/export
-//    importData(backup)     POST   /api/import       body = the backup object
-//    deleteAll()            DELETE /api/data   with header "X-Confirm: delete-all"
-//
-// Tip: "today" must be the user's LOCAL date, not UTC. Build it from
-// getFullYear(), getMonth() + 1, getDate(), not toISOString().
-export {};
+// Every function returns the JSON the server sent back, or throws an ApiError.
+
+// An error from the server, e.g. { code: "invalid", message: "Choose up to 5 modules." }
+export class ApiError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+
+// The one helper everything else uses.
+// Sends JSON when there is a body (the server refuses writes without that header).
+async function request(method, path, body, extraHeaders = {}) {
+  const options = { method, headers: { ...extraHeaders } };
+  if (body !== undefined) {
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
+  }
+
+  let response;
+  try {
+    response = await fetch(path, options);
+  } catch {
+    throw new ApiError("network", "Can't reach the Compass server. Is it still running?");
+  }
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = data && data.error;
+    throw new ApiError(
+      error ? error.code : "http_" + response.status,
+      error ? error.message : `The server answered with error ${response.status}.`,
+    );
+  }
+  return data;
+}
+
+export const getAreas = () => request("GET", "/api/areas");
+export const getSettings = () => request("GET", "/api/settings");
+export const putSettings = (settings) => request("PUT", "/api/settings", settings);
+export const postOnboarding = (ids) => request("POST", "/api/onboarding", { modules: ids });
+export const getDashboard = (date) => request("GET", `/api/dashboard?date=${date}`);
+export const getDay = (date) => request("GET", `/api/days/${date}`);
+export const putDay = (date, day) => request("PUT", `/api/days/${date}`, day);
+export const exportData = () => request("GET", "/api/export");
+export const importData = (backup) => request("POST", "/api/import", backup);
+export const deleteAll = () => request("DELETE", "/api/data", undefined, { "X-Confirm": "delete-all" });

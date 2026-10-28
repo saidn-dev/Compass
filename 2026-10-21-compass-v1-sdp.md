@@ -11,7 +11,7 @@
 **Tech Stack:** Python 3.12 (FastAPI, uvicorn, pydantic, stdlib `sqlite3`, pytest, httpx) | HTML5 + CSS (theme tokens, no framework) | vanilla JavaScript (ES modules, tests with Node's built-in `node:test`) | Java 17, JDK only, no build tool (`javac`, hand-rolled test runner) | REST/JSON API.
 Verified on this machine: Python 3.12.10, Node 25.6.1, OpenJDK 17.0.20, git present; **Maven and Gradle are not installed**.
 
-**Spec:** `C:\dev\personal-projects\Compass\README.md` (product spec) plus the Decisions and My calls sections below. This file: `2026-10-21-compass-v1-sdp.md`.
+**Spec:** `C:\dev\personal-projects\Compass\docs\product-spec.md` (product spec; README.md is now the project README) plus the Decisions and My calls sections below. This file: `2026-10-21-compass-v1-sdp.md`.
 
 ## Where to edit what (so you can change it yourself)
 | You want to change... | Language | File |
@@ -250,10 +250,10 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
 **Interfaces:**
 - Produces (ES module exports in `render.js`): `escapeHtml(s: string): string`; `renderBrief(brief): string`; `renderAreaCard(area): string`; `renderOnboarding(areas, selectedIds): string`; `renderHabitGrid(grid, habits): string`; `renderGoals(goals): string`; `renderTasks(tasks): string`
 
-- [ ] **Step 1: Write failing tests with `node:test` (Review Focus 3):** `escapeHtml('<img src=x onerror=alert(1)>')` contains no `<`; every renderer given `<script>` in goal/habit/task/note text yields no raw `<script`; `renderAreaCard` shows the literal words "On track" / "Behind" / "No data" and an `aria-label` containing value and target; `renderOnboarding` marks selected modules and shows "Choose up to 5".
-- [ ] **Step 2: Run** `node --test web/tests/` -> FAIL.
-- [ ] **Step 3: Implement** `render.js` (all user text through `escapeHtml`); write `index.html` (semantic landmarks, `<main>`, labelled form controls) and `styles.css`: colour tokens on `:root`, dark values under `@media (prefers-color-scheme: dark)` guarded by `:root:not([data-theme="light"])` and again under `:root[data-theme="dark"]`, explicit `body` background, one column up to 600 px then a grid, visible focus outlines, system font stack only.
-- [ ] **Step 4: Run** -> PASS. **Step 5: Commit** `feat(web): shell, renderers, escaping`.
+- [x] **Step 1: Write failing tests with `node:test` (Review Focus 3):** `escapeHtml('<img src=x onerror=alert(1)>')` contains no `<`; every renderer given `<script>` in goal/habit/task/note text yields no raw `<script`; `renderAreaCard` shows the literal words "On track" / "Behind" / "No data" and an `aria-label` containing value and target; `renderOnboarding` marks selected modules and shows "Choose up to 5".
+- [x] **Step 2: Run** `node --test "web/tests/*.test.js"` -> FAIL.
+- [x] **Step 3: Implement** `render.js` (all user text through `escapeHtml`); write `index.html` (semantic landmarks, `<main>`, labelled form controls) and `styles.css`: colour tokens on `:root`, dark values under `@media (prefers-color-scheme: dark)` guarded by `:root:not([data-theme="light"])` and again under `:root[data-theme="dark"]`, explicit `body` background, one column up to 600 px then a grid, visible focus outlines, system font stack only.
+- [x] **Step 4: Run** -> PASS. **Step 5: Commit** `feat(web): shell, renderers, escaping`.
 
 ### Task 10: Front end - onboarding, brief, area cards, daily log
 
@@ -263,13 +263,13 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
 - Consumes: Task 8 API, Task 9 renderers
 - Produces (`api.js`): `getSettings(): Promise<Settings>`, `postOnboarding(ids): Promise<Settings>`, `getDashboard(date): Promise<Dashboard>`, `getDay(date)`, `putDay(date, day)`, plus a shared `request()` that throws `ApiError{code,message}` using the error shape.
 
-- [ ] **Step 1:** first load: if `onboarded=false` show onboarding (Task 9 view), submit via `postOnboarding`; show the server's message on 422. **Step 2:** render brief with a "Numbers used" disclosure listing `facts`, and one card per enabled area with trend text. **Step 3:** daily log form for enabled areas only; blank inputs send `null`; saving calls `putDay` then re-fetches the dashboard. **Step 4:** a dismissible banner for any `ApiError`. **Step 5: Manual verification** - run `python start.py`, complete onboarding with 3 modules, log a day with one field blank, confirm that card says "No data" and the brief ignores it. **Step 6: Commit** `feat(web): onboarding, brief, cards, daily log`.
+- [x] **Step 1:** first load: if `onboarded=false` show onboarding (Task 9 view), submit via `postOnboarding`; show the server's message on 422. **Step 2:** render brief with a "Numbers used" disclosure listing `facts`, and one card per enabled area with trend text. **Step 3:** daily log form for enabled areas only; blank inputs send `null`; saving calls `putDay` then re-fetches the dashboard. **Step 4:** a dismissible banner for any `ApiError`. **Step 5: Manual verification** - run `python start.py`, complete onboarding with 3 modules, log a day with one field blank, confirm that card says "No data" and the brief ignores it. **Step 6: Commit** `feat(web): onboarding, brief, cards, daily log`.
 
 ### Task 11: Front end - focus, habits, goals, capture, settings
 
 **Files:** Modify `web/js/app.js`, `web/js/api.js`, `web/index.html`
 
-- [ ] **Step 1:** focus tasks (max 3; done items muted but visible; blank rejected with a message). **Step 2:** 7-day habit grid, one tap per cell, weekly completion shown. **Step 3:** goals (max 3) with percent and one-line detail, hand-edited. **Step 4:** quick capture textarea with 500 ms debounced autosave and save on blur. **Step 5:** Settings screen: targets per enabled module, habit list, goal list, module re-selection, theme (writes `data-theme` on `<html>`, persisted in settings), **Export** (download `compass-YYYY-MM-DD.json`), **Import** (shows server error, never replaces on failure), **Delete everything** (confirm dialog, then sends `X-Confirm: delete-all`). **Step 6: Manual verification** with `docs/qa-checklist.md` sections 1-3. **Step 7: Commit** `feat(web): focus, habits, goals, capture, settings`.
+- [x] **Step 1:** focus tasks (max 3; done items muted but visible; blank rejected with a message). **Step 2:** 7-day habit grid, one tap per cell, weekly completion shown. **Step 3:** goals (max 3) with percent and one-line detail, hand-edited. **Step 4:** quick capture textarea with 500 ms debounced autosave and save on blur. **Step 5:** Settings screen: targets per enabled module, habit list, goal list, module re-selection, theme (writes `data-theme` on `<html>`, persisted in settings), **Export** (download `compass-YYYY-MM-DD.json`), **Import** (shows server error, never replaces on failure), **Delete everything** (confirm dialog, then sends `X-Confirm: delete-all`). **Step 6: Manual verification** with `docs/qa-checklist.md` sections 1-3. **Step 7: Commit** `feat(web): focus, habits, goals, capture, settings`.
 
 ### Task 12: Java CSV importer (CLI)
 
@@ -282,10 +282,10 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
   - `RowMapper.map(List<List<String>> rows, String dateCol, String valueCol, String field, String dateFormat) -> MapResult` where `MapResult` holds `List<DayValue(String date, String field, Double value)>` and `List<Skipped(int row, String reason)>`; duplicate dates: last wins; blank values skipped (never 0)
   - `Main` flags: `--file <csv> --date-col <name|index> --value-col <name|index> --field <steps|fasting_hours|sleep_hours|study_hours|work_hours> [--date-format yyyy-MM-dd] [--url http://127.0.0.1:8765] [--dry-run]`; builds the JSON body by hand and POSTs to `/api/days/bulk` with `java.net.http.HttpClient`; `--dry-run` prints the body and the skipped rows and sends nothing; exit code 0 on success, 2 on bad arguments, 1 on server error.
 
-- [ ] **Step 1: Write failing tests** in `CsvReaderTest.java` run by `TestRunner` (prints PASS/FAIL per test, exit 1 on any failure) (Review Focus 9): BOM stripped; `"a,b",c` yields 2 cells; `""` escaped quote; blank value skipped, not 0; bad date reported in `skipped`; duplicate date keeps last; `--field` outside the allowed list rejected.
-- [ ] **Step 2: Run** `./tools/importer/build.ps1` -> compile error / FAIL (classes missing).
-- [ ] **Step 3: Implement** with JDK only; `build.ps1` runs `javac -d out` for `src` and `test`, then `java -cp out dev.compass.importer.TestRunner`; a second mode builds a runnable `out` for `java -cp out dev.compass.importer.Main ...`.
-- [ ] **Step 4: Run** build script -> all PASS. **Step 5: Live check:** with the server running and a 3-row sample CSV in `tools/importer/sample.csv`, `--dry-run`, then without it; `GET /api/days/<date>` shows the stored step count and other fields untouched. **Step 6: Commit** `feat(importer): Java CSV importer for steps and fasting`.
+- [x] **Step 1: Write failing tests** in `CsvReaderTest.java` run by `TestRunner` (prints PASS/FAIL per test, exit 1 on any failure) (Review Focus 9): BOM stripped; `"a,b",c` yields 2 cells; `""` escaped quote; blank value skipped, not 0; bad date reported in `skipped`; duplicate date keeps last; `--field` outside the allowed list rejected.
+- [x] **Step 2: Run** `./tools/importer/build.ps1` -> compile error / FAIL (classes missing).
+- [x] **Step 3: Implement** with JDK only; `build.ps1` runs `javac -d out` for `src` and `test`, then `java -cp out dev.compass.importer.TestRunner`; a second mode builds a runnable `out` for `java -cp out dev.compass.importer.Main ...`.
+- [x] **Step 4: Run** build script -> all PASS. **Step 5: Live check:** with the server running and a 3-row sample CSV in `tools/importer/sample.csv`, `--dry-run`, then without it; `GET /api/days/<date>` shows the stored step count and other fields untouched. **Step 6: Commit** `feat(importer): Java CSV importer for steps and fasting`.
 
 ### Task 13: Launcher, QA pass, documentation
 
@@ -294,12 +294,12 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
 **Interfaces:**
 - Produces: `python start.py [--port 8765]` which creates `.venv` if missing, installs `server/requirements.txt`, starts uvicorn bound to `127.0.0.1`, and opens the browser.
 
-- [ ] **Step 1:** implement `start.py`; refuse to start if the port is taken, with a clear message. **Step 2:** write `docs/qa-checklist.md`: keyboard-only use of every control; screen-reader labels; contrast >= 4.5:1 in light and dark; 360 px and 1440 px layouts; system-clock change across midnight; export -> delete -> import round-trip; stress inputs (`<script>`, 5000-char note, a real `0`, 6 modules); confirm in browser devtools that the only network host is `127.0.0.1`; confirm `curl -H "Host: evil.com" http://127.0.0.1:8765/health` returns 403. **Step 3:** run the checklist; each logic defect gets a failing test first, each UI defect a manual re-check. **Step 4:** update README (Getting started = `python start.py`; layout; tests: `python -m pytest server/tests`, `node --test web/tests/`, `tools/importer/build.ps1`). **Step 5:** run all three test commands -> all green. **Step 6: Commit** `docs: launcher, QA checklist, README`.
+- [ ] **Step 1:** implement `start.py`; refuse to start if the port is taken, with a clear message. **Step 2:** write `docs/qa-checklist.md`: keyboard-only use of every control; screen-reader labels; contrast >= 4.5:1 in light and dark; 360 px and 1440 px layouts; system-clock change across midnight; export -> delete -> import round-trip; stress inputs (`<script>`, 5000-char note, a real `0`, 6 modules); confirm in browser devtools that the only network host is `127.0.0.1`; confirm `curl -H "Host: evil.com" http://127.0.0.1:8765/health` returns 403. **Step 3:** run the checklist; each logic defect gets a failing test first, each UI defect a manual re-check. **Step 4:** update README (Getting started = `python start.py`; layout; tests: `python -m pytest server/tests`, `node --test "web/tests/*.test.js"`, `tools/importer/build.ps1`). **Step 5:** run all three test commands -> all green. **Step 6: Commit** `docs: launcher, QA checklist, README`.
 
 ---
 
 ## Definition of Done (v1)
-- `python -m pytest server/tests`, `node --test web/tests/`, and `tools/importer/build.ps1` all pass.
+- `python -m pytest server/tests`, `node --test "web/tests/*.test.js"`, and `tools/importer/build.ps1` all pass.
 - QA checklist signed off; Review Focus 1-9 each have a passing named test or a ticked manual check.
 - App starts with one command, works offline, makes requests only to `127.0.0.1`.
 - Every Global Constraint holds; README matches behaviour.

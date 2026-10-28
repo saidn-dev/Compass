@@ -34,15 +34,66 @@
     <!-- ============ Onboarding (shown when settings.onboarded is false) ============ -->
     <section class="view view-onboarding" id="onboarding-view" aria-labelledby="onboarding-title" hidden>
       <h1 id="onboarding-title">Welcome to Compass</h1>
-      <p class="lead">Pick the parts of your life you want to track. You can change this later in Settings.</p>
-      <form id="onboarding-form" class="panel" novalidate>
-        <!-- renderOnboarding(areas, selectedIds) goes here -->
-        <div id="onboarding-options"></div>
-        <p class="form-error" id="onboarding-error" role="alert" hidden></p>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Start</button>
-        </div>
-      </form>
+
+      <!-- Step 1: modules -->
+      <div id="onboarding-step-modules">
+        <p class="step-label">Step 1 of 2</p>
+        <p class="lead">Pick the parts of your life you want to track. You can change this later in Settings.</p>
+        <form id="onboarding-form" class="panel" novalidate>
+          <!-- renderOnboarding(areas, selectedIds) goes here -->
+          <div id="onboarding-options"></div>
+          <p class="form-error" id="onboarding-error" role="alert" hidden></p>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Next</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 2: goals (optional). JS: shown after step 1 is saved. -->
+      <div id="onboarding-step-goals" hidden>
+        <p class="step-label">Step 2 of 2</p>
+        <p class="lead">What are you working towards? Add up to 3 goals, or skip this and add them later in Settings.</p>
+        <form id="onboarding-goals-form" class="panel" novalidate>
+          <fieldset class="goal-rows">
+            <legend>Goals</legend>
+            <div class="goal-row">
+              <div class="field">
+                <label for="onb-goal-name-0">Goal 1</label>
+                <input id="onb-goal-name-0" name="name" type="text" maxlength="80" placeholder="e.g. Finish my degree" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="onb-goal-detail-0">One line of context</label>
+                <input id="onb-goal-detail-0" name="detail" type="text" maxlength="200" placeholder="Optional" autocomplete="off">
+              </div>
+            </div>
+            <div class="goal-row">
+              <div class="field">
+                <label for="onb-goal-name-1">Goal 2</label>
+                <input id="onb-goal-name-1" name="name" type="text" maxlength="80" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="onb-goal-detail-1">One line of context</label>
+                <input id="onb-goal-detail-1" name="detail" type="text" maxlength="200" placeholder="Optional" autocomplete="off">
+              </div>
+            </div>
+            <div class="goal-row">
+              <div class="field">
+                <label for="onb-goal-name-2">Goal 3</label>
+                <input id="onb-goal-name-2" name="name" type="text" maxlength="80" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="onb-goal-detail-2">One line of context</label>
+                <input id="onb-goal-detail-2" name="detail" type="text" maxlength="200" placeholder="Optional" autocomplete="off">
+              </div>
+            </div>
+          </fieldset>
+          <p class="form-error" id="onboarding-goals-error" role="alert" hidden></p>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Start</button>
+            <button type="button" class="btn btn-ghost" id="onboarding-skip-goals">Skip for now</button>
+          </div>
+        </form>
+      </div>
     </section>
 
     <!-- ============ Home / dashboard ============ -->
@@ -128,6 +179,14 @@
           <p class="form-error" id="task-error" role="alert" hidden></p>
         </section>
 
+        <!-- Goals comes before Habits so that on wide screens Habits (2 columns wide)
+             and Quick capture share the second row without leaving a gap. -->
+        <section class="panel panel-goals" aria-labelledby="goals-title">
+          <h2 id="goals-title">Goals</h2>
+          <!-- renderGoals(goals) goes here -->
+          <div id="goals"></div>
+        </section>
+
         <section class="panel panel-habits" aria-labelledby="habits-title">
           <div class="panel-head">
             <h2 id="habits-title">Habits</h2>
@@ -135,12 +194,6 @@
           </div>
           <!-- renderHabitGrid(grid, habits) goes here -->
           <div class="habit-scroll" id="habit-grid"></div>
-        </section>
-
-        <section class="panel panel-goals" aria-labelledby="goals-title">
-          <h2 id="goals-title">Goals</h2>
-          <!-- renderGoals(goals) goes here -->
-          <div id="goals"></div>
         </section>
 
         <section class="panel panel-capture" aria-labelledby="capture-title">

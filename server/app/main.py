@@ -1,12 +1,16 @@
 """Entry point of the server: builds the app and wires everything together."""
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
 from app.db import Repository
 from app.routes import ApiError, router
 from app.security import HostOriginMiddleware, error_response
 
+WEB_DIR = Path(__file__).resolve().parents[2] / "web"
 HTTP_CODES = {400: "bad_request", 404: "not_found", 405: "method_not_allowed", 413: "too_large"}
 
 
@@ -47,7 +51,8 @@ def create_app(db_path: str = "compass.db") -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(router)
-    # Later: serve the web/ folder as static files.
+    # The web page. Mounted last so /api and /health win.
+    app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
     return app
 
 

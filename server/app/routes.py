@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, Header, Query, Request
 from pydantic import BaseModel
 
-from app.areas import last_n_dates
+from app.areas import AREAS, last_n_dates
 from app.dashboard import build_dashboard
 from app.db import Repository
 from app.lists import check_tasks
@@ -41,6 +41,18 @@ def get_repo(request: Request) -> Repository:
 
 Repo = Annotated[Repository, Depends(get_repo)]
 router = APIRouter(prefix="/api")
+
+
+# --- modules ---
+
+@router.get("/areas")
+def list_areas() -> list[dict]:
+    """Every module the page can offer, with its default target."""
+    return [
+        {"id": a.id, "label": a.label, "unit": a.unit,
+         "default_target": a.default_target, "default_mode": a.default_mode}
+        for a in AREAS
+    ]
 
 
 # --- settings ---

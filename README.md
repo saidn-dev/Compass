@@ -4,7 +4,7 @@ A local, single-user life dashboard that reads your last seven days and tells yo
 
 You log a few numbers a day (sleep, steps, study, work, spending, fasting). Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
 
-> **Status: work in progress.** The Python API is complete and tested. The web page, launcher and Java CSV importer are not finished yet, so there is no one-command way to use the app today. See [Project status](#project-status).
+> **Status: v1 feature-complete.** Start it with `python start.py`. A few manual checks (keyboard-only use, screen reader, midnight rollover) are still open in the [QA checklist](docs/qa-checklist.md).
 
 ---
 
@@ -55,7 +55,7 @@ The six modules and their default targets:
 
 Compass talks only to its own server. No CDN, web fonts, or analytics.
 
-- The server is meant to bind to `127.0.0.1` only (default port `8765`).
+- `start.py` binds the server to `127.0.0.1` only (default port `8765`), so other computers can't reach it.
 - Requests with a `Host` other than `127.0.0.1` or `localhost`, or with a foreign `Origin`, get `403`.
 - Writes (`POST`, `PUT`, `DELETE`) with a body that is not `application/json` get `415`. This stops other websites open in your browser from writing to the local API.
 - `DELETE /api/data` refuses to run without the header `X-Confirm: delete-all`.
@@ -69,19 +69,41 @@ Compass talks only to its own server. No CDN, web fonts, or analytics.
 
 | Tool | Version | Needed for |
 |---|---|---|
-| Python | 3.12 | server and tests |
-| Node.js | with built-in `node:test` | web tests (in progress) |
-| JDK | 17, no Maven or Gradle | CSV importer (in progress) |
+| Python | 3.12 | the app, server tests |
+| Node.js | 21 or newer (tested on 25) | web tests only |
+| JDK | 17, no Maven or Gradle | CSV importer only |
 
-### Install
+### Run Compass
 
 ```bash
 git clone https://github.com/saidn-dev/Compass.git
 cd Compass
-python -m venv .venv
+python start.py
 ```
 
-Activate the virtual environment, then install the server and test dependencies:
+The first run creates `.venv` and installs the server's packages. After that, `python start.py` starts the server on `http://127.0.0.1:8765/` and opens it in your browser. Press `Ctrl+C` to stop.
+
+| Option | Meaning |
+|---|---|
+| `--port 8766` | Use another port (it refuses to start if the port is busy) |
+| `--no-browser` | Don't open the browser |
+
+Your data is saved in `compass.db` in the repository folder. It is ignored by git. Use **Settings → Export** for a backup.
+
+### Import steps or fasting from a CSV
+
+Build the importer once, then point it at a CSV export while Compass is running:
+
+```powershell
+./tools/importer/build.ps1 build        # or: sh tools/importer/build.sh build
+java -cp tools/importer/out dev.compass.importer.Main --file steps.csv --date-col date --value-col steps --field steps --dry-run
+```
+
+`--dry-run` shows what would be sent; run again without it to save. Columns can be header names or numbers (1 = first column). `--field` is one of `steps`, `fasting_hours`, `sleep_hours`, `study_hours`, `work_hours`. Use `--date-format dd/MM/yyyy` (or similar) if your dates are not `YYYY-MM-DD`. Blank values are skipped, never saved as 0, and only that one number is changed for each day. Run with `--help` for all options. `tools/importer/sample.csv` is a small example.
+
+### Run the tests
+
+The server tests need the dev packages in `.venv`:
 
 ```powershell
 # Windows (PowerShell)
@@ -97,27 +119,15 @@ source .venv/bin/activate
 pip install -r server/requirements-dev.txt
 ```
 
-### Run the tests
+Then, from the repository root:
 
-From the repository root:
+| Suite | Command | Count |
+|---|---|---|
+| Server (pytest) | `python -m pytest server/tests` | 249 |
+| Web renderers (`node:test`) | `node --test "web/tests/*.test.js"` | 18 |
+| Java importer | `./tools/importer/build.ps1` (or `sh tools/importer/build.sh`) | 18 |
 
-```bash
-python -m pytest server/tests
-```
-
-All 244 server tests should pass.
-
-### Try the API
-
-The launcher (`python start.py`) is not written yet. Until it is, you can start the server directly and explore the API in the browser at `http://127.0.0.1:8765/docs`:
-
-```bash
-python -m uvicorn app.main:app --app-dir server --host 127.0.0.1 --port 8765
-```
-
-<!-- TODO: replace this section with `python start.py` once Task 13 is done. -->
-
-The database file `compass.db` is created in the folder you start the server from. It is ignored by git.
+While the server is running, `http://127.0.0.1:8765/docs` lets you try every API endpoint in the browser.
 
 ---
 
@@ -128,6 +138,7 @@ All endpoints take and return JSON. Errors always look like `{"error": {"code": 
 | Method and path | Purpose |
 |---|---|
 | `GET /health` | `{"status": "ok"}` |
+| `GET /api/areas` | The six modules with their labels, units and default targets |
 | `GET /api/settings` | Read settings |
 | `PUT /api/settings` | Replace settings (validated) |
 | `POST /api/onboarding` | `{"modules": [...]}`: enable modules and set default targets |
@@ -166,12 +177,11 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 
 | Part | State |
 |---|---|
-| Server: rules, database, REST API, security (Tasks 1-8) | Done, 244 tests passing |
-| Web page: `index.html`, `styles.css` (Task 9) | Written; dark theme only for now |
-| Web page: JavaScript (Tasks 9-11) | In progress (`web/js/` holds task notes only) |
-| Server serving the `web/` folder | Not yet |
-| Java CSV importer (Task 12) | Planned; `Main.java` is a stub |
-| Launcher `start.py` and QA pass (Task 13) | Planned; `start.py` is a stub |
+| Server: rules, database, REST API, security (Tasks 1-8) | Done |
+| Web page, served by the server (Tasks 9-11) | Done; dark theme only for now |
+| Java CSV importer (Task 12) | Done |
+| Launcher `start.py` (Task 13) | Done |
+| QA pass (Task 13) | Mostly done; keyboard, screen reader and midnight checks still open |
 
 **Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server.
 
@@ -181,8 +191,6 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 - [2026-10-21-compass-v1-sdp.md](2026-10-21-compass-v1-sdp.md): the v1 implementation plan, with every rule, constraint and task.
 - [FEATURES.md](FEATURES.md): features in build order.
 - [docs/qa-checklist.md](docs/qa-checklist.md): manual checks before v1 is called done.
-
-<!-- TODO: the SDP's "Spec:" line still points to README.md; update it to docs/product-spec.md. -->
 
 ## License
 

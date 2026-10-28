@@ -304,6 +304,48 @@ main:focus {
   max-width: 720px;
 }
 
+.step-label {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Onboarding step 2: one row per goal (name + context side by side on wider screens). */
+.goal-rows {
+  border: 0;
+  margin: 0 0 8px;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.goal-rows legend {
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.goal-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--bg);
+}
+
+@media (min-width: 520px) {
+  .goal-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;
@@ -722,6 +764,16 @@ input[type="radio"] {
   font-weight: 700;
   padding: 0;
   margin-bottom: 4px;
+}
+
+/* In Settings the panel already says "Modules", so hide the repeat
+   (screen readers still hear it). */
+#settings-modules .module-picker legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 .module-options {
