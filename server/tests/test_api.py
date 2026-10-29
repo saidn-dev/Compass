@@ -15,7 +15,10 @@ def client(tmp_path) -> TestClient:
 
 
 def onboard(client, modules=("sleep", "study", "spending")) -> None:
+    """Pick modules, then finish onboarding the way the page's last step does."""
     r = client.post("/api/onboarding", json={"modules": list(modules)}, headers=HOST)
+    assert r.status_code == 200, r.text
+    r = client.put("/api/settings", json={**r.json(), "onboarded": True}, headers=HOST)
     assert r.status_code == 200, r.text
 
 
@@ -58,6 +61,14 @@ def test_onboarding_with_three_modules_updates_settings(client):
     assert [t["area_id"] for t in s["targets"]] == ["sleep", "study", "spending"]
 
 
+def test_onboarding_alone_does_not_finish_onboarding(client):
+    r = client.post("/api/onboarding", json={"modules": ["sleep"]}, headers=HOST)
+    assert r.json()["onboarded"] is False
+    assert client.get("/api/settings", headers=HOST).json()["onboarded"] is False
+    client.put("/api/settings", json={**r.json(), "onboarded": True}, headers=HOST)
+    assert client.get("/api/settings", headers=HOST).json()["onboarded"] is True
+
+
 def test_put_settings_replaces_them(client):
     onboard(client)
     s = client.get("/api/settings", headers=HOST).json()
@@ -74,6 +85,23 @@ def test_put_settings_with_zero_target_is_rejected(client):
     onboard(client)
     s = client.get("/api/settings", headers=HOST).json()
     s["targets"][0]["target"] = 0
+    assert_error(client.put("/api/settings", json=s, headers=HOST), 422)
+
+
+def test_put_settings_with_schedule_round_trips(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    s["sleep_schedule"] = {"bedtime": "22:30", "wake_time": "06:30"}
+    assert client.put("/api/settings", json=s, headers=HOST).status_code == 200
+    saved = client.get("/api/settings", headers=HOST).json()
+    assert saved["sleep_schedule"] == {"bedtime": "22:30", "wake_time": "06:30"}
+    assert next(t for t in saved["targets"] if t["area_id"] == "sleep")["target"] == 8
+
+
+def test_put_settings_with_equal_times_is_rejected(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    s["sleep_schedule"] = {"bedtime": "22:30", "wake_time": "22:30"}
     assert_error(client.put("/api/settings", json=s, headers=HOST), 422)
 
 
@@ -99,6 +127,25 @@ def test_blank_number_is_stored_as_null(client):
     day = client.get("/api/days/2026-10-20", headers=HOST).json()
     assert day["sleep_hours"] is None
     assert day["study_hours"] == 0
+
+
+def test_put_day_with_times_works_out_hours(client):
+    client.put("/api/days/2026-10-20", json={"bedtime": "23:00", "wake_time": "06:30"}, headers=HOST)
+    day = client.get("/api/days/2026-10-20", headers=HOST).json()
+    assert day["sleep_hours"] == 7.5
+    assert day["bedtime"] == "23:00" and day["wake_time"] == "06:30"
+
+
+def test_goal_hours_win_when_times_cleared(client):
+    client.put("/api/days/2026-10-20", json={"bedtime": "23:00", "wake_time": "06:30"}, headers=HOST)
+    client.put("/api/days/2026-10-20", json={"sleep_hours": 6, "bedtime": None, "wake_time": None}, headers=HOST)
+    assert client.get("/api/days/2026-10-20", headers=HOST).json()["sleep_hours"] == 6
+
+
+def test_partial_times_with_null_hours_is_a_gap(client):
+    client.put("/api/days/2026-10-20", json={"sleep_hours": 7}, headers=HOST)
+    client.put("/api/days/2026-10-20", json={"bedtime": "23:00", "wake_time": None, "sleep_hours": None}, headers=HOST)
+    assert client.get("/api/days/2026-10-20", headers=HOST).json()["sleep_hours"] is None
 
 
 def test_put_day_uses_the_date_in_the_path(client):
@@ -159,6 +206,20 @@ def test_bulk_reports_bad_dates_and_values(client):
     assert [s["date"] for s in body["skipped"]] == ["not-a-date", "2026-10-20", "2026-10-21", "2026-10-22", None]
     assert all(isinstance(s["reason"], str) and s["reason"] for s in body["skipped"])
     assert client.get("/api/days/2026-10-20", headers=HOST).json()["steps"] is None
+
+
+def test_bulk_sleep_hours_skip_days_with_bed_and_wake_times(client):
+    # Those days' hours come from their times, so imported hours would be silently replaced.
+    client.put("/api/days/2026-10-20", json={"bedtime": "23:00", "wake_time": "06:30"}, headers=HOST)
+    r = client.post("/api/days/bulk", headers=HOST, json={"days": [
+        {"date": "2026-10-20", "sleep_hours": 6},
+        {"date": "2026-10-21", "sleep_hours": 6},
+    ]})
+    assert r.json()["saved"] == 1
+    assert [s["date"] for s in r.json()["skipped"]] == ["2026-10-20"]
+    assert "bed and wake times" in r.json()["skipped"][0]["reason"]
+    assert client.get("/api/days/2026-10-20", headers=HOST).json()["sleep_hours"] == 7.5
+    assert client.get("/api/days/2026-10-21", headers=HOST).json()["sleep_hours"] == 6
 
 
 def test_bulk_never_writes_a_zero_for_a_bad_value(client):
@@ -239,6 +300,19 @@ def test_export_then_import_round_trips(client, tmp_path):
     assert other.get("/api/export", headers=HOST).json() == backup
 
 
+def test_import_of_backup_without_sleep_times_still_works(client):
+    # Backups made before the sleep schedule existed have no times at all.
+    onboard(client)
+    client.put("/api/days/2026-10-20", json={"sleep_hours": 7}, headers=HOST)
+    backup = client.get("/api/export", headers=HOST).json()
+    del backup["settings"]["sleep_schedule"]
+    for day in backup["days"]:
+        del day["bedtime"], day["wake_time"]
+    r = client.post("/api/import", content=json.dumps(backup), headers=JSON)
+    assert r.status_code == 200
+    assert client.get("/api/days/2026-10-20", headers=HOST).json()["sleep_hours"] == 7
+
+
 def test_import_over_two_megabytes_is_rejected_and_data_kept(client):
     onboard(client)
     before = client.get("/api/export", headers=HOST).json()
@@ -267,6 +341,32 @@ def test_import_of_wrong_types_is_rejected_and_data_kept(client):
     before = client.get("/api/export", headers=HOST).json()
     for bad in ["[]", '"text"', json.dumps({**before, "days": "nope"})]:
         assert_error(client.post("/api/import", content=bad, headers=JSON), 422)
+    assert client.get("/api/export", headers=HOST).json() == before
+
+
+# --- sleep suggestion ---
+
+def test_sleep_suggestion_with_everything_skipped(client):
+    r = client.post("/api/sleep/suggestion", json={}, headers=HOST)
+    assert r.status_code == 200
+    assert r.json()["hours"] == 8 and r.json()["bedtime"] is None
+
+
+def test_sleep_suggestion_with_answers(client):
+    answers = {"age": "18_25", "role": "student", "habits": ["alcohol"], "wake_time": "06:30"}
+    body = client.post("/api/sleep/suggestion", json=answers, headers=HOST).json()
+    assert body["bedtime"] == "22:30" and len(body["tips"]) == 1
+
+
+@pytest.mark.parametrize("answers", [{"age": "40"}, {"role": "pilot"}, {"habits": ["coffee"]}, {"wake_time": "6am"}])
+def test_sleep_suggestion_rejects_unknown_answers(client, answers):
+    assert_error(client.post("/api/sleep/suggestion", json=answers, headers=HOST), 422)
+
+
+def test_sleep_suggestion_saves_nothing(client):
+    onboard(client)
+    before = client.get("/api/export", headers=HOST).json()
+    client.post("/api/sleep/suggestion", json={"age": "65_plus", "wake_time": "05:00"}, headers=HOST)
     assert client.get("/api/export", headers=HOST).json() == before
 
 

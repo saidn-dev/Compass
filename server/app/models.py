@@ -7,7 +7,9 @@ import math
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+
+from app.sleep import hours_between, parse_time
 
 # Allowed range per numeric Day field. Anything outside becomes a gap.
 NUMERIC_FIELDS: dict[str, tuple[float, float]] = {
@@ -77,6 +79,8 @@ def merge_numbers(day: dict, raw: dict) -> dict:
     fields = [f for f in NUMERIC_FIELDS if f in raw]
     if not fields:
         raise ValueError("No numeric values to save.")
+    if "sleep_hours" in fields and day.get("bedtime") and day.get("wake_time"):
+        raise ValueError("This day's sleep comes from its bed and wake times.")
     clean = normalize_day({f: raw[f] for f in fields}, day["date"])
     for f in fields:
         if clean[f] is None:
@@ -92,6 +96,11 @@ def normalize_day(raw: dict, date_key: str) -> dict:
         if value is not None and field in WHOLE_NUMBER_FIELDS:
             value = int(value)
         day[field] = value
+    # Bed and wake times: when both are there, they decide the hours slept.
+    day["bedtime"] = parse_time(raw.get("bedtime"))
+    day["wake_time"] = parse_time(raw.get("wake_time"))
+    if day["bedtime"] and day["wake_time"]:
+        day["sleep_hours"] = hours_between(day["bedtime"], day["wake_time"])
     day["habits"] = _habits(raw.get("habits"))
     day["tasks"] = _tasks(raw.get("tasks"))
     note = raw.get("note")
@@ -124,6 +133,26 @@ class Habit(BaseModel):
     name: Name
 
 
+class SleepSchedule(BaseModel):
+    """A set bedtime and wake-up time, e.g. 22:30 and 06:30."""
+    bedtime: str
+    wake_time: str
+
+    @field_validator("bedtime", "wake_time", mode="before")
+    @classmethod
+    def _time(cls, v: object) -> str:
+        time = parse_time(v)
+        if time is None:
+            raise ValueError("Times must look like HH:MM, e.g. 22:30.")
+        return time
+
+    @model_validator(mode="after")
+    def _different(self) -> "SleepSchedule":
+        if self.bedtime == self.wake_time:
+            raise ValueError("Bedtime and wake-up time must be different.")
+        return self
+
+
 class Settings(BaseModel):
     onboarded: bool = False
     modules: Annotated[list[str], Field(max_length=5)] = []
@@ -131,3 +160,4 @@ class Settings(BaseModel):
     habits: list[Habit] = []
     goals: Annotated[list[Goal], Field(max_length=3)] = []
     theme: Literal["light", "dark", "system"] = "system"
+    sleep_schedule: SleepSchedule | None = None

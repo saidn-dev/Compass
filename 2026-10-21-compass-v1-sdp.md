@@ -130,7 +130,8 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 |---|---|
 | `GET /health` | `{"status":"ok"}` |
 | `GET /api/settings` / `PUT /api/settings` | read / replace settings (validated) |
-| `POST /api/onboarding` `{modules:[ids]}` | enable modules, set default targets, `onboarded=true` |
+| `POST /api/onboarding` `{modules:[ids]}` | enable modules, set default targets (since 2026-10-28 it no longer sets `onboarded`; the page's last step sends `PUT /api/settings` with `onboarded: true`) |
+| `POST /api/sleep/suggestion` `{age?, role?, habits, wake_time?}` | suggested sleep goal or schedule, nothing saved (added 2026-10-29, see `docs/superpowers/specs/2026-10-29-sleep-onboarding-design.md`) |
 | `GET /api/days/{date}` / `PUT /api/days/{date}` | read (empty day if none) / save a day (normalized) |
 | `POST /api/days/bulk` `{days:[{date, <field>:number}]}` | merge numeric fields only (used by Java importer); returns `{saved:int, skipped:[{date,reason}]}` |
 | `GET /api/dashboard?date=YYYY-MM-DD` | `{brief:{sentences,facts}, areas:[{id,label,value,target,mode,status,progress,trend,series}], habits:{grid,completion}}` |
@@ -202,7 +203,7 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 
 **Interfaces:**
 - Consumes: `AREAS` (Task 2), `Settings` (Task 3)
-- Produces: `select_modules(ids: list[str]) -> list[str]` (raises `ValueError`: empty, > 5, unknown id; dedupes, keeps order); `apply_onboarding(s: Settings, ids: list[str]) -> Settings` (targets only for enabled modules from `AREAS` defaults, `onboarded=True`); `set_target(s: Settings, area_id: str, target: float, mode: str) -> Settings` (raises `ValueError` if `target <= 0`)
+- Produces: `select_modules(ids: list[str]) -> list[str]` (raises `ValueError`: empty, > 5, unknown id; dedupes, keeps order); `apply_onboarding(s: Settings, ids: list[str]) -> Settings` (targets only for enabled modules from `AREAS` defaults, `onboarded=True`; changed 2026-10-28: it no longer sets `onboarded`); `set_target(s: Settings, area_id: str, target: float, mode: str) -> Settings` (raises `ValueError` if `target <= 0`)
 
 - [x] **Step 1: Write failing tests:** 0 ids, 6 ids, unknown id each raise; duplicates collapse; onboarding creates exactly one target per enabled module; `set_target(..., 0, ...)` raises.
 - [x] **Step 2-5:** run (FAIL), implement, run (PASS) (16 tests), commit `feat(server): onboarding and settings rules`.
@@ -294,7 +295,7 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
 **Interfaces:**
 - Produces: `python start.py [--port 8765]` which creates `.venv` if missing, installs `server/requirements.txt`, starts uvicorn bound to `127.0.0.1`, and opens the browser.
 
-- [ ] **Step 1:** implement `start.py`; refuse to start if the port is taken, with a clear message. **Step 2:** write `docs/qa-checklist.md`: keyboard-only use of every control; screen-reader labels; contrast >= 4.5:1 in light and dark; 360 px and 1440 px layouts; system-clock change across midnight; export -> delete -> import round-trip; stress inputs (`<script>`, 5000-char note, a real `0`, 6 modules); confirm in browser devtools that the only network host is `127.0.0.1`; confirm `curl -H "Host: evil.com" http://127.0.0.1:8765/health` returns 403. **Step 3:** run the checklist; each logic defect gets a failing test first, each UI defect a manual re-check. **Step 4:** update README (Getting started = `python start.py`; layout; tests: `python -m pytest server/tests`, `node --test "web/tests/*.test.js"`, `tools/importer/build.ps1`). **Step 5:** run all three test commands -> all green. **Step 6: Commit** `docs: launcher, QA checklist, README`.
+- [x] **Step 1:** implement `start.py`; refuse to start if the port is taken, with a clear message. **Step 2:** write `docs/qa-checklist.md`: keyboard-only use of every control; screen-reader labels; contrast >= 4.5:1 in light and dark; 360 px and 1440 px layouts; system-clock change across midnight; export -> delete -> import round-trip; stress inputs (`<script>`, 5000-char note, a real `0`, 6 modules); confirm in browser devtools that the only network host is `127.0.0.1`; confirm `curl -H "Host: evil.com" http://127.0.0.1:8765/health` returns 403. **Step 3:** run the checklist; each logic defect gets a failing test first, each UI defect a manual re-check. **Step 4:** update README (Getting started = `python start.py`; layout; tests: `python -m pytest server/tests`, `node --test "web/tests/*.test.js"`, `tools/importer/build.ps1`). **Step 5:** run all three test commands -> all green. **Step 6: Commit** `docs: launcher, QA checklist, README`.
 
 ---
 

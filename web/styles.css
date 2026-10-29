@@ -1,50 +1,20 @@
-/* Look and feel: colour tokens (dark only for now), layout.
-
-   Markup the renderers in js/render.js should produce (see preview.html for a
-   filled-in example of every one):
-
-   renderBrief       div.brief > p.brief-text (one per sentence)
-                       + details.brief-facts > summary + ul > li
-   renderAreaCard    article.card.area-card[data-status="on_track|behind|no_data"]
-                       > div.card-head > h3.card-title + span.status
-                       > p.card-value > span.value + span.unit
-                       > p.card-target
-                       > div.progress[style="--progress: 85%"] > span.progress-bar
-                       > p.trend[data-trend="up|down|flat|none"]
-   renderOnboarding  fieldset.module-picker > legend + p.hint
-                       > div.module-options > label.module-option
-                         > input[type=checkbox] + span.module-name + span.module-detail
-   renderHabitGrid   table.habit-grid > thead th[scope=col] (days)
-                       > tbody tr > th[scope=row] (habit name)
-                         + td > button.habit-cell[aria-pressed="true|false"]
-                         (add data-gap on the button when that day has no logging)
-   renderGoals       ul.goal-list > li.goal > div.goal-head > span.goal-name + span.goal-percent
-                       + div.progress + p.goal-detail
-   renderTasks       ul.task-list > li.task(.is-done) > label > input[type=checkbox] + span.task-text
-   Empty states      p.empty
-   Settings lists    ul.edit-list > li > span + div.button-row (buttons .btn-small)
-   Target rows       div.target-row > label + div.input-unit + select
-*/
-
-/* ---------- Tokens ----------
-   Every colour lives here. Change one value and it changes everywhere. */
 :root {
-  --bg: #121418;          /* page background */
-  --surface: #1a1d22;     /* cards and panels */
-  --surface-2: #23272e;   /* empty progress bars, hover */
+  --bg: #121418;
+  --surface: #1a1d22;
+  --surface-2: #23272e;
   --text: #e9e7e2;
   --text-muted: #a4a8b0;
   --border: #2f343c;
-  --accent: #84b6e3;      /* buttons, links, ticked habits */
-  --accent-text: #0e1a26; /* text on top of --accent */
+  --accent: #84b6e3;
+  --accent-text: #0e1a26;
   --accent-soft: #1d2b3a;
-  --good: #74d095;        /* "On track" */
+  --good: #74d095;
   --good-soft: #17301f;
-  --warn: #f2a65e;        /* "Behind" */
+  --warn: #f2a65e;
   --warn-soft: #3a2615;
-  --danger: #f08a8a;      /* errors, delete */
+  --danger: #f08a8a;
   --danger-soft: #3a1b1c;
-  --focus: #84b6e3;       /* keyboard focus outline */
+  --focus: #84b6e3;
   --shadow: none;
 
   --radius: 12px;
@@ -55,7 +25,6 @@
   color-scheme: dark;     /* makes scrollbars and form controls dark too */
 }
 
-/* ---------- Base ---------- */
 *,
 *::before,
 *::after {
@@ -154,7 +123,6 @@ p {
   margin: 4px 0;
 }
 
-/* ---------- Header ---------- */
 .site-header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -179,7 +147,6 @@ p {
   gap: 8px;
 }
 
-/* Small compass needle drawn in CSS, no image request. */
 .brand-mark {
   width: 22px;
   height: 22px;
@@ -218,7 +185,6 @@ p {
   color: var(--accent);
 }
 
-/* ---------- Layout ---------- */
 main {
   max-width: 1200px;
   margin: 0 auto;
@@ -313,7 +279,156 @@ main:focus {
   text-transform: uppercase;
 }
 
-/* Onboarding step 2: one row per goal (name + context side by side on wider screens). */
+/* Step headings get focus from JS when a step opens (for screen readers); no ring needed. */
+.view-onboarding h2[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.welcome-points {
+  margin: 0 0 16px;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 60ch;
+}
+
+.form-actions .btn-back {
+  margin-right: auto;
+}
+
+.onboarding-actions {
+  margin-top: 16px;
+}
+
+.sleep-choice,
+.sleep-habits {
+  border: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  min-width: 0;
+}
+
+.sleep-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sleep-choice legend,
+.sleep-habits legend {
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.sleep-option,
+.check-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--bg);
+}
+
+.sleep-option label {
+  flex: 1;
+  cursor: pointer;
+}
+
+.check-option {
+  cursor: pointer;
+}
+
+.sleep-panel {
+  margin: 0 0 4px 30px;
+}
+
+.sleep-panel .field {
+  max-width: 220px;
+}
+
+.sleep-times,
+.sleep-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.sleep-help {
+  flex-direction: column;
+  align-items: stretch;
+  margin: 0 0 12px 30px;
+}
+
+.sleep-help .field {
+  max-width: 320px;
+}
+
+.sleep-times .field {
+  flex: 1 1 120px;
+  max-width: 160px;
+}
+
+.sleep-gap {
+  padding-bottom: 10px;
+  color: var(--text-muted);
+}
+
+.sleep-habits {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
+.sleep-habits legend {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 480px) {
+  .sleep-habits {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sleep-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--bg);
+}
+
+.sleep-suggestion h3,
+.sleep-suggestion p {
+  margin: 0;
+}
+
+.sleep-tips {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sleep-note {
+  color: var(--accent);
+}
+
+@media (max-width: 480px) {
+  .sleep-panel,
+  .sleep-help {
+    margin-left: 0;
+  }
+}
+
 .goal-rows {
   border: 0;
   margin: 0 0 8px;
@@ -346,7 +461,6 @@ main:focus {
   }
 }
 
-/* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -419,9 +533,9 @@ main:focus {
   outline-offset: 2px;
 }
 
-/* ---------- Forms ---------- */
 input[type="text"],
 input[type="number"],
+input[type="time"],
 select,
 textarea {
   width: 100%;
@@ -504,6 +618,25 @@ input[type="radio"] {
   grid-column: 1 / -1;
 }
 
+.field-times {
+  grid-column: 1 / -1;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.field-times legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+#settings-sleep .sleep-choice {
+  margin-bottom: 16px;
+}
+
 .stack-form {
   display: flex;
   flex-direction: column;
@@ -550,7 +683,6 @@ input[type="radio"] {
   font-size: 0.875rem;
 }
 
-/* ---------- Banner ---------- */
 .banner {
   max-width: 1168px;
   margin: 12px auto 0;
@@ -570,7 +702,6 @@ input[type="radio"] {
   flex: 1;
 }
 
-/* ---------- Brief ---------- */
 .panel-brief {
   border-left: 4px solid var(--accent);
 }
@@ -599,7 +730,6 @@ input[type="radio"] {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Area cards ---------- */
 .section-areas h2 {
   margin-bottom: 12px;
 }
@@ -752,7 +882,6 @@ input[type="radio"] {
   content: "\00b7";
 }
 
-/* ---------- Onboarding / module picker ---------- */
 .module-picker {
   border: 0;
   margin: 0 0 8px;
@@ -825,7 +954,6 @@ input[type="radio"] {
   color: var(--text-muted);
 }
 
-/* ---------- Focus tasks ---------- */
 .task-list,
 .goal-list,
 .edit-list {
@@ -859,7 +987,6 @@ input[type="radio"] {
   text-decoration: line-through;
 }
 
-/* ---------- Habits ---------- */
 .habit-scroll {
   overflow-x: auto;
 }
@@ -923,7 +1050,6 @@ input[type="radio"] {
   background: transparent;
 }
 
-/* ---------- Goals ---------- */
 .goal + .goal {
   margin-top: 14px;
   padding-top: 14px;
@@ -956,7 +1082,6 @@ input[type="radio"] {
   overflow-wrap: anywhere;
 }
 
-/* ---------- Settings ---------- */
 .edit-list li {
   display: flex;
   align-items: center;
@@ -1001,7 +1126,6 @@ input[type="radio"] {
   border-top: 1px solid var(--border);
 }
 
-/* ---------- Dialog ---------- */
 .dialog {
   max-width: min(440px, calc(100% - 32px));
   padding: 20px;

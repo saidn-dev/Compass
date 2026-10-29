@@ -5,6 +5,7 @@ import {
   escapeHtml, renderBrief, renderAreaCard, renderOnboarding,
   renderHabitGrid, renderGoals, renderTasks,
   renderTargetRows, renderHabitList, renderGoalList,
+  gapText, renderSleepChoice, renderSleepSuggestion,
 } from "../js/render.js";
 
 const EVIL = "<script>alert(1)</script>";
@@ -97,6 +98,14 @@ test("brief shows one paragraph per sentence and the numbers used", () => {
   assert.ok(html.includes("6.4"));
 });
 
+test("brief shows a bedtime fact in words", () => {
+  const html = renderBrief({
+    sentences: ["In bed after 22:30 on 3 of 6 nights."],
+    facts: [{ area_id: "sleep", kind: "bedtime", value: 3, nights: 6, bedtime: "22:30" }],
+  });
+  assert.ok(html.includes("Sleep: in bed late on 3 of 6 nights (bedtime 22:30)"));
+});
+
 test("brief with no facts has no Numbers used section", () => {
   assert.ok(!renderBrief({ sentences: ["Log today's numbers to get your first brief."], facts: [] }).includes("Numbers used"));
 });
@@ -165,4 +174,78 @@ test("settings lists escape names and have remove buttons", () => {
 test("empty settings lists say so", () => {
   assert.ok(renderHabitList([]).includes('class="empty"'));
   assert.ok(renderGoalList([]).includes('class="empty"'));
+});
+
+// --- target rows: each place gets its own ids ---
+
+test("target rows take an id prefix and can skip areas", () => {
+  const settings = { modules: ["sleep", "spending"], targets: [] };
+  const onboarding = renderTargetRows(AREAS, settings, { prefix: "onb-target", skip: ["sleep"] });
+  assert.ok(onboarding.includes('id="onb-target-spending"'));
+  assert.ok(onboarding.includes('for="onb-target-spending"'));
+  assert.ok(!onboarding.includes("sleep"));
+  assert.ok(renderTargetRows(AREAS, settings).includes('id="target-sleep"'));
+});
+
+// --- sleep ---
+
+const SLEEP_GOAL = { targets: [{ area_id: "sleep", target: 7.5, mode: "up" }], sleep_schedule: null };
+const SLEEP_SCHEDULE = {
+  targets: [{ area_id: "sleep", target: 8, mode: "up" }],
+  sleep_schedule: { bedtime: "22:30", wake_time: "06:30" },
+};
+
+// Every <input id="x"> has a <label for="x">.
+function assertEveryInputLabelled(html) {
+  const ids = [...html.matchAll(/<input[^>]*\sid="([^"]+)"/g)].map((m) => m[1]);
+  const labelled = new Set([...html.matchAll(/<label[^>]*\sfor="([^"]+)"/g)].map((m) => m[1]));
+  assert.ok(ids.length > 0);
+  for (const id of ids) assert.ok(labelled.has(id), `no label for ${id}`);
+}
+
+test("gapText shows the hours between two times", () => {
+  assert.strictEqual(gapText("22:30", "06:30"), "= 8 h a night");
+  assert.strictEqual(gapText("23:00", "06:30"), "= 7.5 h a night");
+  assert.strictEqual(gapText("", "06:30"), "");
+  assert.strictEqual(gapText("22:00", "22:00"), "");
+});
+
+test("sleep choice opens on the goal with the saved target", () => {
+  const html = renderSleepChoice(SLEEP_GOAL, "onb", true);
+  assert.strictEqual(html.match(/type="radio"/g).length, 3);
+  assert.ok(/value="goal" checked/.test(html));
+  assert.ok(html.includes('value="7.5"'));
+  assert.ok(/class="sleep-panel sleep-times" data-mode="schedule" hidden/.test(html));
+  assert.ok(html.includes("Do you already know what you want from your sleep?"));
+  assertEveryInputLabelled(html);
+});
+
+test("sleep choice opens on the schedule when one is saved", () => {
+  const html = renderSleepChoice(SLEEP_SCHEDULE, "set", false);
+  assert.ok(/value="schedule" checked/.test(html));
+  assert.ok(html.includes('value="22:30"') && html.includes('value="06:30"'));
+  assert.ok(html.includes("= 8 h a night"));
+  assert.ok(!html.includes('value="help"'));
+  assert.ok(html.includes('id="set-sleep-bed"'));
+  assertEveryInputLabelled(html);
+});
+
+test("sleep suggestion with a schedule shows editable times", () => {
+  const html = renderSleepSuggestion({ hours: 8, range: "7-9 h", bedtime: "22:30", wake_time: "06:30", tips: [EVIL], notes: [] });
+  assert.ok(html.includes('id="onb-sugg-bed"') && html.includes('id="onb-sugg-wake"'));
+  assert.ok(!html.includes('id="onb-sugg-hours"'));
+  assert.ok(html.includes("7-9 h"));
+  assert.ok(!html.includes("<script"));
+  assert.ok(html.includes("General guidance, not medical advice."));
+  assertEveryInputLabelled(html);
+});
+
+test("sleep suggestion without a schedule shows hours and notes", () => {
+  const note = "Shift work makes a fixed schedule hard; an hours-a-night goal may suit you better.";
+  const html = renderSleepSuggestion({ hours: 8, range: "7-9 h", bedtime: null, wake_time: null, tips: [], notes: [note] });
+  assert.ok(html.includes('id="onb-sugg-hours"') && html.includes('value="8"'));
+  assert.ok(!html.includes('id="onb-sugg-bed"'));
+  assert.ok(!html.includes("sleep-tips"));
+  assert.ok(html.includes(note));
+  assertEveryInputLabelled(html);
 });

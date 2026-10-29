@@ -21,37 +21,140 @@
     </div>
   </header>
 
-  <!-- Error banner. JS: put the message in #error-message and remove `hidden`. -->
   <div class="banner" id="error-banner" role="alert" hidden>
     <p class="banner-message" id="error-message"></p>
     <button type="button" class="btn btn-ghost btn-small" id="error-dismiss">Dismiss</button>
   </div>
 
   <main id="app" tabindex="-1">
-    <!-- Shown until the first view is ready. JS: hide it once loaded. -->
     <p class="loading" id="loading">Loading...</p>
 
-    <!-- ============ Onboarding (shown when settings.onboarded is false) ============ -->
     <section class="view view-onboarding" id="onboarding-view" aria-labelledby="onboarding-title" hidden>
       <h1 id="onboarding-title">Welcome to Compass</h1>
 
-      <!-- Step 1: modules -->
-      <div id="onboarding-step-modules">
-        <p class="step-label">Step 1 of 2</p>
+      <div id="onboarding-step-welcome">
+        <p class="step-label">Step 1 of 5</p>
+        <h2 id="onb-heading-welcome" tabindex="-1">What Compass does</h2>
+        <div class="panel">
+          <ul class="welcome-points">
+            <li>Compass shows how your week is going in the parts of life you care about.</li>
+            <li>Each day it gives you a short brief: what is furthest behind, one pattern, and one thing to do in 30 minutes or less, with the numbers it used.</li>
+            <li>You log a few numbers a day. Blanks are fine and never count against you.</li>
+            <li>Everything stays on this laptop. Nothing is sent anywhere.</li>
+          </ul>
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" id="onboarding-start">Get started</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="onboarding-step-modules" hidden>
+        <p class="step-label">Step 2 of 5</p>
+        <h2 id="onb-heading-modules" tabindex="-1">Your areas</h2>
         <p class="lead">Pick the parts of your life you want to track. You can change this later in Settings.</p>
         <form id="onboarding-form" class="panel" novalidate>
-          <!-- renderOnboarding(areas, selectedIds) goes here -->
           <div id="onboarding-options"></div>
           <p class="form-error" id="onboarding-error" role="alert" hidden></p>
           <div class="form-actions">
+            <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
             <button type="submit" class="btn btn-primary">Next</button>
           </div>
         </form>
       </div>
 
-      <!-- Step 2: goals (optional). JS: shown after step 1 is saved. -->
+      <div id="onboarding-step-sleep" hidden>
+        <p class="step-label">Step 3 of 6</p>
+        <h2 id="onb-heading-sleep" tabindex="-1">Sleep</h2>
+        <p class="lead">This sets how Compass judges your sleep each week.</p>
+        <form id="onboarding-sleep-form" class="panel" novalidate>
+          <div id="onboarding-sleep-choice"></div>
+          <div class="sleep-panel sleep-help" id="onboarding-sleep-help" data-mode="help" hidden>
+            <p class="hint">Answer what you like. Anything you skip is left out.</p>
+            <div class="field">
+              <label for="onb-sleep-age">Age</label>
+              <select id="onb-sleep-age" name="age">
+                <option value="">Skip</option>
+                <option value="under_18">Under 18</option>
+                <option value="18_25">18-25</option>
+                <option value="26_64">26-64</option>
+                <option value="65_plus">65+</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="onb-sleep-role">What best describes you</label>
+              <select id="onb-sleep-role" name="role">
+                <option value="">Skip</option>
+                <option value="student">Student</option>
+                <option value="employed">Employed</option>
+                <option value="self_employed">Self-employed</option>
+                <option value="shift_worker">Shift worker</option>
+                <option value="unemployed">Unemployed</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <fieldset class="sleep-habits">
+              <legend>Habits that affect sleep</legend>
+              <label class="check-option"><input type="checkbox" name="sleep-habit" value="alcohol"> Alcohol</label>
+              <label class="check-option"><input type="checkbox" name="sleep-habit" value="caffeine"> Caffeine after midday</label>
+              <label class="check-option"><input type="checkbox" name="sleep-habit" value="screens"> Screens in bed</label>
+              <label class="check-option"><input type="checkbox" name="sleep-habit" value="naps"> Long or late naps</label>
+              <label class="check-option"><input type="checkbox" name="sleep-habit" value="late_meals"> Heavy meals late</label>
+              <label class="check-option"><input type="checkbox" name="sleep-habit" value="nicotine"> Nicotine</label>
+            </fieldset>
+            <div class="field field-narrow">
+              <label for="onb-sleep-earliest">Earliest weekday wake time</label>
+              <input id="onb-sleep-earliest" name="wake_time" type="time">
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn" id="onboarding-sleep-suggest">Show my suggestion</button>
+            </div>
+            <div id="onboarding-sleep-suggestion" aria-live="polite"></div>
+          </div>
+          <p class="form-error" id="onboarding-sleep-error" role="alert" hidden></p>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
+            <button type="submit" class="btn btn-primary">Next</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="onboarding-step-targets" hidden>
+        <p class="step-label">Step 3 of 5</p>
+        <h2 id="onb-heading-targets" tabindex="-1">Your targets</h2>
+        <p class="lead">These are suggested targets. Change any that don't fit you.</p>
+        <form id="onboarding-targets-form" class="panel" novalidate>
+          <div id="onboarding-targets"></div>
+          <p class="form-error" id="onboarding-targets-error" role="alert" hidden></p>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
+            <button type="submit" class="btn btn-primary">Next</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="onboarding-step-habits" hidden>
+        <p class="step-label">Step 4 of 5</p>
+        <h2 id="onb-heading-habits" tabindex="-1">Your habits</h2>
+        <p class="lead">Add the daily habits you want to tick off, or skip this and add them later in Settings.</p>
+        <div class="panel">
+          <div id="onboarding-habits"></div>
+          <form id="onboarding-habit-form" class="inline-form" novalidate>
+            <label for="onb-habit-name" class="visually-hidden">New habit</label>
+            <input id="onb-habit-name" name="name" type="text" maxlength="80" placeholder="New habit, e.g. Morning walk" autocomplete="off">
+            <button type="submit" class="btn">Add</button>
+          </form>
+          <p class="form-error" id="onboarding-habits-error" role="alert" hidden></p>
+          <div class="form-actions onboarding-actions">
+            <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
+            <button type="button" class="btn btn-primary" id="onboarding-habits-next">Next</button>
+            <button type="button" class="btn btn-ghost" id="onboarding-skip-habits">Skip for now</button>
+          </div>
+        </div>
+      </div>
+
       <div id="onboarding-step-goals" hidden>
-        <p class="step-label">Step 2 of 2</p>
+        <p class="step-label">Step 5 of 5</p>
+        <h2 id="onb-heading-goals" tabindex="-1">Your goals</h2>
         <p class="lead">What are you working towards? Add up to 3 goals, or skip this and add them later in Settings.</p>
         <form id="onboarding-goals-form" class="panel" novalidate>
           <fieldset class="goal-rows">
@@ -89,6 +192,7 @@
           </fieldset>
           <p class="form-error" id="onboarding-goals-error" role="alert" hidden></p>
           <div class="form-actions">
+            <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
             <button type="submit" class="btn btn-primary">Start</button>
             <button type="button" class="btn btn-ghost" id="onboarding-skip-goals">Skip for now</button>
           </div>
@@ -96,19 +200,16 @@
       </div>
     </section>
 
-    <!-- ============ Home / dashboard ============ -->
     <div class="view view-dashboard" id="dashboard-view" hidden>
       <h1 class="visually-hidden">Your dashboard</h1>
 
       <section class="panel panel-brief" aria-labelledby="brief-title">
         <h2 id="brief-title">Today's brief</h2>
-        <!-- renderBrief(brief) goes here -->
         <div id="brief"></div>
       </section>
 
       <section class="section-areas" aria-labelledby="areas-title">
         <h2 id="areas-title">Life areas</h2>
-        <!-- one renderAreaCard(area) per enabled module goes here -->
         <div class="card-grid" id="area-cards"></div>
       </section>
 
@@ -116,15 +217,28 @@
         <section class="panel panel-log" aria-labelledby="log-title">
           <h2 id="log-title">Log today</h2>
           <p class="hint">Leave anything you don't know blank. Blank is a gap, not zero.</p>
-          <!-- JS: remove `hidden` from the .field[data-area] of each enabled module. -->
           <form id="log-form" class="log-form" novalidate>
-            <div class="field" data-area="sleep" hidden>
+            <div class="field" data-area="sleep" data-sleep="goal" hidden>
               <label for="log-sleep_hours">Sleep</label>
               <div class="input-unit">
                 <input id="log-sleep_hours" name="sleep_hours" type="number" inputmode="decimal" min="0" max="24" step="0.1">
                 <span class="unit">h</span>
               </div>
             </div>
+            <fieldset class="field field-times" data-area="sleep" data-sleep="schedule" hidden>
+              <legend>Sleep last night</legend>
+              <div class="sleep-times">
+                <div class="field">
+                  <label for="log-bedtime">In bed</label>
+                  <input id="log-bedtime" name="bedtime" type="time">
+                </div>
+                <div class="field">
+                  <label for="log-wake_time">Up</label>
+                  <input id="log-wake_time" name="wake_time" type="time">
+                </div>
+                <output class="sleep-gap"></output>
+              </div>
+            </fieldset>
             <div class="field" data-area="steps" hidden>
               <label for="log-steps">Steps</label>
               <div class="input-unit">
@@ -169,7 +283,6 @@
 
         <section class="panel panel-focus" aria-labelledby="focus-title">
           <h2 id="focus-title">Today's focus</h2>
-          <!-- renderTasks(tasks) goes here -->
           <div id="tasks"></div>
           <form id="task-form" class="inline-form" novalidate>
             <label for="task-text" class="visually-hidden">New focus task</label>
@@ -183,7 +296,6 @@
              and Quick capture share the second row without leaving a gap. -->
         <section class="panel panel-goals" aria-labelledby="goals-title">
           <h2 id="goals-title">Goals</h2>
-          <!-- renderGoals(goals) goes here -->
           <div id="goals"></div>
         </section>
 
@@ -192,7 +304,6 @@
             <h2 id="habits-title">Habits</h2>
             <p class="stat" id="habit-completion"></p>
           </div>
-          <!-- renderHabitGrid(grid, habits) goes here -->
           <div class="habit-scroll" id="habit-grid"></div>
         </section>
 
@@ -207,7 +318,6 @@
       </div>
     </div>
 
-    <!-- ============ Settings ============ -->
     <div class="view view-settings" id="settings-view" hidden>
       <h1>Settings</h1>
 
@@ -215,7 +325,6 @@
         <section class="panel" aria-labelledby="set-modules-title">
           <h2 id="set-modules-title">Modules</h2>
           <form id="modules-form" novalidate>
-            <!-- renderOnboarding(areas, selectedIds) can be reused here -->
             <div id="settings-modules"></div>
             <p class="form-error" id="modules-error" role="alert" hidden></p>
             <div class="form-actions">
@@ -228,7 +337,7 @@
           <h2 id="set-targets-title">Targets</h2>
           <p class="hint">"More is better" counts as on track at or above the target. "Stay under" counts as on track at or below it.</p>
           <form id="targets-form" novalidate>
-            <!-- one .target-row per enabled module goes here (see styles.css) -->
+            <div id="settings-sleep"></div>
             <div class="target-list" id="settings-targets"></div>
             <p class="form-error" id="targets-error" role="alert" hidden></p>
             <div class="form-actions">
@@ -239,7 +348,6 @@
 
         <section class="panel" aria-labelledby="set-habits-title">
           <h2 id="set-habits-title">Habits</h2>
-          <!-- ul.edit-list of habits with a Remove button each goes here -->
           <div id="settings-habits"></div>
           <form id="habit-form" class="inline-form" novalidate>
             <label for="habit-name" class="visually-hidden">New habit</label>
@@ -252,7 +360,6 @@
         <section class="panel" aria-labelledby="set-goals-title">
           <h2 id="set-goals-title">Goals</h2>
           <p class="hint">Up to 3 active goals.</p>
-          <!-- ul.edit-list of goals with Edit / Remove buttons goes here -->
           <div id="settings-goals"></div>
           <form id="goal-form" class="stack-form" novalidate>
             <div class="field">
@@ -298,7 +405,6 @@
     </div>
   </main>
 
-  <!-- Confirm dialog for delete. JS: showModal(); on "Delete" send X-Confirm: delete-all. -->
   <dialog class="dialog" id="delete-dialog" aria-labelledby="delete-dialog-title">
     <form method="dialog">
       <h2 id="delete-dialog-title">Delete everything?</h2>

@@ -40,6 +40,7 @@ export const getAreas = () => request("GET", "/api/areas");
 export const getSettings = () => request("GET", "/api/settings");
 export const putSettings = (settings) => request("PUT", "/api/settings", settings);
 export const postOnboarding = (ids) => request("POST", "/api/onboarding", { modules: ids });
+export const getSleepSuggestion = (answers) => request("POST", "/api/sleep/suggestion", answers);
 export const getDashboard = (date) => request("GET", `/api/dashboard?date=${date}`);
 export const getDay = (date) => request("GET", `/api/days/${date}`);
 export const putDay = (date, day) => request("PUT", `/api/days/${date}`, day);

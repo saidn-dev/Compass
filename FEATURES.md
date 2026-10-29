@@ -30,7 +30,7 @@ Each feature lists what it needs first. Build top to bottom: a feature starts on
 | Feature | Needs |
 |---|---|
 | Page shell, themes (light, dark, system), safe text display | nothing |
-| Onboarding screen | REST API, Page shell |
+| Onboarding screen (5-6 steps, with a Sleep page) | REST API, Page shell |
 | Dashboard: brief and area cards | REST API, Page shell, Onboarding screen |
 | Daily log form | Dashboard |
 | Focus, habits and goals sections | Dashboard |

@@ -15,6 +15,7 @@ from app.db import Repository
 from app.lists import check_tasks
 from app.models import Settings, check_date_key, merge_numbers
 from app.settings_rules import apply_onboarding, check_settings
+from app.sleep import Age, HabitId, Role, suggest
 
 MAX_IMPORT_BYTES = 2 * 1024 * 1024
 CONFIRM_DELETE = "delete-all"
@@ -33,6 +34,14 @@ class Onboarding(BaseModel):
 
 class Bulk(BaseModel):
     days: list[Any]
+
+
+class SleepAnswers(BaseModel):
+    """The "Let's work it out" answers. Every one can be skipped."""
+    age: Age | None = None
+    role: Role | None = None
+    habits: list[HabitId] = []
+    wake_time: str | None = None
 
 
 def get_repo(request: Request) -> Repository:
@@ -72,6 +81,14 @@ def replace_settings(settings: Settings, repo: Repo) -> Settings:
 def onboarding(body: Onboarding, repo: Repo) -> Settings:
     repo.put_settings(apply_onboarding(repo.get_settings(), body.modules))
     return repo.get_settings()
+
+
+# --- sleep ---
+
+@router.post("/sleep/suggestion")
+def sleep_suggestion(body: SleepAnswers) -> dict:
+    """A suggested sleep goal or schedule. Nothing is saved."""
+    return suggest(body.age, body.role, body.habits, body.wake_time)
 
 
 # --- days ---

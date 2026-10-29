@@ -5,6 +5,7 @@ import * as api from "./api.js";
 import {
   renderBrief, renderAreaCard, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
   renderTargetRows, renderHabitList, renderGoalList,
+  gapText, renderSleepChoice, renderSleepSuggestion,
 } from "./render.js";
 
 const MAX_TASKS = 3;
@@ -90,39 +91,197 @@ async function start() {
 
 // --- Onboarding ---
 
-// Onboarding has two steps: "modules" then "goals". Shows one, hides the other.
+// Every step, in order. Each is a <div id="onboarding-step-NAME"> in index.html.
+const ALL_STEPS = ["welcome", "modules", "sleep", "targets", "habits", "goals"];
+let onboardingStep = "welcome"; // the step showing right now
+
+// The steps this user goes through: Sleep only if they picked it, Targets only for
+// the other areas. A fresh start (nothing picked yet) counts 5 steps.
+function onboardingSteps() {
+  const picked = settings.modules;
+  const steps = ["welcome", "modules"];
+  if (picked.includes("sleep")) steps.push("sleep");
+  if (picked.length === 0 || picked.some((id) => id !== "sleep")) steps.push("targets");
+  return [...steps, "habits", "goals"];
+}
+
+// Shows one step, hides the others, writes "Step X of N", and moves focus to its
+// heading so screen readers read it.
 function showOnboardingStep(step) {
-  $("onboarding-step-modules").hidden = step !== "modules";
-  $("onboarding-step-goals").hidden = step !== "goals";
+  for (const name of ALL_STEPS) {
+    $(`onboarding-step-${name}`).hidden = name !== step;
+  }
+  const steps = onboardingSteps();
+  $(`onboarding-step-${step}`).querySelector(".step-label").textContent =
+    `Step ${steps.indexOf(step) + 1} of ${steps.length}`;
+  onboardingStep = step;
+  $(`onb-heading-${step}`).focus();
 }
 
+// Draws steps from what is saved, so going back (or coming back later) shows earlier choices.
+function drawOnboardingModules() {
+  $("onboarding-options").innerHTML = renderOnboarding(areas, settings.modules);
+}
+
+function drawOnboardingSleep() {
+  $("onboarding-sleep-choice").innerHTML = renderSleepChoice(settings, "onb", true);
+  // The "Let's work it out" answers are never saved, so they start empty every time.
+  $("onboarding-sleep-help").hidden = true;
+  for (const field of $("onboarding-sleep-help").querySelectorAll("select, input")) {
+    if (field.type === "checkbox") field.checked = false;
+    else field.value = "";
+  }
+  $("onboarding-sleep-suggestion").innerHTML = "";
+  showFormError("onboarding-sleep-error", "");
+}
+
+function drawOnboardingTargets() {
+  $("onboarding-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "onb-target", skip: ["sleep"] });
+}
+
+function drawOnboardingHabits() {
+  $("onboarding-habits").innerHTML = renderHabitList(settings.habits);
+}
+
+// Draws a step (if it has anything to draw) and shows it.
+function goToStep(step) {
+  if (step === "modules") drawOnboardingModules();
+  if (step === "sleep") drawOnboardingSleep();
+  if (step === "targets") drawOnboardingTargets();
+  if (step === "habits") drawOnboardingHabits();
+  showOnboardingStep(step);
+}
+
+// The step after the one showing. Worked out again each time, because picking
+// areas changes which steps there are.
+function nextStep() {
+  const steps = onboardingSteps();
+  return steps[steps.indexOf(onboardingStep) + 1];
+}
+
+// Starts onboarding at the welcome step. Someone who closed the tab halfway
+// starts here again, with what they already saved filled in.
 function showOnboarding() {
-  $("onboarding-options").innerHTML = renderOnboarding(areas, []);
+  drawOnboardingModules();
   $("onboarding-goals-form").reset();
-  showFormError("onboarding-error", "");
-  showFormError("onboarding-goals-error", "");
-  showOnboardingStep("modules");
+  for (const id of ["onboarding-error", "onboarding-sleep-error", "onboarding-targets-error", "onboarding-habits-error", "onboarding-goals-error"]) {
+    showFormError(id, "");
+  }
   showView("onboarding");
+  showOnboardingStep("welcome");
 }
 
-async function finishOnboarding() {
+// The last step: marks onboarding as done (the server never does this by itself),
+// saving any goals at the same time, then opens the dashboard.
+async function finishOnboarding(goals = []) {
+  const finished = { ...settings, onboarded: true };
+  if (goals.length > 0) finished.goals = goals;
+  settings = await api.putSettings(finished);
   await loadDashboard();
   showView("dashboard");
 }
 
-// Step 1: save the modules (this also marks onboarding as done), then ask about goals.
+// Welcome.
+$("onboarding-start").addEventListener("click", () => showOnboardingStep("modules"));
+
+// Areas: save the modules (new ones get default targets), then go on to Sleep or Targets.
 $("onboarding-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
     settings = await api.postOnboarding(tickedModules(event.target));
-    showOnboardingStep("goals");
-    $("onb-goal-name-0").focus();
+    showFormError("onboarding-error", "");
+    goToStep(nextStep());
   } catch (error) {
     showFormError("onboarding-error", error.message);
   }
 });
 
-// Step 2: save any goals that have a name. Rows left blank are ignored.
+// Sleep, "Let's work it out": send the answers (skipped ones left out) and show the suggestion.
+$("onboarding-sleep-suggest").addEventListener("click", async () => {
+  const help = $("onboarding-sleep-help");
+  const answers = {
+    habits: [...help.querySelectorAll('input[name="sleep-habit"]:checked')].map((box) => box.value),
+  };
+  for (const field of help.querySelectorAll('select, input[type="time"]')) {
+    if (field.value) answers[field.name] = field.value;
+  }
+  try {
+    const suggestion = await api.getSleepSuggestion(answers);
+    $("onboarding-sleep-suggestion").innerHTML = renderSleepSuggestion(suggestion);
+    showFormError("onboarding-sleep-error", "");
+    $("onboarding-sleep-suggestion").querySelector("input").focus();
+  } catch (error) {
+    showFormError("onboarding-sleep-error", error.message);
+  }
+});
+
+// Sleep: save the goal or schedule, then go on.
+$("onboarding-sleep-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const choice = readSleepChoice(event.target);
+  if (choice.error) return showFormError("onboarding-sleep-error", choice.error);
+  try {
+    settings = await api.putSettings(withSleepChoice(settings, choice));
+    showFormError("onboarding-sleep-error", "");
+    goToStep(nextStep());
+  } catch (error) {
+    showFormError("onboarding-sleep-error", error.message);
+  }
+});
+
+// Targets (every area except Sleep): save them, keeping the sleep target, then show the habits.
+$("onboarding-targets-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const targets = [];
+  for (const row of $("onboarding-targets").querySelectorAll(".target-row")) {
+    const target = Number(row.querySelector("input").value);
+    if (!(target > 0)) {
+      return showFormError("onboarding-targets-error", "Each target must be a number above 0.");
+    }
+    targets.push({ area_id: row.dataset.area, target, mode: row.querySelector("select").value });
+  }
+  try {
+    settings = await api.putSettings({ ...settings, targets: mergeTargets(settings.targets, targets) });
+    showFormError("onboarding-targets-error", "");
+    goToStep(nextStep());
+  } catch (error) {
+    showFormError("onboarding-targets-error", error.message);
+  }
+});
+
+// Habits: each Add or Remove saves straight away and redraws the list.
+async function saveOnboardingHabits(habits) {
+  settings = await api.putSettings({ ...settings, habits });
+  drawOnboardingHabits();
+  showFormError("onboarding-habits-error", "");
+}
+
+$("onboarding-habit-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = $("onb-habit-name").value.trim();
+  if (!name) return showFormError("onboarding-habits-error", "Give the habit a name.");
+  // A short id that stays the same if the habit is renamed later.
+  const id = "h" + Date.now().toString(36);
+  try {
+    await saveOnboardingHabits([...settings.habits, { id, name }]);
+    $("onb-habit-name").value = "";
+  } catch (error) {
+    showFormError("onboarding-habits-error", error.message);
+  }
+});
+
+$("onboarding-habits").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-habit]");
+  if (!button) return;
+  const index = Number(button.dataset.removeHabit);
+  safely(() => saveOnboardingHabits(settings.habits.filter((_, i) => i !== index)));
+});
+
+// Next and Skip both move on; habits already added stay saved either way.
+$("onboarding-habits-next").addEventListener("click", () => showOnboardingStep("goals"));
+$("onboarding-skip-habits").addEventListener("click", () => showOnboardingStep("goals"));
+
+// Goals: save any goals that have a name and finish. Rows left blank are ignored.
 $("onboarding-goals-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const goals = [];
@@ -132,14 +291,87 @@ $("onboarding-goals-form").addEventListener("submit", async (event) => {
     if (name) goals.push({ name, percent: 0, detail });
   }
   try {
-    if (goals.length > 0) settings = await api.putSettings({ ...settings, goals });
-    await finishOnboarding();
+    await finishOnboarding(goals);
   } catch (error) {
     showFormError("onboarding-goals-error", error.message);
   }
 });
 
 $("onboarding-skip-goals").addEventListener("click", () => safely(finishOnboarding));
+
+// Back buttons: go to the step before the one showing, redrawn from what is saved.
+$("onboarding-view").addEventListener("click", (event) => {
+  if (!event.target.closest("[data-back]")) return;
+  const steps = onboardingSteps();
+  const previous = steps[steps.indexOf(onboardingStep) - 1];
+  if (previous) goToStep(previous);
+});
+
+// --- Sleep answers (onboarding and Settings) ---
+
+// Shows only the panel for the chosen answer (goal, schedule or help) inside one form.
+function showSleepPanels(form, mode) {
+  for (const panel of form.querySelectorAll(".sleep-panel")) {
+    panel.hidden = panel.dataset.mode !== mode;
+  }
+}
+
+// Reads the Sleep answer from a form: { schedule, hours, error }.
+// A schedule is { bedtime, wake_time }; a goal is hours with no schedule.
+function readSleepChoice(form) {
+  const mode = form.querySelector('input[name="sleep-mode"]:checked').value;
+  const value = (name) => {
+    const field = form.querySelector(`[name="${name}"]`);
+    return field ? field.value.trim() : "";
+  };
+  const failed = (error) => ({ schedule: null, hours: null, error });
+
+  // "Let's work it out" saves what is in the suggestion, so there must be one.
+  let prefix = "sleep";
+  if (mode === "help") {
+    if (!form.querySelector(".sleep-suggestion")) return failed('Press "Show my suggestion" first.');
+    prefix = "sugg";
+  }
+
+  if (mode === "schedule" || (mode === "help" && form.querySelector('[name="sugg-bed"]'))) {
+    const bedtime = value(`${prefix}-bed`);
+    const wakeTime = value(`${prefix}-wake`);
+    if (!bedtime || !wakeTime || bedtime === wakeTime) return failed("Fill in both times, and make them different.");
+    return { schedule: { bedtime, wake_time: wakeTime }, hours: null, error: "" };
+  }
+
+  const hours = Number(value(`${prefix}-hours`));
+  if (!(hours > 0 && hours <= 24)) return failed("Sleep hours must be a number above 0 and up to 24.");
+  return { schedule: null, hours, error: "" };
+}
+
+// Settings with the Sleep answer in: a schedule (the server sets the sleep target
+// from its times), or a goal in hours with no schedule.
+function withSleepChoice(current, choice) {
+  if (choice.schedule) return { ...current, sleep_schedule: choice.schedule };
+  const target = { area_id: "sleep", target: choice.hours, mode: "up" };
+  return { ...current, sleep_schedule: null, targets: mergeTargets(current.targets, [target]) };
+}
+
+// The new targets, plus the old ones for areas the new list doesn't cover
+// (so saving the other areas never drops the sleep target).
+function mergeTargets(oldTargets, newTargets) {
+  const covered = newTargets.map((t) => t.area_id);
+  return [...oldTargets.filter((t) => !covered.includes(t.area_id)), ...newTargets];
+}
+
+// Picking goal / schedule / "Let's work it out" shows that answer's panel.
+document.addEventListener("change", (event) => {
+  if (event.target.name === "sleep-mode") showSleepPanels(event.target.form, event.target.value);
+});
+
+// Typing a bed or wake time updates the "= 8 h a night" next to it.
+document.addEventListener("input", (event) => {
+  const times = event.target.closest(".sleep-times");
+  if (!times || event.target.type !== "time") return;
+  const [bed, wake] = times.querySelectorAll('input[type="time"]');
+  times.querySelector(".sleep-gap").textContent = gapText(bed.value, wake.value);
+});
 
 // --- Dashboard ---
 
@@ -174,12 +406,18 @@ async function saveToday(changes) {
 // --- Daily log ---
 
 // Shows only the fields for enabled modules and fills in today's saved numbers.
+// Sleep has two versions: hours (a goal) or bed and wake times (a schedule).
 function fillLogForm() {
   for (const field of $("log-form").querySelectorAll(".field[data-area]")) {
-    field.hidden = !settings.modules.includes(field.dataset.area);
-    const input = field.querySelector("input");
-    const saved = day[input.name];
-    input.value = saved === null || saved === undefined ? "" : saved;
+    const sleepVersion = field.dataset.sleep;
+    const wrongSleepVersion = sleepVersion && (sleepVersion === "schedule") !== Boolean(settings.sleep_schedule);
+    field.hidden = !settings.modules.includes(field.dataset.area) || wrongSleepVersion;
+    for (const input of field.querySelectorAll("input")) {
+      const saved = day[input.name];
+      input.value = saved === null || saved === undefined ? "" : saved;
+    }
+    const gap = field.querySelector(".sleep-gap");
+    if (gap) gap.textContent = gapText(day.bedtime, day.wake_time);
   }
 }
 
@@ -189,9 +427,18 @@ $("log-form").addEventListener("submit", (event) => {
     const changes = {};
     for (const field of $("log-form").querySelectorAll(".field[data-area]")) {
       if (field.hidden) continue;
-      const input = field.querySelector("input");
-      // Blank means "I don't know": send null, never 0.
-      changes[input.name] = input.value.trim() === "" ? null : Number(input.value);
+      for (const input of field.querySelectorAll("input")) {
+        // Blank means "I don't know": send null, never 0.
+        const blank = input.value.trim() === "";
+        if (input.type === "time") changes[input.name] = blank ? null : input.value;
+        else changes[input.name] = blank ? null : Number(input.value);
+      }
+    }
+    // Only one sleep version counts: with times, the server works out the hours;
+    // with hours, any old times are cleared so they can't override them.
+    if (settings.modules.includes("sleep")) {
+      if (settings.sleep_schedule) changes.sleep_hours = null;
+      else Object.assign(changes, { bedtime: null, wake_time: null });
     }
     await saveToday(changes);
     $("log-status").textContent = `Saved ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
@@ -289,7 +536,8 @@ $("nav-settings").addEventListener("click", () => {
 
 function drawSettings() {
   $("settings-modules").innerHTML = renderOnboarding(areas, settings.modules);
-  $("settings-targets").innerHTML = renderTargetRows(areas, settings);
+  $("settings-sleep").innerHTML = settings.modules.includes("sleep") ? renderSleepChoice(settings, "set", false) : "";
+  $("settings-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "target", skip: ["sleep"] });
   $("settings-habits").innerHTML = renderHabitList(settings.habits);
   $("settings-goals").innerHTML = renderGoalList(settings.goals);
   for (const id of ["modules-error", "targets-error", "habit-error", "goal-error", "import-error"]) {
@@ -315,6 +563,7 @@ $("modules-form").addEventListener("submit", async (event) => {
   }
 });
 
+// Targets, with Sleep's goal or schedule at the top when Sleep is enabled.
 $("targets-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const targets = [];
@@ -325,8 +574,14 @@ $("targets-form").addEventListener("submit", async (event) => {
     }
     targets.push({ area_id: row.dataset.area, target, mode: row.querySelector("select").value });
   }
+  let newSettings = { ...settings, targets: mergeTargets(settings.targets, targets) };
+  if ($("settings-sleep").querySelector(".sleep-choice")) {
+    const choice = readSleepChoice(event.target);
+    if (choice.error) return showFormError("targets-error", choice.error);
+    newSettings = withSleepChoice(newSettings, choice);
+  }
   try {
-    await saveSettings({ ...settings, targets });
+    await saveSettings(newSettings);
   } catch (error) {
     showFormError("targets-error", error.message);
   }

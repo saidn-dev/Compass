@@ -49,6 +49,9 @@ export function renderBrief(brief) {
   if (brief.facts.length === 0) return `<div class="brief">${sentences}</div>`;
 
   const facts = brief.facts.map((f) => {
+    if (f.kind === "bedtime") {
+      return `<li>${escapeHtml(`Sleep: in bed late on ${f.value} of ${f.nights} nights (bedtime ${f.bedtime})`)}</li>`;
+    }
     const name = capitalize(f.area_id);
     const when = f.date ? ` on ${f.date}` : "";
     const rule = f.mode === "limit" ? "limit" : "target";
@@ -161,14 +164,16 @@ export function renderTasks(tasks) {
 
 // One row per enabled module: target number + "More is better" / "Stay under".
 // areas: the full module list; settings: { modules, targets }.
-export function renderTargetRows(areas, settings) {
+// prefix keeps input ids unique when onboarding and Settings both show rows;
+// skip leaves areas out (Sleep has its own row).
+export function renderTargetRows(areas, settings, { prefix = "target", skip = [] } = {}) {
   const rows = settings.modules.map((id) => {
     const area = areas.find((a) => a.id === id);
-    if (!area) return "";
+    if (!area || skip.includes(id)) return "";
     const saved = settings.targets.find((t) => t.area_id === id);
     const target = saved ? saved.target : area.default_target;
     const mode = saved ? saved.mode : area.default_mode;
-    const inputId = `target-${escapeHtml(id)}`;
+    const inputId = `${escapeHtml(prefix)}-${escapeHtml(id)}`;
     return `<div class="target-row" data-area="${escapeHtml(id)}">
       <label for="${inputId}">${escapeHtml(area.label)}</label>
       <div class="input-unit">
@@ -181,7 +186,8 @@ export function renderTargetRows(areas, settings) {
       </select>
     </div>`;
   }).join("");
-  return rows || `<p class="empty">Choose some modules first.</p>`;
+  if (rows) return rows;
+  return settings.modules.length > 0 ? "" : `<p class="empty">Choose some modules first.</p>`;
 }
 
 export function renderHabitList(habits) {
@@ -205,4 +211,97 @@ export function renderGoalList(goals) {
     </div>
   </li>`).join("");
   return `<ul class="edit-list">${items}</ul>`;
+}
+
+// --- Sleep ---
+
+const MINUTES_A_DAY = 24 * 60;
+
+function minutesOf(hhmm) {
+  const match = /^(\d\d):(\d\d)/.exec(hhmm || "");
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+// "22:30", "06:30" -> "= 8 h a night". Blank or equal times -> "".
+// Only for showing; the server works out the hours that are saved.
+export function gapText(bedtime, wakeTime) {
+  const bed = minutesOf(bedtime);
+  const wake = minutesOf(wakeTime);
+  if (bed === null || wake === null) return "";
+  const gap = (wake - bed + MINUTES_A_DAY) % MINUTES_A_DAY;
+  return gap === 0 ? "" : `= ${formatNumber(gap / 60)} h a night`;
+}
+
+// Two labelled time inputs and the hours they make.
+// idStart "onb-sleep" gives ids onb-sleep-bed / onb-sleep-wake; name "sleep" gives sleep-bed / sleep-wake.
+function timeInputs(idStart, name, bed, wake, bedLabel, wakeLabel) {
+  return `<div class="field">
+      <label for="${idStart}-bed">${bedLabel}</label>
+      <input id="${idStart}-bed" name="${name}-bed" type="time" value="${escapeHtml(bed)}">
+    </div>
+    <div class="field">
+      <label for="${idStart}-wake">${wakeLabel}</label>
+      <input id="${idStart}-wake" name="${name}-wake" type="time" value="${escapeHtml(wake)}">
+    </div>
+    <output class="sleep-gap">${escapeHtml(gapText(bed, wake))}</output>`;
+}
+
+function hoursInput(id, name, hours) {
+  return `<div class="field">
+      <label for="${id}">Hours a night</label>
+      <div class="input-unit">
+        <input id="${id}" name="${name}" type="number" inputmode="decimal" min="0" max="24" step="0.25" value="${escapeHtml(hours)}">
+        <span class="unit">h</span>
+      </div>
+    </div>`;
+}
+
+// The Sleep question: a goal (hours), a schedule (bed and wake times), or, in onboarding,
+// "Let's work it out". Opens on the schedule if one is saved, otherwise on the goal.
+// settings: { targets, sleep_schedule }; prefix keeps ids unique ("onb" or "set").
+export function renderSleepChoice(settings, prefix, withHelp) {
+  const schedule = settings.sleep_schedule;
+  const mode = schedule ? "schedule" : "goal";
+  const saved = settings.targets.find((t) => t.area_id === "sleep");
+  const id = escapeHtml(prefix);
+
+  const radio = (value, text) => `<div class="sleep-option">
+      <input type="radio" id="${id}-sleep-mode-${value}" name="sleep-mode" value="${value}"${value === mode ? " checked" : ""}>
+      <label for="${id}-sleep-mode-${value}">${text}</label>
+    </div>`;
+  const hidden = (value) => (value === mode ? "" : " hidden");
+
+  return `<fieldset class="sleep-choice">
+    <legend>Do you already know what you want from your sleep?</legend>
+    ${radio("goal", "I have a sleep goal")}
+    <div class="sleep-panel" data-mode="goal"${hidden("goal")}>
+      ${hoursInput(`${id}-sleep-hours`, "sleep-hours", saved ? saved.target : "")}
+    </div>
+    ${radio("schedule", "I have a sleep schedule")}
+    <div class="sleep-panel sleep-times" data-mode="schedule"${hidden("schedule")}>
+      ${timeInputs(`${id}-sleep`, "sleep", schedule ? schedule.bedtime : "", schedule ? schedule.wake_time : "", "In bed", "Up")}
+    </div>
+    ${withHelp ? radio("help", "Let's work it out") : ""}
+  </fieldset>`;
+}
+
+// The answer to "Let's work it out", which the user can still change.
+// s: { hours, range, bedtime, wake_time, tips, notes } from the server.
+export function renderSleepSuggestion(s) {
+  const choice = s.bedtime
+    ? `<div class="sleep-times">${timeInputs("onb-sugg", "sugg", s.bedtime, s.wake_time, "In bed by", "Up at")}</div>`
+    : hoursInput("onb-sugg-hours", "sugg-hours", s.hours);
+  const tips = s.tips.length > 0
+    ? `<ul class="sleep-tips">${s.tips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`
+    : "";
+  const notes = s.notes.map((n) => `<p class="sleep-note">${escapeHtml(n)}</p>`).join("");
+
+  return `<div class="sleep-suggestion">
+    <h3>Your suggestion</h3>
+    <p class="hint">Change anything before you go on.</p>
+    ${choice}
+    <p>Usual range: ${escapeHtml(s.range)} a night.</p>
+    ${tips}${notes}
+    <p class="hint">General guidance, not medical advice.</p>
+  </div>`;
 }

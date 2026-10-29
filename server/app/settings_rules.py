@@ -1,9 +1,11 @@
 """Rules for onboarding and settings.
 
-Which modules can be enabled (1-5), default targets, changing a target.
+Which modules can be enabled (1-5), default targets, changing a target,
+and keeping the sleep target in step with a sleep schedule.
 """
 from app.areas import AREAS
 from app.models import Settings, Target
+from app.sleep import hours_between
 
 MAX_MODULES = 5
 AREAS_BY_ID = {a.id: a for a in AREAS}
@@ -37,11 +39,27 @@ def check_settings(s: Settings) -> Settings:
     for t in s.targets:
         if t.area_id not in AREAS_BY_ID:
             raise ValueError(f"Unknown module: {t.area_id}.")
-    return s.model_copy(update={"modules": modules})
+    return sync_sleep_target(s.model_copy(update={"modules": modules}))
+
+
+def sync_sleep_target(s: Settings) -> Settings:
+    """With a sleep schedule, the sleep target is the hours between its two times."""
+    if s.sleep_schedule is None or "sleep" not in s.modules:
+        return s
+    hours = hours_between(s.sleep_schedule.bedtime, s.sleep_schedule.wake_time)
+    new = Target(area_id="sleep", target=hours, mode="up")
+    targets = [new if t.area_id == "sleep" else t for t in s.targets]
+    if all(t.area_id != "sleep" for t in s.targets):
+        targets.append(new)
+    return s.model_copy(update={"targets": targets})
 
 
 def apply_onboarding(s: Settings, ids: list[str]) -> Settings:
-    """Enable the chosen modules with default targets (keeping custom ones) and mark onboarded."""
+    """Enable the chosen modules with default targets (keeping custom ones).
+
+    Does not mark onboarding as done: the page does that on its last step,
+    so closing the tab halfway brings the user back to onboarding.
+    """
     modules = select_modules(ids)
     existing = {t.area_id: t for t in s.targets}
     targets = [
@@ -50,7 +68,7 @@ def apply_onboarding(s: Settings, ids: list[str]) -> Settings:
         )
         for i in modules
     ]
-    return s.model_copy(update={"onboarded": True, "modules": modules, "targets": targets})
+    return sync_sleep_target(s.model_copy(update={"modules": modules, "targets": targets}))
 
 
 def set_target(s: Settings, area_id: str, target: float, mode: str) -> Settings:

@@ -4,7 +4,7 @@ A local, single-user life dashboard that reads your last seven days and tells yo
 
 You log a few numbers a day (sleep, steps, study, work, spending, fasting). Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
 
-> **Status: v1 feature-complete.** Start it with `python start.py`. A few manual checks (keyboard-only use, screen reader, midnight rollover) are still open in the [QA checklist](docs/qa-checklist.md).
+> **Status: v1 done.** Start it with `python start.py`. Every check in the [QA checklist](docs/qa-checklist.md) has passed except one Narrator check on the new Sleep page.
 
 ---
 
@@ -29,7 +29,8 @@ The server owns every rule. The page only draws what the API returns. Data lives
 
 | Feature | What it does |
 |---|---|
-| **Onboarding** | Pick 1 to 5 of six modules; each gets a default target |
+| **Onboarding** | Welcome, then pick 1 to 5 of six modules, a Sleep page (a goal, a schedule, or help working one out), targets for the rest, optional habits and goals |
+| **Sleep** | With a sleep schedule you log bed and wake times and Compass works out the hours; the brief says how often you were in bed on time |
 | **Daily brief** | 3-4 sentences from the last 7 days, plus the numbers it used |
 | **Area cards** | Value, progress, 7-day trend, and status in words: "On track", "Behind", "No data" |
 | **Today's focus** | Up to 3 tasks a day |
@@ -141,7 +142,8 @@ All endpoints take and return JSON. Errors always look like `{"error": {"code": 
 | `GET /api/areas` | The six modules with their labels, units and default targets |
 | `GET /api/settings` | Read settings |
 | `PUT /api/settings` | Replace settings (validated) |
-| `POST /api/onboarding` | `{"modules": [...]}`: enable modules and set default targets |
+| `POST /api/onboarding` | `{"modules": [...]}`: enable modules and set default targets (onboarding is finished by `PUT /api/settings` with `onboarded: true`) |
+| `POST /api/sleep/suggestion` | `{"age", "role", "habits", "wake_time"}` (all optional): a suggested sleep goal or schedule; nothing is saved |
 | `GET /api/days/{date}` | Read one day (`YYYY-MM-DD`); empty day if none |
 | `PUT /api/days/{date}` | Save one day; blank or invalid numbers become `null` |
 | `POST /api/days/bulk` | Merge numeric fields only; returns `{"saved", "skipped"}` |
@@ -181,7 +183,8 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 | Web page, served by the server (Tasks 9-11) | Done; dark theme only for now |
 | Java CSV importer (Task 12) | Done |
 | Launcher `start.py` (Task 13) | Done |
-| QA pass (Task 13) | Mostly done; keyboard, screen reader and midnight checks still open |
+| QA pass (Task 13) | Done, except a Narrator pass on the new Sleep page |
+| Sleep onboarding page (2026-10-29) | Done; see `docs/superpowers/specs/2026-10-29-sleep-onboarding-design.md` |
 
 **Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server.
 

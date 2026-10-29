@@ -1,9 +1,9 @@
 import re
 
 from app.areas import AREAS, last_n_dates
-from app.brief import build_brief
-from app.models import Settings, normalize_day
-from app.settings_rules import apply_onboarding
+from app.brief import LOW_SLEEP_LINE, build_brief
+from app.models import Settings, SleepSchedule, normalize_day
+from app.settings_rules import apply_onboarding, check_settings
 
 TODAY = "2026-10-21"  # a Wednesday
 FIRST_BRIEF = "Log today's numbers to get your first brief."
@@ -224,3 +224,69 @@ def test_no_em_or_en_dashes():
         for module in ["sleep", "spending"]:
             text = " ".join(build_brief(days, settings(module), TODAY)["sentences"])
             assert "—" not in text and "–" not in text
+
+
+# (i) bedtime line, for people with a sleep schedule
+
+LATE_WEEK = ["22:30", "23:15", None, "22:50", "23:05", "22:40", "00:10"]  # 3 of 6 late; 22:50 is within 30 min
+
+
+def with_schedule(*modules: str, bedtime: str = "22:30") -> Settings:
+    s = settings(*modules)
+    return check_settings(s.model_copy(update={"sleep_schedule": SleepSchedule(bedtime=bedtime, wake_time="06:30")}))
+
+
+def nights(bedtimes: list[str | None], **series) -> list[dict]:
+    """A week with these bedtimes, each night ending at 06:30."""
+    wakes = [None if b is None else "06:30" for b in bedtimes]
+    return week(bedtime=bedtimes, wake_time=wakes, **series)
+
+
+def test_bedtime_line_counts_late_nights():
+    brief = build_brief(nights(LATE_WEEK), with_schedule("sleep"), TODAY)
+    assert "In bed after 22:30 on 3 of 6 nights." in brief["sentences"]
+
+
+def test_bedtime_line_all_on_time():
+    brief = build_brief(nights(["22:30", "22:45", "22:20", "23:00", None, "22:30", "22:35"]), with_schedule("sleep"), TODAY)
+    assert "In bed by 22:30 on all 6 nights." in brief["sentences"]
+
+
+def test_no_bedtime_line_under_four_nights():
+    brief = build_brief(nights([None, None, None, None, "23:30", "23:30", "23:30"]), with_schedule("sleep"), TODAY)
+    assert not any(s.startswith("In bed") for s in brief["sentences"])
+
+
+def test_no_bedtime_line_without_schedule():
+    brief = build_brief(nights(LATE_WEEK), settings("sleep"), TODAY)
+    assert not any(s.startswith("In bed") for s in brief["sentences"])
+
+
+def test_bedtime_line_replaces_pattern_when_sleep_is_focus():
+    brief = build_brief(nights(LATE_WEEK), with_schedule("sleep"), TODAY)
+    assert brief["sentences"][0].startswith("Sleep")
+    assert brief["sentences"][1] == "In bed after 22:30 on 3 of 6 nights."
+    assert not any("date" in f for f in brief["facts"])
+
+
+def test_bedtime_line_after_action_when_other_area_is_focus():
+    brief = build_brief(nights(LATE_WEEK, study_hours=[0.5] * 7), with_schedule("sleep", "study"), TODAY)
+    assert brief["sentences"][0].startswith("Study")
+    assert brief["sentences"][3] == "In bed after 22:30 on 3 of 6 nights."
+    assert len(brief["sentences"]) == 4
+
+
+def test_brief_never_exceeds_four_sentences():
+    # Under 5 hours a night and study further behind: the low-sleep warning wins the last place.
+    late = ["02:00"] * 7
+    brief = build_brief(nights(late, study_hours=[0] * 7), with_schedule("sleep", "study"), TODAY)
+    assert brief["sentences"][0].startswith("Study")
+    assert len(brief["sentences"]) == 4
+    assert brief["sentences"][-1] == LOW_SLEEP_LINE
+    assert not any(f.get("kind") == "bedtime" for f in brief["facts"])
+
+
+def test_bedtime_line_numbers_are_in_the_facts():
+    brief = build_brief(nights(LATE_WEEK), with_schedule("sleep"), TODAY)
+    fact = next(f for f in brief["facts"] if f.get("kind") == "bedtime")
+    assert fact == {"area_id": "sleep", "kind": "bedtime", "value": 3, "nights": 6, "bedtime": "22:30"}

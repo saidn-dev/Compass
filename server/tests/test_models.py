@@ -106,8 +106,30 @@ def test_note_keeps_html_as_plain_text():
 
 def test_unknown_keys_dropped_and_shape_complete():
     day = normalize_day({"evil": 1, "date": "1999-01-01"}, DATE)
-    assert set(day) == {"date", "habits", "tasks", "note", *NUMERIC_FIELDS}
+    assert set(day) == {"date", "habits", "tasks", "note", "bedtime", "wake_time", *NUMERIC_FIELDS}
     assert day["date"] == DATE
+
+
+# --- sleep times: hours are worked out when both are there ---
+
+def test_both_times_set_sleep_hours():
+    day = normalize_day({"bedtime": "23:00", "wake_time": "06:30", "sleep_hours": 3}, DATE)
+    assert day["sleep_hours"] == 7.5
+
+
+def test_one_time_keeps_sent_hours():
+    day = normalize_day({"bedtime": "23:00", "sleep_hours": 6}, DATE)
+    assert day["sleep_hours"] == 6
+    assert day["bedtime"] == "23:00" and day["wake_time"] is None
+
+
+def test_equal_times_give_a_gap():
+    day = normalize_day({"bedtime": "22:00", "wake_time": "22:00", "sleep_hours": 6}, DATE)
+    assert day["sleep_hours"] is None
+
+
+def test_junk_time_is_a_gap():
+    assert normalize_day({"bedtime": "11pm"}, DATE)["bedtime"] is None
 
 
 def test_bad_date_is_rejected():
