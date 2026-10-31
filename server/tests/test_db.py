@@ -94,6 +94,40 @@ def test_unreadable_settings_fall_back_to_defaults(tmp_path):
     assert Repository(path).get_settings() == Settings()
 
 
+def test_removed_modules_are_dropped_from_saved_settings(tmp_path):
+    path = str(tmp_path / "compass.db")
+    Repository(path)
+    saved = ('{"onboarded": true, "modules": ["work", "fasting"], "targets": ['
+             '{"area_id": "work", "target": 16, "mode": "up"}, '
+             '{"area_id": "fasting", "target": 16, "mode": "up"}]}')
+    with sqlite3.connect(path) as conn:
+        conn.execute("INSERT OR REPLACE INTO settings (id, json) VALUES (1, ?)", (saved,))
+    s = Repository(path).get_settings()
+    assert s.onboarded is True
+    assert s.modules == ["work"]
+    assert [t.area_id for t in s.targets] == ["work"]
+
+
+def test_saved_settings_over_the_module_limit_keep_the_first_three(tmp_path):
+    path = str(tmp_path / "compass.db")
+    Repository(path)
+    saved = '{"onboarded": true, "modules": ["steps", "study", "fasting", "work", "sleep"]}'
+    with sqlite3.connect(path) as conn:
+        conn.execute("INSERT OR REPLACE INTO settings (id, json) VALUES (1, ?)", (saved,))
+    s = Repository(path).get_settings()
+    assert s.onboarded is True
+    assert s.modules == ["steps", "study", "work"]
+
+
+def test_old_backup_with_removed_modules_imports(repo):
+    repo.import_all({"schema": 1, "days": [], "settings": {
+        "onboarded": True, "modules": ["sleep", "spending", "fasting"],
+        "targets": [{"area_id": "spending", "target": 100, "mode": "limit"}],
+    }})
+    s = repo.get_settings()
+    assert s.modules == ["sleep"] and s.targets == []
+
+
 # --- export / import ---
 
 def test_export_import_round_trip(repo, tmp_path):

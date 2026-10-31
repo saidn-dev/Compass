@@ -14,7 +14,7 @@ def client(tmp_path) -> TestClient:
     return TestClient(create_app(str(tmp_path / "compass.db")), base_url="http://127.0.0.1:8765")
 
 
-def onboard(client, modules=("sleep", "study", "spending")) -> None:
+def onboard(client, modules=("sleep", "study", "work")) -> None:
     """Pick modules, then finish onboarding the way the page's last step does."""
     r = client.post("/api/onboarding", json={"modules": list(modules)}, headers=HOST)
     assert r.status_code == 200, r.text
@@ -38,9 +38,9 @@ def test_fresh_app_is_not_onboarded(client):
     assert r.json()["onboarded"] is False
 
 
-def test_onboarding_with_six_modules_is_rejected(client):
+def test_onboarding_with_four_modules_is_rejected(client):
     r = client.post("/api/onboarding", headers=HOST,
-                    json={"modules": ["sleep", "steps", "study", "work", "spending", "fasting"]})
+                    json={"modules": ["sleep", "steps", "study", "work"]})
     assert_error(r, 422)
     assert client.get("/api/settings", headers=HOST).json()["onboarded"] is False
 
@@ -57,8 +57,8 @@ def test_onboarding_with_three_modules_updates_settings(client):
     onboard(client)
     s = client.get("/api/settings", headers=HOST).json()
     assert s["onboarded"] is True
-    assert s["modules"] == ["sleep", "study", "spending"]
-    assert [t["area_id"] for t in s["targets"]] == ["sleep", "study", "spending"]
+    assert s["modules"] == ["sleep", "study", "work"]
+    assert [t["area_id"] for t in s["targets"]] == ["sleep", "study", "work"]
 
 
 def test_onboarding_alone_does_not_finish_onboarding(client):
@@ -178,7 +178,7 @@ def test_bulk_merges_numbers_and_keeps_everything_else(client):
     })
     r = client.post("/api/days/bulk", headers=HOST, json={"days": [
         {"date": "2026-10-20", "steps": 9000, "note": "overwrite?", "tasks": [], "habits": {}},
-        {"date": "2026-10-21", "fasting_hours": 16},
+        {"date": "2026-10-21", "work_hours": 6},
     ]})
     assert r.status_code == 200
     assert r.json() == {"saved": 2, "skipped": []}
@@ -188,7 +188,7 @@ def test_bulk_merges_numbers_and_keeps_everything_else(client):
     assert day["note"] == "keep me"
     assert day["habits"] == {"read": True}
     assert day["tasks"] == [{"text": "keep", "done": True}]
-    assert client.get("/api/days/2026-10-21", headers=HOST).json()["fasting_hours"] == 16
+    assert client.get("/api/days/2026-10-21", headers=HOST).json()["work_hours"] == 6
 
 
 def test_bulk_reports_bad_dates_and_values(client):
@@ -243,7 +243,7 @@ def test_dashboard_has_brief_and_one_card_per_enabled_area(client):
     body = r.json()
     assert body["brief"]["sentences"][0].startswith("Sleep")
     assert body["brief"]["facts"]
-    assert [a["id"] for a in body["areas"]] == ["sleep", "study", "spending"]
+    assert [a["id"] for a in body["areas"]] == ["sleep", "study", "work"]
     by_id = {a["id"]: a for a in body["areas"]}
     assert by_id["sleep"]["status"] == "Behind"
     assert by_id["sleep"]["value"] == 6.4
@@ -404,7 +404,7 @@ def test_areas_lists_every_module_with_defaults(client):
     r = client.get("/api/areas", headers=HOST)
     assert r.status_code == 200
     areas = r.json()
-    assert [a["id"] for a in areas] == ["sleep", "steps", "study", "work", "spending", "fasting"]
+    assert [a["id"] for a in areas] == ["sleep", "steps", "study", "work"]
     sleep = areas[0]
     assert sleep == {"id": "sleep", "label": "Sleep", "unit": "h", "default_target": 7.5, "default_mode": "up"}
 

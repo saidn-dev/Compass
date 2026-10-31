@@ -12,11 +12,6 @@ def test_no_modules_raises():
         select_modules([])
 
 
-def test_six_modules_raises():
-    with pytest.raises(ValueError):
-        select_modules(["sleep", "steps", "study", "work", "spending", "fasting"])
-
-
 def test_unknown_module_raises():
     with pytest.raises(ValueError):
         select_modules(["sleep", "moodle"])
@@ -26,24 +21,29 @@ def test_duplicates_collapse_and_order_is_kept():
     assert select_modules(["study", "sleep", "study", "sleep"]) == ["study", "sleep"]
 
 
-def test_five_modules_is_allowed():
-    ids = ["sleep", "steps", "study", "work", "spending"]
+def test_four_modules_raises():
+    with pytest.raises(ValueError):
+        select_modules(["sleep", "steps", "study", "work"])
+
+
+def test_three_modules_is_allowed():
+    ids = ["sleep", "steps", "study"]
     assert select_modules(ids) == ids
 
 
 def test_duplicates_do_not_count_towards_the_limit():
-    ids = ["sleep", "steps", "study", "work", "spending", "sleep"]
-    assert len(select_modules(ids)) == 5
+    ids = ["sleep", "steps", "study", "sleep", "steps"]
+    assert len(select_modules(ids)) == 3
 
 
 # --- apply_onboarding ---
 
 def test_onboarding_creates_one_default_target_per_enabled_module():
-    s = apply_onboarding(Settings(), ["sleep", "spending", "study"])
-    assert s.modules == ["sleep", "spending", "study"]
+    s = apply_onboarding(Settings(), ["sleep", "work", "study"])
+    assert s.modules == ["sleep", "work", "study"]
     assert s.targets == [
         Target(area_id="sleep", target=7.5, mode="up"),
-        Target(area_id="spending", target=100, mode="limit"),
+        Target(area_id="work", target=16, mode="up"),
         Target(area_id="study", target=12, mode="up"),
     ]
 

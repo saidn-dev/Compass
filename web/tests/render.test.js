@@ -18,7 +18,7 @@ const card = (over = {}) => ({
 
 const AREAS = [
   { id: "sleep", label: "Sleep", unit: "h", default_target: 7.5, default_mode: "up" },
-  { id: "spending", label: "Spending", unit: "%", default_target: 100, default_mode: "limit" },
+  { id: "work", label: "Work", unit: "h", default_target: 16, default_mode: "up" },
 ];
 
 // --- escapeHtml (Review Focus 3) ---
@@ -79,10 +79,10 @@ test("area card progress bar is capped at 100%", () => {
 
 // --- onboarding ---
 
-test("onboarding says choose up to 5 and ticks selected modules", () => {
-  const html = renderOnboarding(AREAS, ["spending"]);
-  assert.ok(html.includes("Choose up to 5"));
-  assert.ok(/value="spending" checked/.test(html));
+test("onboarding says choose up to 3 and ticks selected modules", () => {
+  const html = renderOnboarding(AREAS, ["work"]);
+  assert.ok(html.includes("Choose up to 3"));
+  assert.ok(/value="work" checked/.test(html));
   assert.ok(!/value="sleep" checked/.test(html));
 });
 
@@ -146,10 +146,10 @@ test("done tasks are marked is-done and checked", () => {
 
 test("target rows show each enabled module with its current target and mode", () => {
   const html = renderTargetRows(AREAS, {
-    modules: ["spending"],
-    targets: [{ area_id: "spending", target: 90, mode: "limit" }],
+    modules: ["work"],
+    targets: [{ area_id: "work", target: 90, mode: "limit" }],
   });
-  assert.ok(html.includes('data-area="spending"'));
+  assert.ok(html.includes('data-area="work"'));
   assert.ok(!html.includes('data-area="sleep"'));
   assert.ok(html.includes('value="90"'));
   assert.ok(/<option value="limit" selected>/.test(html));
@@ -179,10 +179,10 @@ test("empty settings lists say so", () => {
 // --- target rows: each place gets its own ids ---
 
 test("target rows take an id prefix and can skip areas", () => {
-  const settings = { modules: ["sleep", "spending"], targets: [] };
+  const settings = { modules: ["sleep", "work"], targets: [] };
   const onboarding = renderTargetRows(AREAS, settings, { prefix: "onb-target", skip: ["sleep"] });
-  assert.ok(onboarding.includes('id="onb-target-spending"'));
-  assert.ok(onboarding.includes('for="onb-target-spending"'));
+  assert.ok(onboarding.includes('id="onb-target-work"'));
+  assert.ok(onboarding.includes('for="onb-target-work"'));
   assert.ok(!onboarding.includes("sleep"));
   assert.ok(renderTargetRows(AREAS, settings).includes('id="target-sleep"'));
 });

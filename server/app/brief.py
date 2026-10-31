@@ -33,12 +33,10 @@ def _fmt(value: float) -> str:
 
 
 def _amount(area: Area, value: float) -> str:
-    return f"{_fmt(value)}%" if area.unit == "%" else f"{_fmt(value)} {area.unit}"
+    return f"{_fmt(value)} {area.unit}"
 
 
 def _describe(area: Area, value: float, target: float) -> str:
-    if area.aggregate == "latest":
-        return f"{_amount(area, value)} of budget used against a {_amount(area, target)} limit"
     period = "average" if area.aggregate == "avg" else "this week"
     return f"{_amount(area, value)} {period} against {_amount(area, target)}"
 

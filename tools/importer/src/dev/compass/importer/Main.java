@@ -14,18 +14,18 @@ import java.util.Set;
 
 /**
  * Command-line entry point of the CSV importer.
- * Reads a CSV export (e.g. steps or fasting) and sends it to the Compass server (/api/days/bulk).
+ * Reads a CSV export (e.g. steps or sleep) and sends it to the Compass server (/api/days/bulk).
  * Exit codes: 0 success, 1 server error, 2 bad arguments or unreadable file.
  */
 public class Main {
-    static final Set<String> FIELDS = Set.of("steps", "fasting_hours", "sleep_hours", "study_hours", "work_hours");
+    static final Set<String> FIELDS = Set.of("steps", "sleep_hours", "study_hours", "work_hours");
 
     static final String USAGE = """
         Usage: java -cp tools/importer/out dev.compass.importer.Main
           --file <csv>             the CSV file to import
           --date-col <name|number> the date column (name from the header, or 1 = first column)
           --value-col <name|number> the number column
-          --field <name>           one of: steps, fasting_hours, sleep_hours, study_hours, work_hours
+          --field <name>           one of: steps, sleep_hours, study_hours, work_hours
           [--date-format yyyy-MM-dd]  how dates look in the file, e.g. dd/MM/yyyy
           [--url http://127.0.0.1:8765]
           [--dry-run]              print what would be sent, send nothing

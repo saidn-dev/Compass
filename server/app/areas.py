@@ -1,4 +1,4 @@
-"""Life areas (sleep, steps, study, work, spending, fasting) and their rules.
+"""Life areas (sleep, steps, study, work) and their rules.
 
 Date helpers, 7-day averages/sums, "On track / Behind / No data" status,
 progress percent and trend direction. A gap (None) is never treated as 0.
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
 
-Aggregate = Literal["avg", "sum", "latest"]
+Aggregate = Literal["avg", "sum"]
 Mode = Literal["up", "limit"]
 Status = Literal["on_track", "behind", "no_data"]
 Trend = Literal["up", "down", "flat", "none"]
@@ -36,10 +36,6 @@ AREAS: list[Area] = [
          "Do one 30-minute study block on your nearest deadline."),
     Area("work", "Work", "h", "work_hours", "sum", 16, "up",
          "Block 30 minutes for your most urgent paid task."),
-    Area("spending", "Spending", "%", "spend_pct_of_budget", "latest", 100, "limit",
-         "Spend 10 minutes listing what you can skip buying this week."),
-    Area("fasting", "Fasting", "h", "fasting_hours", "avg", 16, "up",
-         "Pick tonight's last-meal time and set a reminder."),
 ]
 
 
@@ -61,9 +57,7 @@ def area_value(area: Area, days: list[dict]) -> float | None:
         return None
     if area.aggregate == "avg":
         return sum(present) / len(present)
-    if area.aggregate == "sum":
-        return sum(present)
-    return present[-1]
+    return sum(present)
 
 
 def area_status(value: float | None, target: float, mode: str) -> Status:

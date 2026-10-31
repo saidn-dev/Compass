@@ -10,7 +10,26 @@ from datetime import date, timedelta
 
 from pydantic import ValidationError
 
+from app.areas import AREAS
 from app.models import Settings, normalize_day
+from app.settings_rules import MAX_MODULES
+
+AREA_IDS = {a.id for a in AREAS}
+
+
+def upgrade_settings(raw: object) -> object:
+    """Fit settings saved by older versions to today's rules, before validation.
+
+    Spending and fasting were removed and the module limit went from 5 to 3:
+    unknown modules and their targets are dropped, then the first 3 modules kept.
+    """
+    if not isinstance(raw, dict) or not isinstance(raw.get("modules"), list):
+        return raw
+    modules = [m for m in raw["modules"] if m in AREA_IDS][:MAX_MODULES]
+    targets = raw.get("targets")
+    if isinstance(targets, list):
+        targets = [t for t in targets if isinstance(t, dict) and t.get("area_id") in modules]
+    return {**raw, "modules": modules, "targets": targets if targets is not None else []}
 
 SCHEMA_VERSION = 1
 
@@ -79,8 +98,8 @@ class Repository:
         if row is None:
             return Settings()
         try:
-            return Settings.model_validate_json(row[0])
-        except ValidationError:
+            return Settings.model_validate(upgrade_settings(json.loads(row[0])))
+        except (ValueError, ValidationError):
             return Settings()
 
     def put_settings(self, settings: Settings) -> None:
@@ -122,7 +141,7 @@ class Repository:
         if data.get("schema") != SCHEMA_VERSION:
             raise ValueError(f"Backup schema must be {SCHEMA_VERSION}.")
         try:
-            settings = Settings.model_validate(data.get("settings"))
+            settings = Settings.model_validate(upgrade_settings(data.get("settings")))
         except ValidationError as e:
             raise ValueError(f"Backup settings are invalid: {e.error_count()} problem(s).") from None
         raw_days = data.get("days")

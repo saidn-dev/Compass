@@ -39,7 +39,6 @@
             <ul>
               <li>Sleep: 6.4 h (target 7.5 h, more is better)</li>
               <li>Study: 9 h (target 12 h, more is better)</li>
-              <li>Spending: 64% (limit 100%)</li>
             </ul>
           </details>
         </div>
@@ -69,17 +68,10 @@
             <div class="progress" style="--progress: 75%"><span class="progress-bar"></span></div>
             <p class="trend" data-trend="flat">Steady</p>
           </article>
-          <article class="card area-card" data-status="on_track" aria-label="Spending: 64% against a limit of 100%, On track">
-            <div class="card-head"><h3 class="card-title">Spending</h3><span class="status">On track</span></div>
-            <p class="card-value"><span class="value">64</span><span class="unit">%</span></p>
-            <p class="card-target">Of budget, limit 100%</p>
-            <div class="progress" style="--progress: 64%"><span class="progress-bar"></span></div>
-            <p class="trend" data-trend="up">Trending up</p>
-          </article>
-          <article class="card area-card" data-status="no_data" aria-label="Fasting: no data, target 16 h">
-            <div class="card-head"><h3 class="card-title">Fasting</h3><span class="status">No data</span></div>
+          <article class="card area-card" data-status="no_data" aria-label="Work: no data, target 16 h">
+            <div class="card-head"><h3 class="card-title">Work</h3><span class="status">No data</span></div>
             <p class="card-value"><span class="value">-</span></p>
-            <p class="card-target">7-day average, target 16 h</p>
+            <p class="card-target">This week, target 16 h</p>
             <div class="progress"><span class="progress-bar"></span></div>
             <p class="trend" data-trend="none">Not enough data</p>
           </article>
@@ -104,8 +96,8 @@
               <div class="input-unit"><input id="p-study" type="number" value="2"><span class="unit">h</span></div>
             </div>
             <div class="field">
-              <label for="p-spend">Budget used this month</label>
-              <div class="input-unit"><input id="p-spend" type="number" value="64"><span class="unit">%</span></div>
+              <label for="p-work">Paid work</label>
+              <div class="input-unit"><input id="p-work" type="number"><span class="unit">h</span></div>
             </div>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">Save today</button>
@@ -196,14 +188,12 @@
         <h2 id="ob-title">Onboarding picker</h2>
         <fieldset class="module-picker">
           <legend>Modules</legend>
-          <p class="hint">Choose up to 5.</p>
+          <p class="hint">Choose up to 3.</p>
           <div class="module-options">
             <label class="module-option"><input type="checkbox" checked><span class="module-name">Sleep</span><span class="module-detail">Hours per night, target 7.5 h</span></label>
             <label class="module-option"><input type="checkbox" checked><span class="module-name">Movement</span><span class="module-detail">Steps per day, target 8,000</span></label>
             <label class="module-option"><input type="checkbox" checked><span class="module-name">Study</span><span class="module-detail">Hours per week, target 12 h</span></label>
             <label class="module-option"><input type="checkbox"><span class="module-name">Work</span><span class="module-detail">Paid hours per week, target 16 h</span></label>
-            <label class="module-option"><input type="checkbox" checked><span class="module-name">Spending</span><span class="module-detail">Percent of budget, limit 100%</span></label>
-            <label class="module-option"><input type="checkbox" checked><span class="module-name">Fasting</span><span class="module-detail">Hours per day, target 16 h</span></label>
           </div>
         </fieldset>
       </section>
@@ -219,9 +209,9 @@
               <select aria-label="Sleep mode"><option selected>More is better</option><option>Stay under</option></select>
             </div>
             <div class="target-row">
-              <label for="t-spend">Spending</label>
-              <div class="input-unit"><input id="t-spend" type="number" value="100"><span class="unit">%</span></div>
-              <select aria-label="Spending mode"><option>More is better</option><option selected>Stay under</option></select>
+              <label for="t-work">Work</label>
+              <div class="input-unit"><input id="t-work" type="number" value="40"><span class="unit">h</span></div>
+              <select aria-label="Work mode"><option>More is better</option><option selected>Stay under</option></select>
             </div>
           </div>
         </section>

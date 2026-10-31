@@ -37,7 +37,7 @@ def test_numeric_string_is_parsed():
     assert normalize_day({"sleep_hours": " 7.5 "}, DATE)["sleep_hours"] == 7.5
 
 
-@pytest.mark.parametrize("field", ["sleep_hours", "study_hours", "work_hours", "fasting_hours"])
+@pytest.mark.parametrize("field", ["sleep_hours", "study_hours", "work_hours"])
 def test_hour_fields_are_0_to_24(field):
     assert normalize_day({field: 24}, DATE)[field] == 24
     assert normalize_day({field: 24.5}, DATE)[field] is None
@@ -48,11 +48,6 @@ def test_steps_are_whole_numbers_with_a_sane_cap():
     assert normalize_day({"steps": 8000.7}, DATE)["steps"] == 8000
     assert normalize_day({"steps": "12000"}, DATE)["steps"] == 12000
     assert normalize_day({"steps": 1e9}, DATE)["steps"] is None
-
-
-def test_spending_percent_is_0_to_1000():
-    assert normalize_day({"spend_pct_of_budget": 1000}, DATE)["spend_pct_of_budget"] == 1000
-    assert normalize_day({"spend_pct_of_budget": 1001}, DATE)["spend_pct_of_budget"] is None
 
 
 # --- tasks ---
@@ -173,6 +168,6 @@ def test_settings_caps():
     with pytest.raises(ValidationError):
         Settings(goals=[goal] * 4)
     with pytest.raises(ValidationError):
-        Settings(modules=["sleep", "steps", "study", "work", "spending", "fasting"])
+        Settings(modules=["sleep", "steps", "study", "work"])
     with pytest.raises(ValidationError):
         Settings(theme="neon")

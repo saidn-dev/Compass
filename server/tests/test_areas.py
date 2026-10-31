@@ -60,8 +60,6 @@ def test_areas_have_readme_defaults():
         "steps": ("steps", "avg", 8000, "up"),
         "study": ("study_hours", "sum", 12, "up"),
         "work": ("work_hours", "sum", 16, "up"),
-        "spending": ("spend_pct_of_budget", "latest", 100, "limit"),
-        "fasting": ("fasting_hours", "avg", 16, "up"),
     }
     assert [a.id for a in AREAS] == list(expected)
     for a in AREAS:
@@ -79,11 +77,6 @@ def test_sleep_is_averaged_ignoring_gaps():
 def test_study_is_summed_ignoring_gaps():
     days = days_with("study_hours", [2, None, 3, 0, None, None, 1])
     assert area_value(area("study"), days) == 6
-
-
-def test_spending_takes_latest_non_blank():
-    days = days_with("spend_pct_of_budget", [40, 55, None])
-    assert area_value(area("spending"), days) == 55
 
 
 def test_all_gaps_is_no_value_not_zero():

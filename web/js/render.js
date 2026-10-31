@@ -98,7 +98,7 @@ export function renderOnboarding(areas, selectedIds) {
 
   return `<fieldset class="module-picker">
     <legend>Modules</legend>
-    <p class="hint">Choose up to 5.</p>
+    <p class="hint">Choose up to 3.</p>
     <div class="module-options">${options}</div>
   </fieldset>`;
 }

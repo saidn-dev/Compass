@@ -1,7 +1,7 @@
 // Talks to the server. The only file that calls fetch().
 // Every function returns the JSON the server sent back, or throws an ApiError.
 
-// An error from the server, e.g. { code: "invalid", message: "Choose up to 5 modules." }
+// An error from the server, e.g. { code: "invalid", message: "Choose up to 3 modules." }
 export class ApiError extends Error {
   constructor(code, message) {
     super(message);

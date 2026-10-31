@@ -1,18 +1,18 @@
 """Rules for onboarding and settings.
 
-Which modules can be enabled (1-5), default targets, changing a target,
+Which modules can be enabled (1-3), default targets, changing a target,
 and keeping the sleep target in step with a sleep schedule.
 """
 from app.areas import AREAS
 from app.models import Settings, Target
 from app.sleep import hours_between
 
-MAX_MODULES = 5
+MAX_MODULES = 3
 AREAS_BY_ID = {a.id: a for a in AREAS}
 
 
 def select_modules(ids: list[str]) -> list[str]:
-    """Clean a module choice: no duplicates, order kept, 1-5 known ids."""
+    """Clean a module choice: no duplicates, order kept, 1-3 known ids."""
     chosen = list(dict.fromkeys(ids))
     unknown = [i for i in chosen if i not in AREAS_BY_ID]
     if unknown:

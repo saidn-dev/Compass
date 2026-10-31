@@ -17,8 +17,6 @@ NUMERIC_FIELDS: dict[str, tuple[float, float]] = {
     "steps": (0, 200_000),
     "study_hours": (0, 24),
     "work_hours": (0, 24),
-    "spend_pct_of_budget": (0, 1000),
-    "fasting_hours": (0, 24),
 }
 WHOLE_NUMBER_FIELDS = {"steps"}
 
@@ -155,7 +153,7 @@ class SleepSchedule(BaseModel):
 
 class Settings(BaseModel):
     onboarded: bool = False
-    modules: Annotated[list[str], Field(max_length=5)] = []
+    modules: Annotated[list[str], Field(max_length=3)] = []
     targets: list[Target] = []
     habits: list[Habit] = []
     goals: Annotated[list[Goal], Field(max_length=3)] = []

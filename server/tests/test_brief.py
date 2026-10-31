@@ -23,6 +23,14 @@ def settings(*modules: str) -> Settings:
     return apply_onboarding(Settings(), list(modules))
 
 
+def work_limit(limit: float) -> Settings:
+    """Work as a stay-under target, to cover the "limit" mode."""
+    s = settings("work")
+    s.targets[0].target = limit
+    s.targets[0].mode = "limit"
+    return s
+
+
 def numbers_in(text: str) -> list[float]:
     return [float(n) for n in re.findall(r"\d+(?:\.\d+)?", text)]
 
@@ -54,11 +62,11 @@ def test_largest_relative_gap_wins():
     assert brief["sentences"][0].startswith("Study")
 
 
-def test_spending_over_its_limit_is_behind():
-    days = week(spend_pct_of_budget=[None, None, None, None, None, 90, 130], sleep_hours=[8] * 7)
-    brief = build_brief(days, settings("sleep", "spending"), TODAY)
-    assert brief["sentences"][0].startswith("Spending")
-    assert "130" in brief["sentences"][0]
+def test_going_over_a_limit_is_behind():
+    days = week(work_hours=[8] * 7)  # 56 h against a 40 h limit
+    brief = build_brief(days, work_limit(40), TODAY)
+    assert brief["sentences"][0].startswith("Work")
+    assert "56" in brief["sentences"][0]
 
 
 def test_nothing_behind_says_what_is_going_well():
@@ -157,9 +165,9 @@ def test_pattern_names_the_weakest_day():
 
 
 def test_pattern_for_a_limit_names_the_highest_day():
-    days = week(spend_pct_of_budget=[140, 100, 110, 120, 120, 120, 120])
-    brief = build_brief(days, settings("spending"), TODAY)
-    assert brief["sentences"][1] == "Highest was Thursday (140%)."
+    days = week(work_hours=[10, 6, 6, 6, 6, 6, 6])
+    brief = build_brief(days, work_limit(40), TODAY)
+    assert brief["sentences"][1] == "Highest was Thursday (10 h)."
 
 
 def test_fewer_than_four_points_has_no_weakest_day():
@@ -179,14 +187,14 @@ def test_action_is_the_areas_short_suggestion():
 
 def test_every_number_in_the_sentences_is_in_facts():
     cases = [
-        (week(sleep_hours=[6, 6.5, 6.5, 6.4, 6.4, 6.5, 6.5], study_hours=[2] * 7), ("sleep", "study")),
-        (week(spend_pct_of_budget=[100, 140, 110, 120, 120, 120, 120]), ("spending",)),
-        (week(steps=[7000, 7500, None, 8000, 6000, 6100, 7200]), ("steps",)),
-        (week(sleep_hours=[4.5] * 7), ("sleep",)),
-        (week(work_hours=[3] * 7), ("work",)),
+        (week(sleep_hours=[6, 6.5, 6.5, 6.4, 6.4, 6.5, 6.5], study_hours=[2] * 7), settings("sleep", "study")),
+        (week(work_hours=[10, 6, 6, 6, 6, 6, 6]), work_limit(40)),
+        (week(steps=[7000, 7500, None, 8000, 6000, 6100, 7200]), settings("steps")),
+        (week(sleep_hours=[4.5] * 7), settings("sleep")),
+        (week(work_hours=[3] * 7), settings("work")),
     ]
-    for days, modules in cases:
-        brief = build_brief(days, settings(*modules), TODAY)
+    for days, s in cases:
+        brief = build_brief(days, s, TODAY)
         known = {n for f in brief["facts"] for n in (f["value"], f["target"])}
         for sentence in measured_sentences(brief):
             for n in numbers_in(sentence):
@@ -217,12 +225,12 @@ def test_no_em_or_en_dashes():
         week(sleep_hours=[6] * 7),
         week(sleep_hours=[4] * 7),
         week(sleep_hours=[8] * 7),
-        week(spend_pct_of_budget=[100, 140, 110, 120, 120, 120, 120]),
+        week(work_hours=[10, 6, 6, 6, 6, 6, 6]),
         week(),
     ]
     for days in cases:
-        for module in ["sleep", "spending"]:
-            text = " ".join(build_brief(days, settings(module), TODAY)["sentences"])
+        for s in [settings("sleep"), work_limit(40)]:
+            text = " ".join(build_brief(days, s, TODAY)["sentences"])
             assert "—" not in text and "–" not in text
 
 
