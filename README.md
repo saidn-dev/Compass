@@ -29,7 +29,7 @@ The server owns every rule. The page only draws what the API returns. Data lives
 
 | Feature | What it does |
 |---|---|
-| **Onboarding** | Welcome, then pick 1 to 5 of six modules, a Sleep page (a goal, a schedule, or help working one out), targets for the rest, optional habits and goals |
+| **Onboarding** | Welcome, then pick 1 to 3 of four modules, a Sleep page (a goal, a schedule, or help working one out), a Study page (what you're studying for, dates, hours a week), targets for the rest, optional habits and goals |
 | **Sleep** | With a sleep schedule you log bed and wake times and Compass works out the hours; the brief says how often you were in bed on time |
 | **Daily brief** | 3-4 sentences from the last 7 days, plus the numbers it used |
 | **Area cards** | Value, progress, 7-day trend, and status in words: "On track", "Behind", "No data" |
@@ -183,8 +183,9 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 | Web page, served by the server (Tasks 9-11) | Done; dark theme only for now |
 | Java CSV importer (Task 12) | Done |
 | Launcher `start.py` (Task 13) | Done |
-| QA pass (Task 13) | Done, except a Narrator pass on the new Sleep page |
+| QA pass (Task 13) | Done, except a Narrator pass on the new Sleep and Study pages |
 | Sleep onboarding page (2026-10-29) | Done; see `docs/superpowers/specs/2026-10-29-sleep-onboarding-design.md` |
+| Study onboarding page (2026-11-04) | Done; see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md` |
 
 **Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server.
 
