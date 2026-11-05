@@ -128,6 +128,14 @@ def test_old_backup_with_removed_modules_imports(repo):
     assert s.modules == ["sleep"] and s.targets == []
 
 
+def test_old_backup_without_study_goals_imports(repo):
+    repo.import_all({"schema": 1, "days": [], "settings": {
+        "onboarded": True, "modules": ["study"],
+        "targets": [{"area_id": "study", "target": 12, "mode": "up"}],
+    }})
+    assert repo.get_settings().study_goals == []
+
+
 # --- export / import ---
 
 def test_export_import_round_trip(repo, tmp_path):

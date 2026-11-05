@@ -52,6 +52,10 @@ export function renderBrief(brief) {
     if (f.kind === "bedtime") {
       return `<li>${escapeHtml(`Sleep: in bed late on ${f.value} of ${f.nights} nights (bedtime ${f.bedtime})`)}</li>`;
     }
+    if (f.kind === "deadline") {
+      const left = f.days_left < 0 ? "date passed" : `${f.days_left} days left`;
+      return `<li>${escapeHtml(`Study: ${f.name}, ${f.date} (${left})`)}</li>`;
+    }
     const name = capitalize(f.area_id);
     const when = f.date ? ` on ${f.date}` : "";
     const rule = f.mode === "limit" ? "limit" : "target";
@@ -69,9 +73,11 @@ export function renderAreaCard(area) {
   const value = hasValue ? formatNumber(area.value) : "-";
   const unit = hasValue ? `<span class="unit">${escapeHtml(area.unit)}</span>` : "";
   const target = targetText(area.target, area.mode, area.unit);
-  const label = hasValue
+  const goal = area.goal ? `<p class="card-goal">${escapeHtml(area.goal.text)}</p>` : "";
+  const goalLabel = area.goal ? `, ${area.goal.text}` : "";
+  const label = (hasValue
     ? `${area.label}: ${withUnit(area.value, area.unit)}, ${target}, ${area.status}`
-    : `${area.label}: no data, ${target}`;
+    : `${area.label}: no data, ${target}`) + goalLabel;
 
   return `<article class="card area-card" data-status="${statusKey}" aria-label="${escapeHtml(label)}">
     <div class="card-head">
@@ -80,6 +86,7 @@ export function renderAreaCard(area) {
     </div>
     <p class="card-value"><span class="value">${value}</span>${unit}</p>
     <p class="card-target">${escapeHtml(target)}</p>
+    ${goal}
     ${progressBar(area.progress)}
     <p class="trend" data-trend="${escapeHtml(area.trend)}">${TREND_WORDS[area.trend] || ""}</p>
   </article>`;
@@ -303,5 +310,53 @@ export function renderSleepSuggestion(s) {
     <p>Usual range: ${escapeHtml(s.range)} a night.</p>
     ${tips}${notes}
     <p class="hint">General guidance, not medical advice.</p>
+  </div>`;
+}
+
+// --- Study ---
+
+const MAX_STUDY_GOALS = 5;
+
+// The Study page: one row per goal (name and optional date), "+ Add another" up to 5,
+// then hours a week for all study. No goals yet draws one empty row.
+// goals: [{ name, date }]; prefix keeps ids unique ("onb" now, the Study page later).
+export function renderStudyGoals(goals, hours, prefix) {
+  const rows = goals.length > 0 ? goals : [{ name: "", date: null }];
+  const id = escapeHtml(prefix);
+
+  const items = rows.map((g, i) => {
+    const n = i + 1;
+    const remove = rows.length > 1
+      ? `<button type="button" class="btn btn-small" data-remove-study="${i}">Remove<span class="visually-hidden"> goal ${n}</span></button>`
+      : "";
+    return `<div class="study-goal-row" data-index="${i}">
+      <div class="field">
+        <label for="${id}-study-name-${i}">Goal ${n}</label>
+        <input id="${id}-study-name-${i}" name="study-name" type="text" maxlength="100" autocomplete="off" value="${escapeHtml(g.name)}">
+      </div>
+      <div class="field">
+        <label for="${id}-study-date-${i}">Date<span class="visually-hidden"> for goal ${n}</span></label>
+        <input id="${id}-study-date-${i}" name="study-date" type="date" value="${escapeHtml(g.date || "")}">
+      </div>
+      ${remove}
+    </div>`;
+  }).join("");
+
+  const add = rows.length < MAX_STUDY_GOALS
+    ? `<button type="button" class="btn" data-add-study>+ Add another</button>`
+    : `<p class="hint">Up to 5 goals.</p>`;
+
+  return `<fieldset class="study-goals">
+    <legend>What are you studying for?</legend>
+    ${items}
+    ${add}
+    <p class="hint">Leave the date blank if there isn't one.</p>
+  </fieldset>
+  <div class="field study-hours">
+    <label for="${id}-study-hours">Hours a week for all your studying</label>
+    <div class="input-unit">
+      <input id="${id}-study-hours" name="study-hours" type="number" inputmode="decimal" min="0" max="168" step="any" value="${escapeHtml(hours)}">
+      <span class="unit">h</span>
+    </div>
   </div>`;
 }

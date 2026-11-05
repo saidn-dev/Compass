@@ -6,6 +6,7 @@ import {
   renderHabitGrid, renderGoals, renderTasks,
   renderTargetRows, renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
+  renderStudyGoals,
 } from "../js/render.js";
 
 const EVIL = "<script>alert(1)</script>";
@@ -248,4 +249,68 @@ test("sleep suggestion without a schedule shows hours and notes", () => {
   assert.ok(!html.includes("sleep-tips"));
   assert.ok(html.includes(note));
   assertEveryInputLabelled(html);
+});
+
+// --- Study ---
+
+const count = (html, needle) => html.split(needle).length - 1;
+
+test("renderStudyGoals with no goals draws one empty row and the hours", () => {
+  const html = renderStudyGoals([], 12, "onb");
+  assert.strictEqual(count(html, 'class="study-goal-row"'), 1);
+  assert.ok(!html.includes("data-remove-study"));
+  assert.ok(html.includes("data-add-study"));
+  assert.ok(html.includes('id="onb-study-hours"'));
+  assert.ok(html.includes('for="onb-study-hours"'));
+  assert.ok(html.includes('value="12"'));
+  assert.ok(html.includes("What are you studying for?"));
+  assert.ok(html.includes("Leave the date blank if there isn't one."));
+});
+
+test("renderStudyGoals with two goals gives each a Remove button", () => {
+  const html = renderStudyGoals([{ name: "A", date: null }, { name: "B", date: null }], 12, "onb");
+  assert.strictEqual(count(html, 'class="study-goal-row"'), 2);
+  assert.strictEqual(count(html, "data-remove-study="), 2);
+});
+
+test("renderStudyGoals at five goals hides Add and says so", () => {
+  const goals = [1, 2, 3, 4, 5].map((n) => ({ name: `G${n}`, date: null }));
+  const html = renderStudyGoals(goals, 12, "onb");
+  assert.ok(!html.includes("data-add-study"));
+  assert.ok(html.includes("Up to 5 goals."));
+});
+
+test("renderStudyGoals escapes names and keeps dates", () => {
+  const html = renderStudyGoals([{ name: EVIL, date: "2026-12-12" }], 12, "onb");
+  assert.ok(!html.includes("<script"));
+  assert.ok(html.includes('value="2026-12-12"'));
+});
+
+test("renderStudyGoals gives every input a matching label", () => {
+  const html = renderStudyGoals([{ name: "A", date: null }, { name: "B", date: "2026-12-12" }], 12, "set");
+  const ids = [...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(ids.length >= 5);
+  for (const id of ids) assert.ok(html.includes(`for="${id}"`), `no label for ${id}`);
+});
+
+test("renderAreaCard shows the study goal line", () => {
+  const html = renderAreaCard(card({ id: "study", label: "Study", goal: { text: "Exam · in 12 days" } }));
+  assert.ok(html.includes('class="card-goal"'));
+  assert.ok(html.includes("Exam · in 12 days"));
+  assert.match(html, /aria-label="[^"]*, Exam · in 12 days"/);
+});
+
+test("renderAreaCard escapes the goal line and leaves it out without a goal", () => {
+  assert.ok(!renderAreaCard(card({ goal: { text: IMG } })).includes("<img"));
+  assert.ok(!renderAreaCard(card()).includes("card-goal"));
+  assert.ok(!renderAreaCard(card({ goal: null })).includes("card-goal"));
+});
+
+test("renderBrief shows a deadline fact, escaped", () => {
+  const fact = { area_id: "study", kind: "deadline", name: EVIL, date: "2026-12-12", days_left: 12 };
+  const html = renderBrief({ sentences: ["x"], facts: [fact] });
+  assert.ok(html.includes("12 days left"));
+  assert.ok(!html.includes("<script"));
+  const passed = renderBrief({ sentences: ["x"], facts: [{ ...fact, name: "Exam", days_left: -2 }] });
+  assert.ok(passed.includes("Study: Exam, 2026-12-12 (date passed)"));
 });

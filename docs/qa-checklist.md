@@ -2,7 +2,7 @@
 
 Manual checks to run before calling v1 done. Start the app with `python start.py`.
 
-`[x]` = checked on 2026-10-27 (how is noted in brackets), by hand on 2026-10-28 (marked "by hand"), or by the onboarding browser script on 2026-10-29. `[ ]` = still needs a person.
+`[x]` = checked on 2026-10-27 (how is noted in brackets), by hand on 2026-10-28 (marked "by hand"), or by the onboarding browser script on 2026-10-29, or by the Study browser script on 2026-11-04. `[ ]` = still needs a person.
 
 ## 1. Daily use
 
@@ -16,6 +16,7 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Onboarding Back works on every step and keeps saved choices (browser script)
 - [x] Onboarding focus lands on each new step heading, and every field has a label (browser script)
 - [ ] Onboarding with Narrator: each step heading is read when it appears, the Sleep radio group, time inputs and suggestion are read sensibly
+- [ ] Narrator: Study step (row labels "Goal N" and "Date for goal N", Add and Remove, focus after each)
 - [x] After onboarding, Settings > Modules still works and does not send you back to onboarding (browser script)
 - [x] Sleep page, goal: the hours are saved as the sleep target and shown on the card (browser script)
 - [x] Sleep page, schedule: the panel switches, "= 8 h a night" updates as you type, the schedule is saved and sets the target (browser script)
@@ -24,6 +25,13 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Daily log: schedule users log bed and wake times and the card shows the hours; goal users log hours; after switching to a goal, typed hours win (browser script)
 - [x] Brief: with a schedule and 4+ logged bedtimes, "In bed after ... on X of Y nights" shows, with its numbers under "Numbers used" (browser script)
 - [x] Settings: Sleep switches between goal and schedule; other targets are kept; target labels point at the Settings inputs (browser script)
+- [x] Study page: Study alone is "Step 3 of 5" with no Targets step; Sleep + Study + another area is 7 steps and Targets shows only the other area (browser script)
+- [x] Study page: "+ Add another" up to 5 rows, then "Up to 5 goals."; Remove works; focus moves to the new row or to Add; typed text is kept (browser script)
+- [x] Study page: the four messages (no goal named, a date with no name, a half-typed date, hours outside 0-168) (browser script)
+- [x] Study page: goals, blank dates (saved as no date) and hours are saved; a saved "Stay under" rule is kept; Back and resume redraw the saved goals (browser script)
+- [x] Study card: "in 12 days", "today", "tomorrow", "date passed" (up to 7 days), no line after 8 days, name only for an undated goal; the card's label reads the same (browser script)
+- [x] Brief: with Study furthest behind and a dated goal, "Exam is in 12 days." shows, with its date under "Numbers used" (browser script)
+- [x] Study on with no goals: the dashboard loads and Settings > Save targets works; Save targets and unticking Study keep saved goals (browser script)
 - [x] A blank log field is saved as a gap: its card says "No data" and the brief ignores it (browser script)
 - [x] A real `0` stays `0` (browser script: spending 0%)
 - [x] Focus tasks: blank rejected, 4th rejected, ticked task stays visible but muted (browser script)

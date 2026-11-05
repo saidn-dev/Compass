@@ -1,5 +1,7 @@
 """Everything the dashboard shows for one day: brief, area cards, habit grid.
 
+The Study card also carries the nearest study goal.
+
 Recomputed on every request, so it is live as you log.
 """
 from app.areas import area_progress, area_status, area_value, last_n_dates, trend
@@ -7,6 +9,7 @@ from app.brief import build_brief, round_value
 from app.lists import habit_completion, is_logged
 from app.models import Settings, normalize_day
 from app.settings_rules import AREAS_BY_ID, target_for
+from app.study import card_goal
 
 STATUS_WORDS = {"on_track": "On track", "behind": "Behind", "no_data": "No data"}
 
@@ -27,7 +30,7 @@ def build_dashboard(days: list[dict], settings: Settings, today: str) -> dict:
         raw = area_value(area, window)
         value = None if raw is None else round_value(area, raw)
         series = [d[area.field] for d in window]
-        areas.append({
+        entry = {
             "id": area.id,
             "label": area.label,
             "unit": area.unit,
@@ -38,7 +41,10 @@ def build_dashboard(days: list[dict], settings: Settings, today: str) -> dict:
             "progress": _maybe_round(area_progress(value, t.target, t.mode)),
             "trend": trend(series),
             "series": series,
-        })
+        }
+        if area.id == "study":
+            entry["goal"] = card_goal(settings.study_goals, today)
+        areas.append(entry)
 
     habits = [h.model_dump() for h in settings.habits]
     grid = [

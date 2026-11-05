@@ -121,8 +121,10 @@ Day      { date: "YYYY-MM-DD", sleep_hours, steps, study_hours, work_hours, spen
 Target   { area_id, target: number (>0), mode: "up"|"limit" }
 Goal     { name, percent: 0-100, detail }
 Settings { onboarded: bool, modules: [area_id] (1-5), targets: [Target], habits: [{id, name}],
-           goals: [Goal] (<=3), theme: "light"|"dark"|"system" }
+           goals: [Goal] (<=3), theme: "light"|"dark"|"system",
+           study_goals: [{name, date: "YYYY-MM-DD"|null}] (0-5) }
 ```
+Note 2026-11-04: `study_goals` was added for the Study onboarding page, see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md`. The Study card's dashboard entry also carries `goal: {name, date, days_left, text} | null`.
 SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(date PRIMARY KEY, json TEXT)`, `settings(id=1, json TEXT)`.
 
 ## API contract (all JSON, prefix `/api`)

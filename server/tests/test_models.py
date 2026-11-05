@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.areas import AREAS
-from app.models import NUMERIC_FIELDS, Goal, Settings, Target, normalize_day
+from app.models import NUMERIC_FIELDS, Goal, Settings, StudyGoal, Target, normalize_day
 
 DATE = "2026-10-20"
 JUNK = ["", "  ", None, "abc", -3, float("nan"), float("inf"), True, [], {}]
@@ -171,3 +171,33 @@ def test_settings_caps():
         Settings(modules=["sleep", "steps", "study", "work"])
     with pytest.raises(ValidationError):
         Settings(theme="neon")
+
+
+# --- study goals ---
+
+def test_study_goal_blank_date_is_none():
+    assert StudyGoal(name="Exam", date="").date is None
+    assert StudyGoal(name="Exam", date=None).date is None
+    assert StudyGoal(name="Exam").date is None
+
+
+def test_study_goal_keeps_real_date():
+    assert StudyGoal(name="Exam", date="2026-12-12").date == "2026-12-12"
+
+
+@pytest.mark.parametrize("bad", ["2026-02-30", "12/12/2026", "2026-1-5", 20261212], ids=repr)
+def test_study_goal_bad_dates_rejected(bad):
+    with pytest.raises(ValidationError):
+        StudyGoal(name="Exam", date=bad)
+
+
+def test_study_goal_blank_name_rejected():
+    with pytest.raises(ValidationError):
+        StudyGoal(name="   ")
+
+
+def test_settings_allow_five_study_goals_not_six():
+    goals = [{"name": f"Goal {i}"} for i in range(6)]
+    assert len(Settings(study_goals=goals[:5]).study_goals) == 5
+    with pytest.raises(ValidationError):
+        Settings(study_goals=goals)

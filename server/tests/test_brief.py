@@ -2,7 +2,7 @@ import re
 
 from app.areas import AREAS, last_n_dates
 from app.brief import LOW_SLEEP_LINE, build_brief
-from app.models import Settings, SleepSchedule, normalize_day
+from app.models import Settings, SleepSchedule, StudyGoal, normalize_day
 from app.settings_rules import apply_onboarding, check_settings
 
 TODAY = "2026-10-21"  # a Wednesday
@@ -298,3 +298,83 @@ def test_bedtime_line_numbers_are_in_the_facts():
     brief = build_brief(nights(LATE_WEEK), with_schedule("sleep"), TODAY)
     fact = next(f for f in brief["facts"] if f.get("kind") == "bedtime")
     assert fact == {"area_id": "sleep", "kind": "bedtime", "value": 3, "nights": 6, "bedtime": "22:30"}
+
+
+# (j) study line, for people with dated study goals
+
+def with_goals(s: Settings, *goals: tuple[str, str | None]) -> Settings:
+    return s.model_copy(update={"study_goals": [StudyGoal(name=n, date=d) for n, d in goals]})
+
+
+def deadline_facts(brief: dict) -> list[dict]:
+    return [f for f in brief["facts"] if f.get("kind") == "deadline"]
+
+
+def test_study_line_replaces_pattern_when_study_is_focus():
+    brief = build_brief(week(study_hours=[1] * 7), with_goals(settings("study"), ("Exam", "2026-11-02")), TODAY)
+    assert brief["sentences"][0].startswith("Study")
+    assert brief["sentences"][1] == "Exam is in 12 days."
+    assert len(brief["sentences"]) == 3
+    assert not any(s.startswith("Lowest") for s in brief["sentences"])
+    assert deadline_facts(brief) == [{"area_id": "study", "kind": "deadline", "name": "Exam",
+                                      "date": "2026-11-02", "days_left": 12}]
+
+
+def three_areas(goal_date: str) -> tuple[list[dict], Settings]:
+    """Work furthest behind, sleep on a schedule with late nights, study on track."""
+    days = nights(LATE_WEEK, study_hours=[2] * 7, work_hours=[0.5] * 7)
+    return days, with_goals(with_schedule("sleep", "study", "work"), ("Exam", goal_date))
+
+
+def test_upcoming_study_line_beats_bedtime_line():
+    brief = build_brief(*three_areas("2026-11-02"), TODAY)
+    assert brief["sentences"][0].startswith("Work")
+    assert brief["sentences"][3] == "Exam is in 12 days."
+    assert not any(s.startswith("In bed") for s in brief["sentences"])
+    assert not any(f.get("kind") == "bedtime" for f in brief["facts"])
+
+
+def test_bedtime_line_beats_passed_study_line():
+    brief = build_brief(*three_areas("2026-10-19"), TODAY)
+    assert brief["sentences"][3] == "In bed after 22:30 on 3 of 6 nights."
+    assert deadline_facts(brief) == []
+
+
+def test_low_sleep_warning_beats_study_line():
+    days = nights(["02:00"] * 7, study_hours=[2] * 7)
+    s = with_goals(with_schedule("sleep", "study"), ("Exam", "2026-11-02"))
+    brief = build_brief(days, s, TODAY)
+    assert brief["sentences"][0].startswith("Sleep")
+    assert brief["sentences"][-1] == LOW_SLEEP_LINE
+    assert not any("Exam" in s for s in brief["sentences"])
+    assert deadline_facts(brief) == []
+
+
+def test_passed_study_line_fills_free_slot():
+    days = week(study_hours=[2] * 7, work_hours=[0.5] * 7)
+    brief = build_brief(days, with_goals(settings("study", "work"), ("Exam", "2026-10-18")), TODAY)
+    assert brief["sentences"][0].startswith("Work")
+    assert brief["sentences"][3] == "The date for Exam has passed."
+    assert deadline_facts(brief)[0]["days_left"] == -3
+
+
+def test_no_study_line_without_study_module():
+    brief = build_brief(week(work_hours=[0.5] * 7), with_goals(settings("work"), ("Exam", "2026-11-02")), TODAY)
+    assert deadline_facts(brief) == []
+
+
+def test_no_study_line_when_nothing_logged():
+    brief = build_brief(week(), with_goals(settings("study"), ("Exam", "2026-11-02")), TODAY)
+    assert brief["sentences"] == [FIRST_BRIEF]
+
+
+def test_brief_never_over_four_sentences_with_study():
+    cases = [
+        three_areas("2026-11-02"),
+        three_areas("2026-10-19"),
+        (nights(["02:00"] * 7, study_hours=[2] * 7, work_hours=[0.5] * 7),
+         with_goals(with_schedule("sleep", "study", "work"), ("Exam", "2026-11-02"))),
+        (week(study_hours=[1] * 7), with_goals(settings("study"), ("Exam", "2026-11-02"))),
+    ]
+    for days, s in cases:
+        assert len(build_brief(days, s, TODAY)["sentences"]) <= 4

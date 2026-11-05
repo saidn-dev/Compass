@@ -2,7 +2,8 @@
 
 Furthest-behind area with its number, one pattern, one action of 30 minutes or
 less. Also returns the numbers it used. With a sleep schedule, one more line says
-how often you got to bed on time.
+how often you got to bed on time. With dated study goals, one more line says how
+far away the nearest one is.
 """
 from datetime import date
 
@@ -10,6 +11,7 @@ from app.areas import Area, area_value, last_n_dates
 from app.models import Settings
 from app.settings_rules import AREAS_BY_ID, target_for
 from app.sleep import LATE_GRACE_MINUTES, minutes_late
+from app.study import study_line
 
 FIRST_BRIEF = "Log today's numbers to get your first brief."
 MIN_PATTERN_POINTS = 4
@@ -88,6 +90,7 @@ def build_brief(days: list[dict], settings: Settings, today: str) -> dict:
     bedtime = None
     if settings.sleep_schedule is not None and "sleep" in settings.modules:
         bedtime = bedtime_line(window, settings.sleep_schedule.bedtime)
+    study = study_line(settings.study_goals, today) if "study" in settings.modules else None
 
     points = [(k, d.get(area.field)) for k, d in zip(dates, window) if d.get(area.field) is not None]
     if bedtime and area.id == "sleep":
@@ -95,6 +98,11 @@ def build_brief(days: list[dict], settings: Settings, today: str) -> dict:
         second, fact = bedtime
         facts.append(fact)
         bedtime = None
+    elif study and area.id == "study":
+        # Study is the focus: the nearest goal is the pattern.
+        second, fact, _ = study
+        facts.append(fact)
+        study = None
     elif len(points) >= MIN_PATTERN_POINTS:
         pick = min if mode == "up" else max
         key, worst = pick(points, key=lambda p: p[1])
@@ -109,10 +117,17 @@ def build_brief(days: list[dict], settings: Settings, today: str) -> dict:
     sentences = [first, second, area.suggestion]
     sleep = next((r for r in rows if r[0].id == "sleep"), None)
     low_sleep = sleep is not None and sleep[1] < LOW_SLEEP_HOURS
-    # At most 4 sentences: the low-sleep warning wins over the bedtime line.
-    if bedtime and len(sentences) + 1 + low_sleep <= MAX_SENTENCES:
-        sentences.append(bedtime[0])
-        facts.append(bedtime[1])
-    if low_sleep:
-        sentences.append(LOW_SLEEP_LINE)
+
+    # At most 4 sentences. Lines that don't fit are left out, in this order of
+    # importance: low-sleep warning, upcoming study date, bedtime, passed study date.
+    upcoming = study if study and study[2] else None
+    passed = study if study and not study[2] else None
+    extras = [(LOW_SLEEP_LINE, None)] if low_sleep else []
+    extras += [(line[0], line[1]) for line in (upcoming, bedtime, passed) if line]
+    chosen = extras[:MAX_SENTENCES - len(sentences)]
+    # The warning always goes last.
+    for text, fact in sorted(chosen, key=lambda e: e[0] == LOW_SLEEP_LINE):
+        sentences.append(text)
+        if fact:
+            facts.append(fact)
     return {"sentences": sentences, "facts": facts}

@@ -105,6 +105,36 @@ def test_put_settings_with_equal_times_is_rejected(client):
     assert_error(client.put("/api/settings", json=s, headers=HOST), 422)
 
 
+def test_put_settings_with_study_goals_round_trips(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    s["study_goals"] = [
+        {"name": "Data Structures exam", "date": "2026-12-12"},
+        {"name": "Linear Algebra", "date": ""},
+    ]
+    assert client.put("/api/settings", json=s, headers=HOST).status_code == 200
+    saved = client.get("/api/settings", headers=HOST).json()
+    assert saved["study_goals"] == [
+        {"name": "Data Structures exam", "date": "2026-12-12"},
+        {"name": "Linear Algebra", "date": None},
+    ]
+
+
+def test_put_settings_with_study_and_no_goals_is_accepted(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    assert "study" in s["modules"]
+    r = client.put("/api/settings", json={**s, "study_goals": []}, headers=HOST)
+    assert r.status_code == 200, r.text
+
+
+def test_put_settings_with_bad_study_date_is_rejected(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    s["study_goals"] = [{"name": "Exam", "date": "2026-02-30"}]
+    assert_error(client.put("/api/settings", json=s, headers=HOST), 422)
+
+
 def test_put_settings_with_unknown_module_is_rejected(client):
     s = client.get("/api/settings", headers=HOST).json()
     s["modules"] = ["moodle"]
@@ -427,3 +457,39 @@ def test_page_is_protected_by_host_check(client):
 
 def test_missing_page_file_uses_error_shape(client):
     assert_error(client.get("/nope.html", headers=HOST), 404)
+
+
+# --- study goals on the dashboard ---
+
+def put_goals(client, goals: list[dict]) -> None:
+    s = client.get("/api/settings", headers=HOST).json()
+    r = client.put("/api/settings", json={**s, "study_goals": goals}, headers=HOST)
+    assert r.status_code == 200, r.text
+
+
+def area(dashboard: dict, area_id: str) -> dict:
+    return next(a for a in dashboard["areas"] if a["id"] == area_id)
+
+
+def test_dashboard_study_card_has_goal(client):
+    onboard(client)
+    put_goals(client, [{"name": "Exam", "date": "2026-11-02"}])
+    d = client.get("/api/dashboard?date=2026-10-21", headers=HOST).json()
+    assert area(d, "study")["goal"] == {"name": "Exam", "date": "2026-11-02", "days_left": 12,
+                                        "text": "Exam · in 12 days"}
+    assert "goal" not in area(d, "sleep")
+
+
+def test_dashboard_goal_counts_from_date_param(client):
+    onboard(client)
+    put_goals(client, [{"name": "Exam", "date": "2026-11-02"}])
+    d = client.get("/api/dashboard?date=2026-10-31", headers=HOST).json()
+    assert area(d, "study")["goal"]["days_left"] == 2
+
+
+def test_dashboard_study_without_goals(client):
+    onboard(client)
+    client.put("/api/days/2026-10-21", json={"study_hours": 1}, headers=HOST)
+    d = client.get("/api/dashboard?date=2026-10-21", headers=HOST).json()
+    assert area(d, "study")["goal"] is None
+    assert not any(f.get("kind") == "deadline" for f in d["brief"]["facts"])

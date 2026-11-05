@@ -1,4 +1,4 @@
-"""Data shapes (Day, Target, Goal, Settings) and input cleaning.
+"""Data shapes (Day, Target, Goal, StudyGoal, Settings) and input cleaning.
 
 normalize_day turns messy input into a clean Day: blank or junk numbers become
 gaps (None), never 0; a real 0 is kept.
@@ -23,6 +23,7 @@ WHOLE_NUMBER_FIELDS = {"steps"}
 MAX_TASKS = 3
 MAX_TASK_TEXT = 200
 MAX_NOTE = 5000
+MAX_STUDY_GOALS = 5
 
 
 def _number(value: object, low: float, high: float) -> float | None:
@@ -151,6 +152,21 @@ class SleepSchedule(BaseModel):
         return self
 
 
+class StudyGoal(BaseModel):
+    """Something the user is studying for, e.g. "Data Structures exam", with an optional date."""
+    name: Name
+    date: str | None = None
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def _date(cls, v: object) -> str | None:
+        if v is None or v == "":
+            return None
+        if not isinstance(v, str):
+            raise ValueError("Dates must look like YYYY-MM-DD.")
+        return check_date_key(v)
+
+
 class Settings(BaseModel):
     onboarded: bool = False
     modules: Annotated[list[str], Field(max_length=3)] = []
@@ -159,3 +175,4 @@ class Settings(BaseModel):
     goals: Annotated[list[Goal], Field(max_length=3)] = []
     theme: Literal["light", "dark", "system"] = "system"
     sleep_schedule: SleepSchedule | None = None
+    study_goals: Annotated[list[StudyGoal], Field(max_length=MAX_STUDY_GOALS)] = []

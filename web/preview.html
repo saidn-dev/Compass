@@ -61,10 +61,11 @@
             <div class="progress" style="--progress: 114%"><span class="progress-bar"></span></div>
             <p class="trend" data-trend="up">Trending up</p>
           </article>
-          <article class="card area-card" data-status="behind" aria-label="Study: 9 h against a target of 12 h, Behind">
+          <article class="card area-card" data-status="behind" aria-label="Study: 9 h against a target of 12 h, Behind, Data Structures exam · in 12 days">
             <div class="card-head"><h3 class="card-title">Study</h3><span class="status">Behind</span></div>
             <p class="card-value"><span class="value">9</span><span class="unit">h</span></p>
             <p class="card-target">This week, target 12 h</p>
+            <p class="card-goal">Data Structures exam · in 12 days</p>
             <div class="progress" style="--progress: 75%"><span class="progress-bar"></span></div>
             <p class="trend" data-trend="flat">Steady</p>
           </article>
@@ -196,6 +197,42 @@
             <label class="module-option"><input type="checkbox"><span class="module-name">Work</span><span class="module-detail">Paid hours per week, target 16 h</span></label>
           </div>
         </fieldset>
+      </section>
+
+      <!-- ---- Study goals (renderStudyGoals) ---- -->
+      <section class="panel view-onboarding" aria-labelledby="sg-title">
+        <h2 id="sg-title">Study goals</h2>
+        <fieldset class="study-goals">
+          <legend>What are you studying for?</legend>
+          <div class="study-goal-row" data-index="0">
+            <div class="field">
+              <label for="p-study-name-0">Goal 1</label>
+              <input id="p-study-name-0" type="text" value="Data Structures exam">
+            </div>
+            <div class="field">
+              <label for="p-study-date-0">Date<span class="visually-hidden"> for goal 1</span></label>
+              <input id="p-study-date-0" type="date" value="2026-12-12">
+            </div>
+            <button type="button" class="btn btn-small">Remove<span class="visually-hidden"> goal 1</span></button>
+          </div>
+          <div class="study-goal-row" data-index="1">
+            <div class="field">
+              <label for="p-study-name-1">Goal 2</label>
+              <input id="p-study-name-1" type="text" value="Linear Algebra">
+            </div>
+            <div class="field">
+              <label for="p-study-date-1">Date<span class="visually-hidden"> for goal 2</span></label>
+              <input id="p-study-date-1" type="date">
+            </div>
+            <button type="button" class="btn btn-small">Remove<span class="visually-hidden"> goal 2</span></button>
+          </div>
+          <button type="button" class="btn">+ Add another</button>
+          <p class="hint">Leave the date blank if there isn't one.</p>
+        </fieldset>
+        <div class="field study-hours">
+          <label for="p-study-hours">Hours a week for all your studying</label>
+          <div class="input-unit"><input id="p-study-hours" type="number" value="12"><span class="unit">h</span></div>
+        </div>
       </section>
 
       <!-- ---- Settings pieces ---- -->

@@ -6,6 +6,7 @@ import {
   renderBrief, renderAreaCard, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
   renderTargetRows, renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
+  renderStudyGoals,
 } from "./render.js";
 
 const MAX_TASKS = 3;
@@ -92,16 +93,20 @@ async function start() {
 // --- Onboarding ---
 
 // Every step, in order. Each is a <div id="onboarding-step-NAME"> in index.html.
-const ALL_STEPS = ["welcome", "modules", "sleep", "targets", "habits", "goals"];
+const ALL_STEPS = ["welcome", "modules", "sleep", "study", "targets", "habits", "goals"];
 let onboardingStep = "welcome"; // the step showing right now
 
-// The steps this user goes through: Sleep only if they picked it, Targets only for
-// the other areas. A fresh start (nothing picked yet) counts 5 steps.
+// Areas with their own onboarding page, so the Targets step leaves them out.
+const OWN_PAGE = ["sleep", "study"];
+
+// The steps this user goes through: Sleep and Study only if they picked them, Targets
+// only for the other areas. A fresh start (nothing picked yet) counts 5 steps.
 function onboardingSteps() {
   const picked = settings.modules;
   const steps = ["welcome", "modules"];
   if (picked.includes("sleep")) steps.push("sleep");
-  if (picked.length === 0 || picked.some((id) => id !== "sleep")) steps.push("targets");
+  if (picked.includes("study")) steps.push("study");
+  if (picked.length === 0 || picked.some((id) => !OWN_PAGE.includes(id))) steps.push("targets");
   return [...steps, "habits", "goals"];
 }
 
@@ -135,8 +140,16 @@ function drawOnboardingSleep() {
   showFormError("onboarding-sleep-error", "");
 }
 
+// Study: the saved goals (or one empty row) and the saved hours (or the default).
+function drawOnboardingStudy() {
+  const saved = settings.targets.find((t) => t.area_id === "study");
+  const hours = saved ? saved.target : areas.find((a) => a.id === "study").default_target;
+  $("onboarding-study").innerHTML = renderStudyGoals(settings.study_goals, hours, "onb");
+  showFormError("onboarding-study-error", "");
+}
+
 function drawOnboardingTargets() {
-  $("onboarding-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "onb-target", skip: ["sleep"] });
+  $("onboarding-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "onb-target", skip: OWN_PAGE });
 }
 
 function drawOnboardingHabits() {
@@ -147,6 +160,7 @@ function drawOnboardingHabits() {
 function goToStep(step) {
   if (step === "modules") drawOnboardingModules();
   if (step === "sleep") drawOnboardingSleep();
+  if (step === "study") drawOnboardingStudy();
   if (step === "targets") drawOnboardingTargets();
   if (step === "habits") drawOnboardingHabits();
   showOnboardingStep(step);
@@ -164,7 +178,7 @@ function nextStep() {
 function showOnboarding() {
   drawOnboardingModules();
   $("onboarding-goals-form").reset();
-  for (const id of ["onboarding-error", "onboarding-sleep-error", "onboarding-targets-error", "onboarding-habits-error", "onboarding-goals-error"]) {
+  for (const id of ["onboarding-error", "onboarding-sleep-error", "onboarding-study-error", "onboarding-targets-error", "onboarding-habits-error", "onboarding-goals-error"]) {
     showFormError(id, "");
   }
   showView("onboarding");
@@ -229,7 +243,47 @@ $("onboarding-sleep-form").addEventListener("submit", async (event) => {
   }
 });
 
-// Targets (every area except Sleep): save them, keeping the sleep target, then show the habits.
+// Study: "+ Add another" and "Remove" redraw the rows, keeping anything typed so far.
+$("onboarding-study").addEventListener("click", (event) => {
+  const container = $("onboarding-study");
+  const add = event.target.closest("[data-add-study]");
+  const remove = event.target.closest("[data-remove-study]");
+  if (!add && !remove) return;
+  const rows = readStudyRows(container);
+  if (add) rows.push({ name: "", date: null });
+  if (remove) rows.splice(Number(remove.dataset.removeStudy), 1);
+  const hours = container.querySelector('input[name="study-hours"]').value;
+  container.innerHTML = renderStudyGoals(rows, hours, "onb");
+  if (add) {
+    const names = container.querySelectorAll('input[name="study-name"]');
+    names[names.length - 1].focus();
+  } else {
+    container.querySelector("[data-add-study]").focus();
+  }
+});
+
+// Study: check the goals and hours, save them, then go on.
+$("onboarding-study-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const container = $("onboarding-study");
+  const hoursText = container.querySelector('input[name="study-hours"]').value;
+  const { goals, hours, error } = checkStudy(readStudyRows(container), hoursText);
+  if (error) return showFormError("onboarding-study-error", error);
+  // Keep a saved "Stay under" rule; this page has no choice for it.
+  const saved = settings.targets.find((t) => t.area_id === "study");
+  const target = { area_id: "study", target: hours, mode: saved ? saved.mode : "up" };
+  try {
+    settings = await api.putSettings({
+      ...settings, study_goals: goals, targets: mergeTargets(settings.targets, [target]),
+    });
+    showFormError("onboarding-study-error", "");
+    goToStep(nextStep());
+  } catch (error) {
+    showFormError("onboarding-study-error", error.message);
+  }
+});
+
+// Targets (every area without its own page): save them, keeping the others, then show the habits.
 $("onboarding-targets-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const targets = [];
@@ -351,6 +405,36 @@ function withSleepChoice(current, choice) {
   if (choice.schedule) return { ...current, sleep_schedule: choice.schedule };
   const target = { area_id: "sleep", target: choice.hours, mode: "up" };
   return { ...current, sleep_schedule: null, targets: mergeTargets(current.targets, [target]) };
+}
+
+// --- Study answers ---
+
+// The goal rows as typed: [{ name, date, badDate }], names trimmed, a blank date as null.
+// badDate: a half-typed date (e.g. no year), which the browser reports as blank.
+function readStudyRows(container) {
+  return [...container.querySelectorAll(".study-goal-row")].map((row) => {
+    const date = row.querySelector('input[name="study-date"]');
+    return {
+      name: row.querySelector('input[name="study-name"]').value.trim(),
+      date: date.value || null,
+      badDate: date.validity.badInput,
+    };
+  });
+}
+
+// Checks the Study page: { goals, hours, error }. Fully blank rows are dropped.
+function checkStudy(rows, hoursText) {
+  const kept = rows.filter((g) => g.name || g.date || g.badDate);
+  if (!kept.some((g) => g.name)) return { error: "Tell Compass what you're studying for." };
+  if (kept.some((g) => !g.name)) return { error: "Give each goal a name, or remove it." };
+  const half = kept.findIndex((g) => g.badDate);
+  if (half !== -1) return { error: `Finish the date for goal ${rows.indexOf(kept[half]) + 1}, or clear it.` };
+  const goals = kept.map(({ name, date }) => ({ name, date }));
+  const hours = Number(hoursText);
+  if (hoursText.trim() === "" || !(hours > 0 && hours <= 168)) {
+    return { error: "Hours a week must be between 0 and 168." };
+  }
+  return { goals, hours };
 }
 
 // The new targets, plus the old ones for areas the new list doesn't cover
