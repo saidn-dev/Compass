@@ -193,3 +193,21 @@ def test_in_memory_database_works():
     repo = Repository(":memory:")
     repo.put_day(sample_day())
     assert repo.get_day("2026-10-20")["note"] == "hi"
+
+
+def test_import_puts_the_sleep_target_in_step_with_the_schedule(repo):
+    repo.import_all({"schema": 1, "days": [], "settings": {
+        "modules": ["sleep"],
+        "targets": [{"area_id": "sleep", "target": 5, "mode": "up"}],
+        "sleep_schedule": {"bedtime": "22:00", "wake_time": "06:00"},
+    }})
+    targets = repo.export_all()["settings"]["targets"]
+    assert targets == [{"area_id": "sleep", "target": 8, "mode": "up"}]
+
+
+def test_round_trip_keeps_a_study_goal_without_a_date(repo, tmp_path):
+    repo.put_settings(Settings(modules=["study"], study_goals=[{"name": "Read more", "date": None}]))
+    backup = repo.export_all()
+    fresh = Repository(str(tmp_path / "other.db"))
+    fresh.import_all(backup)
+    assert fresh.export_all()["settings"]["study_goals"] == [{"name": "Read more", "date": None}]

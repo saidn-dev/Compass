@@ -116,14 +116,16 @@ Compass/
 
 ## Data model (schema version 1)
 ```
-Day      { date: "YYYY-MM-DD", sleep_hours, steps, study_hours, work_hours, spend_pct_of_budget,
-           fasting_hours: number|null, habits: {habitId: bool}, tasks: [{text, done}] (<=3), note: str }
-Target   { area_id, target: number (>0), mode: "up"|"limit" }
+Day      { date: "YYYY-MM-DD", sleep_hours, steps, study_hours, work_hours: number|null,
+           bedtime, wake_time: "HH:MM"|null, habits: {habitId: bool}, tasks: [{text, done}] (<=3), note: str }
+Target   { area_id, target: number (>0; sleep <=24, study and work <=168), mode: "up"|"limit" }
 Goal     { name, percent: 0-100, detail }
-Settings { onboarded: bool, modules: [area_id] (1-5), targets: [Target], habits: [{id, name}],
+Settings { onboarded: bool, modules: [area_id] (1-3), targets: [Target], habits: [{id, name}],
            goals: [Goal] (<=3), theme: "light"|"dark"|"system",
+           sleep_schedule: {bedtime, wake_time: "HH:MM"}|null,
            study_goals: [{name, date: "YYYY-MM-DD"|null}] (0-5) }
 ```
+Note 2026-11-07: the Sleep fields (`bedtime`, `wake_time`, `sleep_schedule`) and the target caps were added to this block. With a schedule, the sleep target is always the hours between its two times (also on import).
 Note 2026-11-04: `study_goals` was added for the Study onboarding page, see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md`. The Study card's dashboard entry also carries `goal: {name, date, days_left, text} | null`.
 SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(date PRIMARY KEY, json TEXT)`, `settings(id=1, json TEXT)`.
 
@@ -136,7 +138,7 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 | `POST /api/sleep/suggestion` `{age?, role?, habits, wake_time?}` | suggested sleep goal or schedule, nothing saved (added 2026-10-29, see `docs/superpowers/specs/2026-10-29-sleep-onboarding-design.md`) |
 | `GET /api/days/{date}` / `PUT /api/days/{date}` | read (empty day if none) / save a day (normalized) |
 | `POST /api/days/bulk` `{days:[{date, <field>:number}]}` | merge numeric fields only (used by Java importer); returns `{saved:int, skipped:[{date,reason}]}` |
-| `GET /api/dashboard?date=YYYY-MM-DD` | `{brief:{sentences,facts}, areas:[{id,label,value,target,mode,status,progress,trend,series}], habits:{grid,completion}}` |
+| `GET /api/dashboard?date=YYYY-MM-DD` | `{brief:{sentences,facts}, areas:[{id,label,value,target,mode,status,progress,trend,series, goal (Study only): {name,date,days_left,text}|null}], habits:{grid,completion}}` |
 | `GET /api/export` | full JSON backup |
 | `POST /api/import` | replace all data from a backup (<= 2 MB) |
 | `DELETE /api/data` | requires header `X-Confirm: delete-all` |

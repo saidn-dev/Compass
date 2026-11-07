@@ -140,11 +140,15 @@ function drawOnboardingSleep() {
   showFormError("onboarding-sleep-error", "");
 }
 
+// The saved study hours a week, or the default.
+function studyHours() {
+  const saved = settings.targets.find((t) => t.area_id === "study");
+  return saved ? saved.target : areas.find((a) => a.id === "study").default_target;
+}
+
 // Study: the saved goals (or one empty row) and the saved hours (or the default).
 function drawOnboardingStudy() {
-  const saved = settings.targets.find((t) => t.area_id === "study");
-  const hours = saved ? saved.target : areas.find((a) => a.id === "study").default_target;
-  $("onboarding-study").innerHTML = renderStudyGoals(settings.study_goals, hours, "onb");
+  $("onboarding-study").innerHTML = renderStudyGoals(settings.study_goals, studyHours(), "onb");
   showFormError("onboarding-study-error", "");
 }
 
@@ -244,8 +248,8 @@ $("onboarding-sleep-form").addEventListener("submit", async (event) => {
 });
 
 // Study: "+ Add another" and "Remove" redraw the rows, keeping anything typed so far.
-$("onboarding-study").addEventListener("click", (event) => {
-  const container = $("onboarding-study");
+// Used by onboarding ("onb") and Settings ("set").
+function changeStudyRows(event, container, prefix) {
   const add = event.target.closest("[data-add-study]");
   const remove = event.target.closest("[data-remove-study]");
   if (!add && !remove) return;
@@ -253,14 +257,16 @@ $("onboarding-study").addEventListener("click", (event) => {
   if (add) rows.push({ name: "", date: null });
   if (remove) rows.splice(Number(remove.dataset.removeStudy), 1);
   const hours = container.querySelector('input[name="study-hours"]').value;
-  container.innerHTML = renderStudyGoals(rows, hours, "onb");
+  container.innerHTML = renderStudyGoals(rows, hours, prefix);
   if (add) {
     const names = container.querySelectorAll('input[name="study-name"]');
     names[names.length - 1].focus();
   } else {
     container.querySelector("[data-add-study]").focus();
   }
-});
+}
+
+$("onboarding-study").addEventListener("click", (event) => changeStudyRows(event, $("onboarding-study"), "onb"));
 
 // Study: check the goals and hours, save them, then go on.
 $("onboarding-study-form").addEventListener("submit", async (event) => {
@@ -269,13 +275,8 @@ $("onboarding-study-form").addEventListener("submit", async (event) => {
   const hoursText = container.querySelector('input[name="study-hours"]').value;
   const { goals, hours, error } = checkStudy(readStudyRows(container), hoursText);
   if (error) return showFormError("onboarding-study-error", error);
-  // Keep a saved "Stay under" rule; this page has no choice for it.
-  const saved = settings.targets.find((t) => t.area_id === "study");
-  const target = { area_id: "study", target: hours, mode: saved ? saved.mode : "up" };
   try {
-    settings = await api.putSettings({
-      ...settings, study_goals: goals, targets: mergeTargets(settings.targets, [target]),
-    });
+    settings = await api.putSettings(withStudy(settings, goals, hours));
     showFormError("onboarding-study-error", "");
     goToStep(nextStep());
   } catch (error) {
@@ -435,6 +436,14 @@ function checkStudy(rows, hoursText) {
     return { error: "Hours a week must be between 0 and 168." };
   }
   return { goals, hours };
+}
+
+// Settings with new study goals and hours. Keeps a saved "Stay under" rule,
+// since the Study page has no choice for it.
+function withStudy(oldSettings, goals, hours) {
+  const saved = oldSettings.targets.find((t) => t.area_id === "study");
+  const target = { area_id: "study", target: hours, mode: saved ? saved.mode : "up" };
+  return { ...oldSettings, study_goals: goals, targets: mergeTargets(oldSettings.targets, [target]) };
 }
 
 // The new targets, plus the old ones for areas the new list doesn't cover
@@ -621,10 +630,13 @@ $("nav-settings").addEventListener("click", () => {
 function drawSettings() {
   $("settings-modules").innerHTML = renderOnboarding(areas, settings.modules);
   $("settings-sleep").innerHTML = settings.modules.includes("sleep") ? renderSleepChoice(settings, "set", false) : "";
-  $("settings-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "target", skip: ["sleep"] });
+  $("settings-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "target", skip: OWN_PAGE });
+  const study = settings.modules.includes("study");
+  $("settings-study-panel").hidden = !study;
+  $("settings-study").innerHTML = study ? renderStudyGoals(settings.study_goals, studyHours(), "set") : "";
   $("settings-habits").innerHTML = renderHabitList(settings.habits);
   $("settings-goals").innerHTML = renderGoalList(settings.goals);
-  for (const id of ["modules-error", "targets-error", "habit-error", "goal-error", "import-error"]) {
+  for (const id of ["modules-error", "targets-error", "study-error", "habit-error", "goal-error", "import-error"]) {
     showFormError(id, "");
   }
 }
@@ -668,6 +680,25 @@ $("targets-form").addEventListener("submit", async (event) => {
     await saveSettings(newSettings);
   } catch (error) {
     showFormError("targets-error", error.message);
+  }
+});
+
+$("settings-study").addEventListener("click", (event) => {
+  changeStudyRows(event, $("settings-study"), "set");
+  $("study-status").textContent = "";
+});
+
+$("study-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const container = $("settings-study");
+  const hoursText = container.querySelector('input[name="study-hours"]').value;
+  const { goals, hours, error } = checkStudy(readStudyRows(container), hoursText);
+  if (error) return showFormError("study-error", error);
+  try {
+    await saveSettings(withStudy(settings, goals, hours));
+    $("study-status").textContent = "Saved";
+  } catch (error) {
+    showFormError("study-error", error.message);
   }
 });
 

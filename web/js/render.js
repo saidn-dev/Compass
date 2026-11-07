@@ -53,7 +53,10 @@ export function renderBrief(brief) {
       return `<li>${escapeHtml(`Sleep: in bed late on ${f.value} of ${f.nights} nights (bedtime ${f.bedtime})`)}</li>`;
     }
     if (f.kind === "deadline") {
-      const left = f.days_left < 0 ? "date passed" : `${f.days_left} days left`;
+      const left = f.days_left < 0 ? "date passed"
+        : f.days_left === 0 ? "today"
+        : f.days_left === 1 ? "tomorrow"
+        : `${f.days_left} days left`;
       return `<li>${escapeHtml(`Study: ${f.name}, ${f.date} (${left})`)}</li>`;
     }
     const name = capitalize(f.area_id);
@@ -279,7 +282,7 @@ export function renderSleepChoice(settings, prefix, withHelp) {
   const hidden = (value) => (value === mode ? "" : " hidden");
 
   return `<fieldset class="sleep-choice">
-    <legend>Do you already know what you want from your sleep?</legend>
+    <legend>${withHelp ? "Do you already know what you want from your sleep?" : "Sleep"}</legend>
     ${radio("goal", "I have a sleep goal")}
     <div class="sleep-panel" data-mode="goal"${hidden("goal")}>
       ${hoursInput(`${id}-sleep-hours`, "sleep-hours", saved ? saved.target : "")}

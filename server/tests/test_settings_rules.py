@@ -157,3 +157,24 @@ def test_bad_schedule_time_rejected():
 
 def test_no_schedule_by_default():
     assert Settings().sleep_schedule is None
+
+
+# --- target caps (the page has the same limits) ---
+
+@pytest.mark.parametrize("area_id,target", [("sleep", 24.5), ("study", 169), ("work", 169)])
+def test_target_above_its_cap_is_rejected(area_id, target):
+    s = Settings(modules=[area_id], targets=[Target(area_id=area_id, target=target, mode="up")])
+    with pytest.raises(ValueError):
+        check_settings(s)
+
+
+@pytest.mark.parametrize("area_id,target", [("sleep", 24), ("study", 168), ("work", 168), ("steps", 50_000)])
+def test_target_at_its_cap_is_allowed(area_id, target):
+    s = Settings(modules=[area_id], targets=[Target(area_id=area_id, target=target, mode="up")])
+    assert check_settings(s).targets[0].target == target
+
+
+def test_set_target_above_cap_is_rejected():
+    s = Settings(modules=["sleep"])
+    with pytest.raises(ValueError):
+        set_target(s, "sleep", 30, "up")

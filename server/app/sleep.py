@@ -8,7 +8,7 @@ Imports nothing from app, so models.py can use it.
 import re
 from typing import Literal
 
-TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$")
+TIME_PATTERN = re.compile(r"^([01][0-9]|2[0-3]):([0-5][0-9])(:[0-5][0-9])?$")
 MINUTES_A_DAY = 24 * 60
 LATE_GRACE_MINUTES = 30  # in bed up to this long after the planned bedtime still counts as on time
 

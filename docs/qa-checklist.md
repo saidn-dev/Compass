@@ -18,6 +18,7 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [ ] Onboarding with Narrator: each step heading is read when it appears, the Sleep radio group, time inputs and suggestion are read sensibly
 - [ ] Narrator: Study step (row labels "Goal N" and "Date for goal N", Add and Remove, focus after each)
 - [x] After onboarding, Settings > Modules still works and does not send you back to onboarding (browser script)
+- [x] Settings > Study (2026-11-07): shown only with Study on; add a goal, Save study, goals and hours saved, no console errors (checked by Claude in the browser)
 - [x] Sleep page, goal: the hours are saved as the sleep target and shown on the card (browser script)
 - [x] Sleep page, schedule: the panel switches, "= 8 h a night" updates as you type, the schedule is saved and sets the target (browser script)
 - [x] Sleep page, "Let's work it out": all answered gives a schedule with a tip; all skipped gives an 8 h goal; a shift worker gets no times and a note; Next before a suggestion shows a message (browser script)

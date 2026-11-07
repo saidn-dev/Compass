@@ -493,3 +493,20 @@ def test_dashboard_study_without_goals(client):
     d = client.get("/api/dashboard?date=2026-10-21", headers=HOST).json()
     assert area(d, "study")["goal"] is None
     assert not any(f.get("kind") == "deadline" for f in d["brief"]["facts"])
+
+
+def test_validation_messages_have_no_pydantic_prefix(client):
+    onboard(client, ("sleep",))
+    s = client.get("/api/settings", headers=HOST).json()
+    s["sleep_schedule"] = {"bedtime": "late", "wake_time": "06:30"}
+    r = client.put("/api/settings", json=s, headers=HOST)
+    assert_error(r, 422)
+    assert "Value error" not in r.json()["error"]["message"]
+    assert "HH:MM" in r.json()["error"]["message"]
+
+
+def test_put_settings_with_sleep_target_over_24_is_rejected(client):
+    onboard(client, ("sleep",))
+    s = client.get("/api/settings", headers=HOST).json()
+    s["targets"] = [{"area_id": "sleep", "target": 30, "mode": "up"}]
+    assert_error(client.put("/api/settings", json=s, headers=HOST), 422)

@@ -16,6 +16,8 @@ def is_logged(day: dict) -> bool:
     """True if anything at all was logged for the day."""
     return (
         any(day.get(f) is not None for f in NUMERIC_FIELDS)
+        or day.get("bedtime") is not None
+        or day.get("wake_time") is not None
         or bool(day.get("habits"))
         or bool(day.get("tasks"))
         or bool(day.get("note"))

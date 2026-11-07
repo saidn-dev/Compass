@@ -314,3 +314,18 @@ test("renderBrief shows a deadline fact, escaped", () => {
   const passed = renderBrief({ sentences: ["x"], facts: [{ ...fact, name: "Exam", days_left: -2 }] });
   assert.ok(passed.includes("Study: Exam, 2026-12-12 (date passed)"));
 });
+
+test("renderBrief says today and tomorrow instead of 0 and 1 days left", () => {
+  const fact = (days_left) => ({ area_id: "study", kind: "deadline", name: "Exam", date: "2026-12-12", days_left });
+  const html = (n) => renderBrief({ sentences: [], facts: [fact(n)] });
+  assert.ok(html(0).includes("(today)"));
+  assert.ok(html(1).includes("(tomorrow)"));
+  assert.ok(html(2).includes("(2 days left)"));
+  assert.ok(html(-1).includes("(date passed)"));
+});
+
+test("renderSleepChoice in Settings has a plain Sleep legend", () => {
+  const settings = { sleep_schedule: null, targets: [] };
+  assert.ok(renderSleepChoice(settings, "set", false).includes("<legend>Sleep</legend>"));
+  assert.ok(renderSleepChoice(settings, "onb", true).includes("Do you already know"));
+});

@@ -29,7 +29,9 @@ def _install_error_handlers(app: FastAPI) -> None:
     async def validation_error(_: Request, e: RequestValidationError):
         first = e.errors()[0]
         where = ".".join(str(p) for p in first["loc"] if p != "body")
-        return error_response(422, "invalid", f"{where}: {first['msg']}" if where else first["msg"])
+        # Our own ValueErrors come back as "Value error, <our message>": show just ours.
+        message = first["msg"].removeprefix("Value error, ")
+        return error_response(422, "invalid", f"{where}: {message}" if where else message)
 
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, e: HTTPException):

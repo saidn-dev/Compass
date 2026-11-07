@@ -39,7 +39,15 @@ def check_settings(s: Settings) -> Settings:
     for t in s.targets:
         if t.area_id not in AREAS_BY_ID:
             raise ValueError(f"Unknown module: {t.area_id}.")
+        check_cap(t.area_id, t.target)
     return sync_sleep_target(s.model_copy(update={"modules": modules}))
+
+
+def check_cap(area_id: str, target: float) -> None:
+    """Raise ValueError if the target is above the area's highest sensible value."""
+    area = AREAS_BY_ID[area_id]
+    if area.max_target is not None and target > area.max_target:
+        raise ValueError(f"{area.label} target must be {area.max_target:g} {area.unit} or less.")
 
 
 def sync_sleep_target(s: Settings) -> Settings:
@@ -79,6 +87,7 @@ def set_target(s: Settings, area_id: str, target: float, mode: str) -> Settings:
         raise ValueError("Target must be more than 0.")
     if mode not in ("up", "limit"):
         raise ValueError(f"Unknown mode: {mode}.")
+    check_cap(area_id, target)
     new = Target(area_id=area_id, target=target, mode=mode)
     targets = [new if t.area_id == area_id else t for t in s.targets]
     if all(t.area_id != area_id for t in s.targets):

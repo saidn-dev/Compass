@@ -103,3 +103,7 @@ def test_bad_wake_time_raises():
 ])
 def test_minutes_late(actual, planned, late):
     assert minutes_late(actual, planned) == late
+
+
+def test_parse_time_refuses_non_ascii_digits():
+    assert parse_time("1٢:3٠") is None  # Arabic-Indic digits after ASCII ones

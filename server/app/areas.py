@@ -25,17 +25,18 @@ class Area:
     default_target: float
     default_mode: Mode
     suggestion: str
+    max_target: float | None = None  # the highest target that makes sense (a day or a week of hours)
 
 
 AREAS: list[Area] = [
     Area("sleep", "Sleep", "h", "sleep_hours", "avg", 7.5, "up",
-         "Set a wind-down alarm 30 minutes before bed tonight."),
+         "Set a wind-down alarm 30 minutes before bed tonight.", 24),
     Area("steps", "Movement", "steps", "steps", "avg", 8000, "up",
          "Take a 20-minute walk today."),
     Area("study", "Study", "h", "study_hours", "sum", 12, "up",
-         "Do one 30-minute study block on your nearest deadline."),
+         "Do one 30-minute study block on your nearest deadline.", 168),
     Area("work", "Work", "h", "work_hours", "sum", 16, "up",
-         "Block 30 minutes for your most urgent paid task."),
+         "Block 30 minutes for your most urgent paid task.", 168),
 ]
 
 

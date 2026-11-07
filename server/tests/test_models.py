@@ -201,3 +201,8 @@ def test_settings_allow_five_study_goals_not_six():
     assert len(Settings(study_goals=goals[:5]).study_goals) == 5
     with pytest.raises(ValidationError):
         Settings(study_goals=goals)
+
+
+@pytest.mark.parametrize("raw,clean", [(" 2026-12-01 ", "2026-12-01"), ("   ", None)])
+def test_study_goal_date_ignores_spaces(raw, clean):
+    assert StudyGoal(name="Exam", date=raw).date == clean

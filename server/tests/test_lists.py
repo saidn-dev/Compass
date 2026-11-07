@@ -118,3 +118,8 @@ def test_fourth_goal_raises():
 def test_goal_percent_is_clamped():
     assert add_goal([], Goal(name="a", percent=150))[0].percent == 100
     assert add_goal([], Goal(name="a", percent=-5))[0].percent == 0
+
+
+def test_a_day_with_only_a_bedtime_counts_as_logged():
+    from app.lists import is_logged
+    assert is_logged(normalize_day({"bedtime": "23:00"}, "2026-10-20"))

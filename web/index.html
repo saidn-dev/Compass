@@ -346,6 +346,18 @@
           </form>
         </section>
 
+        <section class="panel" id="settings-study-panel" aria-labelledby="set-study-title" hidden>
+          <h2 id="set-study-title">Study</h2>
+          <form id="study-form" novalidate>
+            <div id="settings-study"></div>
+            <p class="form-error" id="study-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save study</button>
+              <p class="save-status" id="study-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </section>
+
         <section class="panel" aria-labelledby="set-habits-title">
           <h2 id="set-habits-title">Habits</h2>
           <div id="settings-habits"></div>

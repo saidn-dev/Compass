@@ -160,11 +160,11 @@ class StudyGoal(BaseModel):
     @field_validator("date", mode="before")
     @classmethod
     def _date(cls, v: object) -> str | None:
-        if v is None or v == "":
+        if v is None:
             return None
         if not isinstance(v, str):
             raise ValueError("Dates must look like YYYY-MM-DD.")
-        return check_date_key(v)
+        return check_date_key(v.strip()) if v.strip() else None
 
 
 class Settings(BaseModel):
