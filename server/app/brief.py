@@ -27,7 +27,7 @@ WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 
 def round_value(area: Area, value: float) -> float:
     """Round the way it is shown, so facts and sentences carry the same number."""
-    return round(value) if area.field == "steps" else round(value, 1)
+    return round(value, 1)
 
 
 def _fmt(value: float) -> str:

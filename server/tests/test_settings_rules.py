@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.models import Settings, SleepSchedule, Target
+from app import settings_rules
 from app.settings_rules import apply_onboarding, check_settings, select_modules, set_target
 
 
@@ -21,18 +22,25 @@ def test_duplicates_collapse_and_order_is_kept():
     assert select_modules(["study", "sleep", "study", "sleep"]) == ["study", "sleep"]
 
 
-def test_four_modules_raises():
+def test_more_than_the_limit_raises(monkeypatch):
+    # Only 3 areas exist now, so lower the limit to reach it.
+    monkeypatch.setattr(settings_rules, "MAX_MODULES", 2)
     with pytest.raises(ValueError):
-        select_modules(["sleep", "steps", "study", "work"])
+        select_modules(["sleep", "study", "work"])
+
+
+def test_movement_is_no_longer_a_module():
+    with pytest.raises(ValueError):
+        select_modules(["sleep", "steps"])
 
 
 def test_three_modules_is_allowed():
-    ids = ["sleep", "steps", "study"]
+    ids = ["sleep", "study", "work"]
     assert select_modules(ids) == ids
 
 
 def test_duplicates_do_not_count_towards_the_limit():
-    ids = ["sleep", "steps", "study", "sleep", "steps"]
+    ids = ["sleep", "work", "study", "sleep", "work"]
     assert len(select_modules(ids)) == 3
 
 
@@ -76,7 +84,7 @@ def test_onboarding_does_not_change_the_input():
 
 
 def test_reonboarding_keeps_custom_targets_for_modules_still_enabled():
-    s = apply_onboarding(Settings(), ["sleep", "steps"])
+    s = apply_onboarding(Settings(), ["sleep", "study"])
     s = set_target(s, "sleep", 8, "up")
     s = apply_onboarding(s, ["sleep", "work"])
     assert s.targets == [
@@ -168,7 +176,7 @@ def test_target_above_its_cap_is_rejected(area_id, target):
         check_settings(s)
 
 
-@pytest.mark.parametrize("area_id,target", [("sleep", 24), ("study", 168), ("work", 168), ("steps", 50_000)])
+@pytest.mark.parametrize("area_id,target", [("sleep", 24), ("study", 168), ("work", 168)])
 def test_target_at_its_cap_is_allowed(area_id, target):
     s = Settings(modules=[area_id], targets=[Target(area_id=area_id, target=target, mode="up")])
     assert check_settings(s).targets[0].target == target

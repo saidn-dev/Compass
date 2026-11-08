@@ -8,7 +8,7 @@ How Compass handles it now:
 - Study goals: 1 to 5 set on the onboarding Study page, each a name and an optional date (`Settings.study_goals`)
 - Study card: shows the nearest goal and how far away it is ("in 12 days", "today", "tomorrow", "date passed" for up to 7 days)
 - Brief: one line about the nearest dated goal. It replaces the pattern sentence when Study is the focus.
-- Defined in `server/app/areas.py:35` and `server/app/study.py`
+- Defined in `server/app/areas.py:34` and `server/app/study.py`
 
 ## Notes
 

@@ -18,7 +18,7 @@ def sample_day(date="2026-10-20", **fields):
 def sample_settings():
     return Settings(
         onboarded=True,
-        modules=["sleep", "steps"],
+        modules=["sleep", "study"],
         targets=[Target(area_id="sleep", target=7.5, mode="up")],
         goals=[Goal(name="Run 5k", percent=40, detail="3 runs a week")],
         theme="dark",
@@ -28,7 +28,7 @@ def sample_settings():
 # --- days ---
 
 def test_day_round_trip(repo):
-    day = sample_day(steps=9000, tasks=[{"text": "Read ch. 4"}])
+    day = sample_day(study_hours=2.5, tasks=[{"text": "Read ch. 4"}])
     repo.put_day(day)
     assert repo.get_day("2026-10-20") == day
 
@@ -111,12 +111,33 @@ def test_removed_modules_are_dropped_from_saved_settings(tmp_path):
 def test_saved_settings_over_the_module_limit_keep_the_first_three(tmp_path):
     path = str(tmp_path / "compass.db")
     Repository(path)
-    saved = '{"onboarded": true, "modules": ["steps", "study", "fasting", "work", "sleep"]}'
+    saved = '{"onboarded": true, "modules": ["study", "fasting", "work", "spending", "sleep"]}'
     with sqlite3.connect(path) as conn:
         conn.execute("INSERT OR REPLACE INTO settings (id, json) VALUES (1, ?)", (saved,))
     s = Repository(path).get_settings()
     assert s.onboarded is True
-    assert s.modules == ["steps", "study", "work"]
+    assert s.modules == ["study", "work", "sleep"]
+
+
+def test_saved_settings_with_movement_drop_it_and_keep_the_rest(tmp_path):
+    # Movement (steps) was removed; a database saved before that still opens.
+    path = str(tmp_path / "compass.db")
+    Repository(path)
+    saved = ('{"onboarded": true, "modules": ["steps", "study"], "targets": ['
+             '{"area_id": "steps", "target": 8000, "mode": "up"},'
+             '{"area_id": "study", "target": 10, "mode": "up"}]}')
+    with sqlite3.connect(path) as conn:
+        conn.execute("INSERT OR REPLACE INTO settings (id, json) VALUES (1, ?)", (saved,))
+        conn.execute("INSERT INTO days (date, json) VALUES ('2026-10-20', ?)",
+                     ('{"date": "2026-10-20", "steps": 9000, "study_hours": 2}',))
+    repo = Repository(path)
+    s = repo.get_settings()
+    assert s.onboarded is True
+    assert s.modules == ["study"]
+    assert [(t.area_id, t.target) for t in s.targets] == [("study", 10)]
+    day = repo.get_day("2026-10-20")
+    assert "steps" not in day
+    assert day["study_hours"] == 2
 
 
 def test_old_backup_with_removed_modules_imports(repo):
@@ -172,10 +193,10 @@ def test_bad_import_raises_and_keeps_existing_data(repo, bad):
 
 def test_import_replaces_everything(repo):
     repo.put_day(sample_day("2026-10-01"))
-    repo.import_all({"schema": 1, "settings": {}, "days": [{"date": "2026-10-20", "steps": "500"}]})
+    repo.import_all({"schema": 1, "settings": {}, "days": [{"date": "2026-10-20", "work_hours": "5"}]})
     backup = repo.export_all()
     assert [d["date"] for d in backup["days"]] == ["2026-10-20"]
-    assert backup["days"][0]["steps"] == 500
+    assert backup["days"][0]["work_hours"] == 5
 
 
 # --- delete ---

@@ -57,7 +57,6 @@ def test_last_n_dates_with_zero_is_empty():
 def test_areas_have_readme_defaults():
     expected = {
         "sleep": ("sleep_hours", "avg", 7.5, "up"),
-        "steps": ("steps", "avg", 8000, "up"),
         "study": ("study_hours", "sum", 12, "up"),
         "work": ("work_hours", "sum", 16, "up"),
     }

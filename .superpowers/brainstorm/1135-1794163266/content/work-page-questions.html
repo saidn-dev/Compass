@@ -1,0 +1,76 @@
+<style>
+  .wp { max-width: 760px; margin: 0 auto; }
+  .q { border: 1px solid var(--border, #333); border-radius: 10px; padding: 14px 16px; margin: 10px 0; display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
+  .q h4 { margin: 0 0 8px; font-size: 15px; }
+  .q .n { opacity: .55; margin-right: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--border, #444); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+  .day { width: 30px; text-align: center; border: 1px solid var(--border, #444); border-radius: 6px; padding: 3px 0; }
+  .day.on { background: rgba(120,170,230,.25); }
+  .use { font-size: 12px; line-height: 1.45; border-left: 3px solid; padding-left: 10px; }
+  .use b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+  .drives { border-color: #5fb87a; }
+  .shows { border-color: #6aa2e0; }
+  .tip { border-color: #d9a441; }
+  .none { border-color: #888; opacity: .8; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; margin: 8px 0 4px; }
+  .legend span { border-left: 3px solid; padding-left: 6px; }
+  @media (max-width: 640px) { .q { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wp">
+  <h2>Your 7 Work questions, and what Compass could do with each answer</h2>
+  <p class="subtitle">Left: the question as the user would see it. Right: my guess at what each answer would actually change in Compass v1, which is rules-only with no AI. Grey means the answer would be saved but nothing uses it yet.</p>
+
+  <div class="legend">
+    <span class="drives" style="border-color:#5fb87a">Sets the target</span>
+    <span style="border-color:#6aa2e0">Shows on the Work card</span>
+    <span style="border-color:#d9a441">Changes the brief's advice</span>
+    <span style="border-color:#888">Nothing yet (saved for v2)</span>
+  </div>
+
+  <div class="q">
+    <div><h4><span class="n">1</span>What best describes your work right now?</h4>
+      <div class="chips"><span class="chip">Employed</span><span class="chip">Freelance</span><span class="chip">Student who works</span><span class="chip">Job hunting</span><span class="chip">Other</span></div></div>
+    <div class="use drives"><b>Sets the target</b>Picks "more is better" (freelance, student) or "stay under" (employed). Job hunting tracks search hours instead of paid hours.</div>
+  </div>
+
+  <div class="q">
+    <div><h4><span class="n">2</span>What's your role or main kind of work?</h4>
+      <input class="mock-input" placeholder="e.g. Web developer" style="width:100%"></div>
+    <div class="use shows"><b>Shows on the card</b>The card reads "Work · Web developer". Nothing else uses it.</div>
+  </div>
+
+  <div class="q">
+    <div><h4><span class="n">3</span>Which days and hours do you usually work?</h4>
+      <div class="row"><span class="day on">M</span><span class="day on">T</span><span class="day on">W</span><span class="day on">T</span><span class="day on">F</span><span class="day">S</span><span class="day">S</span>
+        <span style="margin-left:8px">09:00 – 17:00</span></div>
+      <div class="row" style="margin-top:6px"><label><input type="checkbox"> It varies</label></div></div>
+    <div class="use drives"><b>Sets the target</b>5 days × 8 h = a 40 h week, worked out for you (like the Sleep schedule). "It varies" means you type the hours instead.</div>
+  </div>
+
+  <div class="q">
+    <div><h4><span class="n">4</span>When do you do your best focused work?</h4>
+      <div class="chips"><span class="chip">Morning</span><span class="chip">Afternoon</span><span class="chip">Evening</span><span class="chip">Varies</span></div></div>
+    <div class="use tip"><b>Changes the advice</b>The "when behind" tip names the time: "Block 30 minutes tomorrow morning for your most urgent task."</div>
+  </div>
+
+  <div class="q">
+    <div><h4><span class="n">5</span>The one work goal that matters most in the next 3 months?</h4>
+      <input class="mock-input" placeholder="e.g. Land 2 new clients" style="width:100%"></div>
+    <div class="use shows"><b>Shows on the card</b>Like the Study goal: shown on the card, maybe with a date 3 months out. Could also become one of the 3 Goals.</div>
+  </div>
+
+  <div class="q">
+    <div><h4><span class="n">6</span>What usually derails your work week?</h4>
+      <div class="chips"><span class="chip">Unclear priorities</span><span class="chip">Procrastination</span><span class="chip">Interruptions</span><span class="chip">Low energy</span><span class="chip">Too many projects</span><span class="chip">Other</span></div></div>
+    <div class="use tip"><b>Changes the advice</b>When Work is behind, the brief's tip is picked to match: procrastination → "Start with 10 minutes on the task you're avoiding."</div>
+  </div>
+
+  <div class="q">
+    <div><h4><span class="n">7</span>How should Compass help you?</h4>
+      <div class="chips"><span class="chip">Plan my day</span><span class="chip">Track tasks</span><span class="chip">Keep me on goal</span><span class="chip">Remind me of deadlines</span><span class="chip">Weekly review</span></div></div>
+    <div class="use none"><b>Nothing yet</b>Reminders and a weekly review don't exist in v1, and planning and task tracking are already on for everyone. Saved now, used in v2?</div>
+  </div>
+</div>

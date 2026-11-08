@@ -42,6 +42,7 @@ Verified on this machine: Python 3.12.10, Node 25.6.1, OpenJDK 17.0.20, git pres
 - Compass is the decision layer; other apps (TickTick, Google Calendar) are v2 data sources, not rebuilt.
 - v1 is laptop-only and **advice-only** (no chat, no model, no write-back to other apps).
 - Moodle dropped; Google Calendar replaces it in v2. Steps and fasting are manual or CSV in v1.
+- Note 2026-11-08: Movement (steps) taken out of v1 and the Java CSV importer parked for v2; logging steps by hand needs a step counter. v1 areas are now Sleep, Study and Work.
 - Onboarding asks which modules to enable; each module works with zero integrations.
 - Stack must be languages the user can edit: Python, Java, JavaScript, HTML, CSS, API.
 
@@ -116,7 +117,7 @@ Compass/
 
 ## Data model (schema version 1)
 ```
-Day      { date: "YYYY-MM-DD", sleep_hours, steps, study_hours, work_hours: number|null,
+Day      { date: "YYYY-MM-DD", sleep_hours, study_hours, work_hours: number|null,
            bedtime, wake_time: "HH:MM"|null, habits: {habitId: bool}, tasks: [{text, done}] (<=3), note: str }
 Target   { area_id, target: number (>0; sleep <=24, study and work <=168), mode: "up"|"limit" }
 Goal     { name, percent: 0-100, detail }
@@ -125,6 +126,7 @@ Settings { onboarded: bool, modules: [area_id] (1-3), targets: [Target], habits:
            sleep_schedule: {bedtime, wake_time: "HH:MM"}|null,
            study_goals: [{name, date: "YYYY-MM-DD"|null}] (0-5) }
 ```
+Note 2026-11-08: `steps` was removed from Day with the Movement area; older saved days and backups still load, and their steps are dropped.
 Note 2026-11-07: the Sleep fields (`bedtime`, `wake_time`, `sleep_schedule`) and the target caps were added to this block. With a schedule, the sleep target is always the hours between its two times (also on import).
 Note 2026-11-04: `study_goals` was added for the Study onboarding page, see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md`. The Study card's dashboard entry also carries `goal: {name, date, days_left, text} | null`.
 SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(date PRIMARY KEY, json TEXT)`, `settings(id=1, json TEXT)`.
@@ -304,7 +306,7 @@ Rules: only enabled modules, only the 7 dates ending `today`. Behind-ness = `(ta
 ---
 
 ## Definition of Done (v1)
-- `python -m pytest server/tests`, `node --test "web/tests/*.test.js"`, and `tools/importer/build.ps1` all pass.
+- `python -m pytest server/tests` and `node --test "web/tests/*.test.js"` pass. (`tools/importer/build.ps1` was in this list until 2026-11-08, when the importer was parked for v2.)
 - QA checklist signed off; Review Focus 1-9 each have a passing named test or a ticked manual check.
 - App starts with one command, works offline, makes requests only to `127.0.0.1`.
 - Every Global Constraint holds; README matches behaviour.

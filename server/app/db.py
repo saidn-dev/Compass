@@ -20,7 +20,7 @@ AREA_IDS = {a.id for a in AREAS}
 def upgrade_settings(raw: object) -> object:
     """Fit settings saved by older versions to today's rules, before validation.
 
-    Spending and fasting were removed and the module limit went from 5 to 3:
+    Spending, fasting and steps were removed and the module limit went from 5 to 3:
     unknown modules and their targets are dropped, then the first 3 modules kept.
     """
     if not isinstance(raw, dict) or not isinstance(raw.get("modules"), list):

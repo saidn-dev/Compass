@@ -44,10 +44,8 @@ def test_hour_fields_are_0_to_24(field):
     assert normalize_day({field: 30}, DATE)[field] is None
 
 
-def test_steps_are_whole_numbers_with_a_sane_cap():
-    assert normalize_day({"steps": 8000.7}, DATE)["steps"] == 8000
-    assert normalize_day({"steps": "12000"}, DATE)["steps"] == 12000
-    assert normalize_day({"steps": 1e9}, DATE)["steps"] is None
+def test_steps_from_before_movement_was_removed_are_dropped():
+    assert "steps" not in normalize_day({"steps": 8000, "work_hours": 2}, DATE)
 
 
 # --- tasks ---
@@ -168,7 +166,7 @@ def test_settings_caps():
     with pytest.raises(ValidationError):
         Settings(goals=[goal] * 4)
     with pytest.raises(ValidationError):
-        Settings(modules=["sleep", "steps", "study", "work"])
+        Settings(modules=["sleep", "study", "work", "sleep"])
     with pytest.raises(ValidationError):
         Settings(theme="neon")
 

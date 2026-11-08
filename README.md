@@ -2,19 +2,19 @@
 
 A local, single-user life dashboard that reads your last seven days and tells you what to do next.
 
-You log a few numbers a day (sleep, steps, study, work, spending, fasting). Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
+You log a few numbers a day (sleep, study, work). Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
 
-> **Status: v1 done.** Start it with `python start.py`. Every check in the [QA checklist](docs/qa-checklist.md) has passed except one Narrator check on the new Sleep page.
+> **Status: v1 done.** Start it with `python start.py`. Every check in the [QA checklist](docs/qa-checklist.md) has passed except the Narrator checks on the Sleep and Study pages.
 
 ---
 
 ## How it works
 
 ```text
- Browser page (HTML, CSS, vanilla JS)      Java CSV importer (CLI)
-            |                                        |
-            |  JSON over http://127.0.0.1:8765       |  POST /api/days/bulk
-            v                                        v
+ Browser page (HTML, CSS, vanilla JS)
+            |
+            |  JSON over http://127.0.0.1:8765
+            v
    +-------------------------------------------------------+
    |  Python server (FastAPI)                              |
    |  all rules: areas, status, trend, daily brief         |
@@ -29,7 +29,7 @@ The server owns every rule. The page only draws what the API returns. Data lives
 
 | Feature | What it does |
 |---|---|
-| **Onboarding** | Welcome, then pick 1 to 3 of four modules, a Sleep page (a goal, a schedule, or help working one out), a Study page (what you're studying for, dates, hours a week), targets for the rest, optional habits and goals |
+| **Onboarding** | Welcome, then pick any of the three modules, a Sleep page (a goal, a schedule, or help working one out), a Study page (what you're studying for, dates, hours a week), targets for the rest, optional habits and goals |
 | **Sleep** | With a sleep schedule you log bed and wake times and Compass works out the hours; the brief says how often you were in bed on time |
 | **Daily brief** | 3-4 sentences from the last 7 days, plus the numbers it used |
 | **Area cards** | Value, progress, 7-day trend, and status in words: "On track", "Behind", "No data" |
@@ -39,16 +39,15 @@ The server owns every rule. The page only draws what the API returns. Data lives
 | **Quick capture** | A daily note (up to 5000 characters) |
 | **Your data** | Export to one JSON file, import it back, or delete everything |
 
-The six modules and their default targets:
+The three modules and their default targets:
 
 | Module | 7-day value | Default target |
 |---|---|---|
 | Sleep | average hours | 7.5 h, more is better |
-| Movement | average steps | 8,000, more is better |
 | Study | total hours | 12 h, more is better |
 | Work | total paid hours | 16 h, more is better |
-| Spending | latest % of monthly budget | 100%, stay under |
-| Fasting | average hours | 16 h, more is better |
+
+Movement (steps) was taken out on 2026-11-08: logging steps by hand needs a step counter, so it comes back in v2 when Compass can read them from another app.
 
 **Blank is a gap, never zero.** A missing value never counts against you, and a real `0` stays `0`. If the 7-day sleep average falls under 5 h, the brief suggests talking to a doctor. Compass gives no medical or financial advice, and v1 makes no AI model calls.
 
@@ -72,7 +71,6 @@ Compass talks only to its own server. No CDN, web fonts, or analytics.
 |---|---|---|
 | Python | 3.12 | the app, server tests |
 | Node.js | 21 or newer (tested on 25) | web tests only |
-| JDK | 17, no Maven or Gradle | CSV importer only |
 
 ### Run Compass
 
@@ -90,17 +88,6 @@ The first run creates `.venv` and installs the server's packages. After that, `p
 | `--no-browser` | Don't open the browser |
 
 Your data is saved in `compass.db` in the repository folder. It is ignored by git. Use **Settings → Export** for a backup.
-
-### Import steps or fasting from a CSV
-
-Build the importer once, then point it at a CSV export while Compass is running:
-
-```powershell
-./tools/importer/build.ps1 build        # or: sh tools/importer/build.sh build
-java -cp tools/importer/out dev.compass.importer.Main --file steps.csv --date-col date --value-col steps --field steps --dry-run
-```
-
-`--dry-run` shows what would be sent; run again without it to save. Columns can be header names or numbers (1 = first column). `--field` is one of `steps`, `fasting_hours`, `sleep_hours`, `study_hours`, `work_hours`. Use `--date-format dd/MM/yyyy` (or similar) if your dates are not `YYYY-MM-DD`. Blank values are skipped, never saved as 0, and only that one number is changed for each day. Run with `--help` for all options. `tools/importer/sample.csv` is a small example.
 
 ### Run the tests
 
@@ -124,9 +111,8 @@ Then, from the repository root:
 
 | Suite | Command | Count |
 |---|---|---|
-| Server (pytest) | `python -m pytest server/tests` | 249 |
-| Web renderers (`node:test`) | `node --test "web/tests/*.test.js"` | 18 |
-| Java importer | `./tools/importer/build.ps1` (or `sh tools/importer/build.sh`) | 18 |
+| Server (pytest) | `python -m pytest server/tests` | 343 |
+| Web renderers (`node:test`) | `node --test "web/tests/*.test.js"` | 35 |
 
 While the server is running, `http://127.0.0.1:8765/docs` lets you try every API endpoint in the browser.
 
@@ -139,7 +125,7 @@ All endpoints take and return JSON. Errors always look like `{"error": {"code": 
 | Method and path | Purpose |
 |---|---|
 | `GET /health` | `{"status": "ok"}` |
-| `GET /api/areas` | The six modules with their labels, units and default targets |
+| `GET /api/areas` | The modules with their labels, units and default targets |
 | `GET /api/settings` | Read settings |
 | `PUT /api/settings` | Replace settings (validated) |
 | `POST /api/onboarding` | `{"modules": [...]}`: enable modules and set default targets (onboarding is finished by `PUT /api/settings` with `onboarded: true`) |
@@ -171,7 +157,7 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 | `server/tests/` | Python | pytest suite |
 | `web/` | HTML, CSS, JS | `index.html`, `styles.css`, `js/`; `preview.html` is a static design preview |
 | `web/tests/` | JS | `node:test` tests for the renderers |
-| `tools/importer/` | Java | CSV importer for steps and fasting |
+| `tools/importer/` | Java | CSV importer, parked until v2 |
 | `start.py` | Python | one-command launcher |
 | `docs/` | Markdown | product spec and QA checklist |
 
@@ -181,13 +167,13 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 |---|---|
 | Server: rules, database, REST API, security (Tasks 1-8) | Done |
 | Web page, served by the server (Tasks 9-11) | Done; dark theme only for now |
-| Java CSV importer (Task 12) | Done |
+| Java CSV importer (Task 12) | Built, then parked for v2 on 2026-11-08 with Movement |
 | Launcher `start.py` (Task 13) | Done |
-| QA pass (Task 13) | Done, except a Narrator pass on the new Sleep and Study pages |
+| QA pass (Task 13) | Done, except a Narrator pass on the Sleep and Study pages |
 | Sleep onboarding page (2026-10-29) | Done; see `docs/superpowers/specs/2026-10-29-sleep-onboarding-design.md` |
 | Study onboarding page (2026-11-04) | Done; see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md` |
 
-**Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server.
+**Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server. Movement comes back here too, with steps read from another app; the Java CSV importer in `tools/importer/` is kept for that.
 
 ## Documentation
 

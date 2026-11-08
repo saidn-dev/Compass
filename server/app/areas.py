@@ -1,4 +1,4 @@
-"""Life areas (sleep, steps, study, work) and their rules.
+"""Life areas (sleep, study, work) and their rules.
 
 Date helpers, 7-day averages/sums, "On track / Behind / No data" status,
 progress percent and trend direction. A gap (None) is never treated as 0.
@@ -31,8 +31,6 @@ class Area:
 AREAS: list[Area] = [
     Area("sleep", "Sleep", "h", "sleep_hours", "avg", 7.5, "up",
          "Set a wind-down alarm 30 minutes before bed tonight.", 24),
-    Area("steps", "Movement", "steps", "steps", "avg", 8000, "up",
-         "Take a 20-minute walk today."),
     Area("study", "Study", "h", "study_hours", "sum", 12, "up",
          "Do one 30-minute study block on your nearest deadline.", 168),
     Area("work", "Work", "h", "work_hours", "sum", 16, "up",

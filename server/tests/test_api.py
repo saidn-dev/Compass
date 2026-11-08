@@ -38,9 +38,10 @@ def test_fresh_app_is_not_onboarded(client):
     assert r.json()["onboarded"] is False
 
 
-def test_onboarding_with_four_modules_is_rejected(client):
+def test_onboarding_with_removed_movement_module_is_rejected(client):
+    # Movement (steps) was taken out of v1; it comes back with app connections in v2.
     r = client.post("/api/onboarding", headers=HOST,
-                    json={"modules": ["sleep", "steps", "study", "work"]})
+                    json={"modules": ["sleep", "steps"]})
     assert_error(r, 422)
     assert client.get("/api/settings", headers=HOST).json()["onboarded"] is False
 
@@ -207,13 +208,13 @@ def test_bulk_merges_numbers_and_keeps_everything_else(client):
         "tasks": [{"text": "keep", "done": True}],
     })
     r = client.post("/api/days/bulk", headers=HOST, json={"days": [
-        {"date": "2026-10-20", "steps": 9000, "note": "overwrite?", "tasks": [], "habits": {}},
+        {"date": "2026-10-20", "study_hours": 3, "note": "overwrite?", "tasks": [], "habits": {}},
         {"date": "2026-10-21", "work_hours": 6},
     ]})
     assert r.status_code == 200
     assert r.json() == {"saved": 2, "skipped": []}
     day = client.get("/api/days/2026-10-20", headers=HOST).json()
-    assert day["steps"] == 9000
+    assert day["study_hours"] == 3
     assert day["sleep_hours"] == 7
     assert day["note"] == "keep me"
     assert day["habits"] == {"read": True}
@@ -223,19 +224,19 @@ def test_bulk_merges_numbers_and_keeps_everything_else(client):
 
 def test_bulk_reports_bad_dates_and_values(client):
     r = client.post("/api/days/bulk", headers=HOST, json={"days": [
-        {"date": "not-a-date", "steps": 100},
-        {"date": "2026-10-20", "steps": "abc"},
-        {"date": "2026-10-21", "steps": None},
+        {"date": "not-a-date", "work_hours": 1},
+        {"date": "2026-10-20", "work_hours": "abc"},
+        {"date": "2026-10-21", "work_hours": None},
         {"date": "2026-10-22"},
         "junk",
-        {"date": "2026-10-23", "steps": 5000},
+        {"date": "2026-10-23", "work_hours": 5},
     ]})
     assert r.status_code == 200
     body = r.json()
     assert body["saved"] == 1
     assert [s["date"] for s in body["skipped"]] == ["not-a-date", "2026-10-20", "2026-10-21", "2026-10-22", None]
     assert all(isinstance(s["reason"], str) and s["reason"] for s in body["skipped"])
-    assert client.get("/api/days/2026-10-20", headers=HOST).json()["steps"] is None
+    assert client.get("/api/days/2026-10-20", headers=HOST).json()["work_hours"] is None
 
 
 def test_bulk_sleep_hours_skip_days_with_bed_and_wake_times(client):
@@ -253,9 +254,9 @@ def test_bulk_sleep_hours_skip_days_with_bed_and_wake_times(client):
 
 
 def test_bulk_never_writes_a_zero_for_a_bad_value(client):
-    client.put("/api/days/2026-10-20", json={"steps": 4000}, headers=HOST)
-    client.post("/api/days/bulk", headers=HOST, json={"days": [{"date": "2026-10-20", "steps": ""}]})
-    assert client.get("/api/days/2026-10-20", headers=HOST).json()["steps"] == 4000
+    client.put("/api/days/2026-10-20", json={"work_hours": 4}, headers=HOST)
+    client.post("/api/days/bulk", headers=HOST, json={"days": [{"date": "2026-10-20", "work_hours": ""}]})
+    assert client.get("/api/days/2026-10-20", headers=HOST).json()["work_hours"] == 4
 
 
 def test_bulk_without_days_list_is_rejected(client):
@@ -434,7 +435,7 @@ def test_areas_lists_every_module_with_defaults(client):
     r = client.get("/api/areas", headers=HOST)
     assert r.status_code == 200
     areas = r.json()
-    assert [a["id"] for a in areas] == ["sleep", "steps", "study", "work"]
+    assert [a["id"] for a in areas] == ["sleep", "study", "work"]
     sleep = areas[0]
     assert sleep == {"id": "sleep", "label": "Sleep", "unit": "h", "default_target": 7.5, "default_mode": "up"}
 

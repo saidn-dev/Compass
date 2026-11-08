@@ -22,7 +22,7 @@
   </header>
 
   <div class="banner" role="alert">
-    <p class="banner-message">Could not save: steps must be a number between 0 and 200000.</p>
+    <p class="banner-message">Could not save: study_hours must be a number between 0 and 24.</p>
     <button type="button" class="btn btn-ghost btn-small">Dismiss</button>
   </div>
 
@@ -47,18 +47,11 @@
       <section class="section-areas" aria-labelledby="areas-title">
         <h2 id="areas-title">Life areas</h2>
         <div class="card-grid">
-          <article class="card area-card" data-status="behind" aria-label="Sleep: 6.4 h against a target of 7.5 h, Behind">
-            <div class="card-head"><h3 class="card-title">Sleep</h3><span class="status">Behind</span></div>
-            <p class="card-value"><span class="value">6.4</span><span class="unit">h</span></p>
+          <article class="card area-card" data-status="on_track" aria-label="Sleep: 7.6 h against a target of 7.5 h, On track">
+            <div class="card-head"><h3 class="card-title">Sleep</h3><span class="status">On track</span></div>
+            <p class="card-value"><span class="value">7.6</span><span class="unit">h</span></p>
             <p class="card-target">7-day average, target 7.5 h</p>
-            <div class="progress" style="--progress: 85%"><span class="progress-bar"></span></div>
-            <p class="trend" data-trend="down">Trending down</p>
-          </article>
-          <article class="card area-card" data-status="on_track" aria-label="Movement: 9120 steps against a target of 8000 steps, On track">
-            <div class="card-head"><h3 class="card-title">Movement</h3><span class="status">On track</span></div>
-            <p class="card-value"><span class="value">9,120</span><span class="unit">steps</span></p>
-            <p class="card-target">7-day average, target 8,000</p>
-            <div class="progress" style="--progress: 114%"><span class="progress-bar"></span></div>
+            <div class="progress" style="--progress: 101%"><span class="progress-bar"></span></div>
             <p class="trend" data-trend="up">Trending up</p>
           </article>
           <article class="card area-card" data-status="behind" aria-label="Study: 9 h against a target of 12 h, Behind, Data Structures exam · in 12 days">
@@ -87,10 +80,6 @@
             <div class="field">
               <label for="p-sleep">Sleep</label>
               <div class="input-unit"><input id="p-sleep" type="number" value="6.5"><span class="unit">h</span></div>
-            </div>
-            <div class="field">
-              <label for="p-steps">Steps</label>
-              <div class="input-unit"><input id="p-steps" type="number"><span class="unit">steps</span></div>
             </div>
             <div class="field">
               <label for="p-study">Study</label>
@@ -192,7 +181,6 @@
           <p class="hint">Choose up to 3.</p>
           <div class="module-options">
             <label class="module-option"><input type="checkbox" checked><span class="module-name">Sleep</span><span class="module-detail">Hours per night, target 7.5 h</span></label>
-            <label class="module-option"><input type="checkbox" checked><span class="module-name">Movement</span><span class="module-detail">Steps per day, target 8,000</span></label>
             <label class="module-option"><input type="checkbox" checked><span class="module-name">Study</span><span class="module-detail">Hours per week, target 12 h</span></label>
             <label class="module-option"><input type="checkbox"><span class="module-name">Work</span><span class="module-detail">Paid hours per week, target 16 h</span></label>
           </div>

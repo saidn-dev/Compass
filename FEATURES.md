@@ -40,7 +40,6 @@ Each feature lists what it needs first. Build top to bottom: a feature starts on
 ## Stage 5: Extras
 | Feature | Needs |
 |---|---|
-| Java CSV importer (steps, fasting) | REST API |
 | One-command launcher (`python start.py`) | Server runs |
 | QA pass and README update | Everything above |
 
@@ -49,3 +48,5 @@ All tests pass, the QA checklist is signed off, and the app starts with one comm
 
 ## Later (v2, not in v1)
 TickTick and Google Calendar data, AI assistant. These build on the same server.
+
+Movement (steps) and the Java CSV importer were taken out of v1 on 2026-11-08. Steps need a step counter or another app, so both come back in v2 with the app connections. The importer code stays in `tools/importer/`.

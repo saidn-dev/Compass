@@ -14,11 +14,9 @@ from app.sleep import hours_between, parse_time
 # Allowed range per numeric Day field. Anything outside becomes a gap.
 NUMERIC_FIELDS: dict[str, tuple[float, float]] = {
     "sleep_hours": (0, 24),
-    "steps": (0, 200_000),
     "study_hours": (0, 24),
     "work_hours": (0, 24),
 }
-WHOLE_NUMBER_FIELDS = {"steps"}
 
 MAX_TASKS = 3
 MAX_TASK_TEXT = 200
@@ -91,10 +89,7 @@ def normalize_day(raw: dict, date_key: str) -> dict:
     """A complete, clean Day for date_key. Raises ValueError on a bad date."""
     day: dict = {"date": check_date_key(date_key)}
     for field, (low, high) in NUMERIC_FIELDS.items():
-        value = _number(raw.get(field), low, high)
-        if value is not None and field in WHOLE_NUMBER_FIELDS:
-            value = int(value)
-        day[field] = value
+        day[field] = _number(raw.get(field), low, high)
     # Bed and wake times: when both are there, they decide the hours slept.
     day["bedtime"] = parse_time(raw.get("bedtime"))
     day["wake_time"] = parse_time(raw.get("wake_time"))

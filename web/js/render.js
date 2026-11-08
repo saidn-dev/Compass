@@ -22,7 +22,7 @@ function formatNumber(n) {
   return Number(n).toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
-// "7.5 h", "8,000 steps", "100%"
+// "7.5 h", "1,200 h", "100%"
 function withUnit(n, unit) {
   return unit === "%" ? `${formatNumber(n)}%` : `${formatNumber(n)} ${unit}`;
 }

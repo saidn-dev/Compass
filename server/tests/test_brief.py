@@ -189,13 +189,19 @@ def test_every_number_in_the_sentences_is_in_facts():
     cases = [
         (week(sleep_hours=[6, 6.5, 6.5, 6.4, 6.4, 6.5, 6.5], study_hours=[2] * 7), settings("sleep", "study")),
         (week(work_hours=[10, 6, 6, 6, 6, 6, 6]), work_limit(40)),
-        (week(steps=[7000, 7500, None, 8000, 6000, 6100, 7200]), settings("steps")),
+        (week(study_hours=[1, 1.5, None, 2, 0, 0.5, 1]), settings("study")),
         (week(sleep_hours=[4.5] * 7), settings("sleep")),
         (week(work_hours=[3] * 7), settings("work")),
+        # Study is the focus and has a dated goal: "Exam is in 12 days." (deadline fact)
+        (week(study_hours=[1] * 7), settings("study").model_copy(
+            update={"study_goals": [StudyGoal(name="Exam", date="2026-11-02")]})),
+        # Study is not the focus: the deadline line is added after the tip.
+        (week(sleep_hours=[5.5] * 7, study_hours=[3] * 7), settings("sleep", "study").model_copy(
+            update={"study_goals": [StudyGoal(name="Exam", date="2026-11-02")]})),
     ]
     for days, s in cases:
         brief = build_brief(days, s, TODAY)
-        known = {n for f in brief["facts"] for n in (f["value"], f["target"])}
+        known = {n for f in brief["facts"] for n in (f.get("value"), f.get("target"), f.get("days_left"))}
         for sentence in measured_sentences(brief):
             for n in numbers_in(sentence):
                 assert n in known, (sentence, brief["facts"])

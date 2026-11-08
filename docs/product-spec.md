@@ -46,6 +46,8 @@ Five cards, each with the current value, progress against a target, and a seven-
 | Work | Paid hours per week | 16 h |
 | Spending | Percent of monthly budget used | 100% limit |
 
+Note 2026-11-08: Movement was taken out of v1 (steps need a step counter or another app) and comes back in v2. Spending was removed earlier. v1 has Sleep, Study and Work.
+
 Targets are yours to set. Each card shows status ("On track" or "Behind") in plain words, not color alone.
 
 ### 3. Today's focus

@@ -71,4 +71,4 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 
 - [x] `python start.py` creates/uses `.venv`, installs packages, serves the page (ran it)
 - [x] A second `python start.py` on the same port refuses with a clear message (ran it)
-- [x] Java importer: dry run sends nothing; real run saves steps and leaves notes, tasks and other numbers alone (ran it against the server)
+- [x] Java importer: dry run sends nothing; real run saves steps and leaves notes, tasks and other numbers alone (ran it against the server). Parked for v2 on 2026-11-08 with Movement; not part of v1 any more.
