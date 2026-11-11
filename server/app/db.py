@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from app.areas import AREAS
 from app.models import Settings, normalize_day
-from app.settings_rules import MAX_MODULES, sync_sleep_target
+from app.settings_rules import MAX_MODULES, sync_sleep_target, sync_work_target
 
 AREA_IDS = {a.id for a in AREAS}
 
@@ -145,7 +145,7 @@ class Repository:
         except ValidationError as e:
             raise ValueError(f"Backup settings are invalid: {e.error_count()} problem(s).") from None
         # A hand-edited backup could hold a schedule and a sleep target that disagree.
-        settings = sync_sleep_target(settings)
+        settings = sync_work_target(sync_sleep_target(settings))
         raw_days = data.get("days")
         if not isinstance(raw_days, list):
             raise ValueError("Backup days must be a list.")

@@ -4,7 +4,9 @@ import pytest
 from pydantic import ValidationError
 
 from app.areas import AREAS
-from app.models import NUMERIC_FIELDS, Goal, Settings, StudyGoal, Target, normalize_day
+from app.models import (
+    NUMERIC_FIELDS, Goal, Settings, StudyGoal, Target, WorkProfile, WorkSchedule, normalize_day,
+)
 
 DATE = "2026-10-20"
 JUNK = ["", "  ", None, "abc", -3, float("nan"), float("inf"), True, [], {}]
@@ -204,3 +206,63 @@ def test_settings_allow_five_study_goals_not_six():
 @pytest.mark.parametrize("raw,clean", [(" 2026-12-01 ", "2026-12-01"), ("   ", None)])
 def test_study_goal_date_ignores_spaces(raw, clean):
     assert StudyGoal(name="Exam", date=raw).date == clean
+
+
+# --- work profile ---
+
+WEEK = {"days": [0, 1, 2, 3, 4], "start": "09:00", "end": "17:00"}
+
+
+def test_work_profile_defaults_are_empty():
+    assert Settings().work == WorkProfile()
+    assert WorkProfile().model_dump() == {
+        "kind": None, "role": None, "schedule": None, "hours_vary": False,
+        "focus": None, "goal": None, "derailers": [],
+    }
+
+
+def test_work_schedule_accepts_a_normal_week():
+    s = WorkSchedule(**WEEK)
+    assert (s.days, s.start, s.end) == ([0, 1, 2, 3, 4], "09:00", "17:00")
+    assert WorkSchedule(days=[0], start=" 09:00 ", end="17:00").start == "09:00"
+
+
+@pytest.mark.parametrize("bad", [
+    {**WEEK, "days": []},
+    {**WEEK, "days": [0, 0]},
+    {**WEEK, "days": [7]},
+    {**WEEK, "days": [-1]},
+    {**WEEK, "start": "25:00"},
+    {**WEEK, "start": "09:00", "end": "09:00"},
+])
+def test_work_schedule_rejects_bad_input(bad):
+    with pytest.raises(ValidationError):
+        WorkSchedule(**bad)
+
+
+def test_work_text_blank_becomes_none():
+    p = WorkProfile(role="   ", goal="")
+    assert p.role is None and p.goal is None
+    assert WorkProfile(role=" Nurse ").role == "Nurse"
+    with pytest.raises(ValidationError):
+        WorkProfile(goal="x" * 101)
+
+
+def test_work_derailers_keep_screen_order_and_reject_repeats():
+    assert WorkProfile(derailers=["energy", "priorities"]).derailers == ["priorities", "energy"]
+    with pytest.raises(ValidationError):
+        WorkProfile(derailers=["energy", "energy"])
+    with pytest.raises(ValidationError):
+        WorkProfile(derailers=["boredom"])
+
+
+def test_hours_vary_with_a_schedule_is_rejected():
+    with pytest.raises(ValidationError):
+        WorkProfile(hours_vary=True, schedule=WEEK)
+
+
+def test_unknown_kind_and_focus_are_rejected():
+    with pytest.raises(ValidationError):
+        WorkProfile(kind="boss")
+    with pytest.raises(ValidationError):
+        WorkProfile(focus="night")

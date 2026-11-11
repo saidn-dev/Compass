@@ -132,15 +132,16 @@
         </form>
       </div>
 
-      <div id="onboarding-step-targets" hidden>
-        <p class="step-label">Step 3 of 5</p>
-        <h2 id="onb-heading-targets" tabindex="-1">Your targets</h2>
-        <p class="lead">These are suggested targets. Change any that don't fit you.</p>
-        <form id="onboarding-targets-form" class="panel" novalidate>
-          <div id="onboarding-targets"></div>
-          <p class="form-error" id="onboarding-targets-error" role="alert" hidden></p>
+      <div id="onboarding-step-work" hidden>
+        <p class="step-label">Step 5 of 7</p>
+        <p class="step-sub" id="onboarding-work-sub"></p>
+        <h2 id="onb-heading-work" tabindex="-1">Work</h2>
+        <form id="onboarding-work-form" class="panel" novalidate>
+          <div id="onboarding-work"></div>
+          <p class="form-error" id="onboarding-work-error" role="alert" hidden></p>
           <div class="form-actions">
             <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
+            <button type="button" class="btn btn-ghost" id="onboarding-work-skip">Skip</button>
             <button type="submit" class="btn btn-primary">Next</button>
           </div>
         </form>
@@ -326,7 +327,7 @@
           </form>
         </section>
 
-        <section class="panel" aria-labelledby="set-targets-title">
+        <section class="panel" id="settings-targets-panel" aria-labelledby="set-targets-title">
           <h2 id="set-targets-title">Targets</h2>
           <p class="hint">"More is better" counts as on track at or above the target. "Stay under" counts as on track at or below it.</p>
           <form id="targets-form" novalidate>
@@ -347,6 +348,18 @@
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">Save study</button>
               <p class="save-status" id="study-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" id="settings-work-panel" aria-labelledby="set-work-title" hidden>
+          <h2 id="set-work-title">Work</h2>
+          <form id="work-form" novalidate>
+            <div id="settings-work"></div>
+            <p class="form-error" id="work-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save work</button>
+              <p class="save-status" id="work-status" role="status" aria-live="polite"></p>
             </div>
           </form>
         </section>

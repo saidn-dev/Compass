@@ -6,8 +6,10 @@ and keeping the sleep target in step with a sleep schedule.
 from app.areas import AREAS
 from app.models import Settings, Target
 from app.sleep import hours_between
+from app.work import week_hours
 
 MAX_MODULES = 3
+EMPLOYED_DEFAULT_HOURS = 40
 AREAS_BY_ID = {a.id: a for a in AREAS}
 
 
@@ -40,7 +42,7 @@ def check_settings(s: Settings) -> Settings:
         if t.area_id not in AREAS_BY_ID:
             raise ValueError(f"Unknown module: {t.area_id}.")
         check_cap(t.area_id, t.target)
-    return sync_sleep_target(s.model_copy(update={"modules": modules}))
+    return sync_work_target(sync_sleep_target(s.model_copy(update={"modules": modules})))
 
 
 def check_cap(area_id: str, target: float) -> None:
@@ -62,6 +64,31 @@ def sync_sleep_target(s: Settings) -> Settings:
     return s.model_copy(update={"targets": targets})
 
 
+def sync_work_target(s: Settings) -> Settings:
+    """With a work type or schedule, they decide the work mode and target."""
+    work = s.work
+    if "work" not in s.modules or (work.kind is None and work.schedule is None):
+        return s
+    saved = target_for(s, "work")
+    if work.kind is None:
+        mode = saved.mode
+    else:
+        mode = "limit" if work.kind == "employed" else "up"
+    if work.schedule:
+        hours = week_hours(work.schedule)
+    elif (work.kind == "employed" and not work.hours_vary
+          and saved.target == AREAS_BY_ID["work"].default_target):
+        hours = EMPLOYED_DEFAULT_HOURS
+    else:
+        hours = saved.target
+    check_cap("work", hours)
+    new = Target(area_id="work", target=hours, mode=mode)
+    targets = [new if t.area_id == "work" else t for t in s.targets]
+    if all(t.area_id != "work" for t in s.targets):
+        targets.append(new)
+    return s.model_copy(update={"targets": targets})
+
+
 def apply_onboarding(s: Settings, ids: list[str]) -> Settings:
     """Enable the chosen modules with default targets (keeping custom ones).
 
@@ -76,7 +103,9 @@ def apply_onboarding(s: Settings, ids: list[str]) -> Settings:
         )
         for i in modules
     ]
-    return sync_sleep_target(s.model_copy(update={"modules": modules, "targets": targets}))
+    return sync_work_target(
+        sync_sleep_target(s.model_copy(update={"modules": modules, "targets": targets}))
+    )
 
 
 def set_target(s: Settings, area_id: str, target: float, mode: str) -> Settings:

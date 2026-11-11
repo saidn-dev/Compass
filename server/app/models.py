@@ -162,6 +162,74 @@ class StudyGoal(BaseModel):
         return check_date_key(v.strip()) if v.strip() else None
 
 
+WORK_KINDS = ("employed", "freelance", "student", "job_hunting", "other")
+WORK_FOCUS = ("morning", "afternoon", "evening", "varies")
+DERAILERS = ("priorities", "procrastination", "interruptions", "energy", "projects", "other")
+
+
+class WorkSchedule(BaseModel):
+    """The days and hours the user works, e.g. Monday to Friday, 09:00 to 17:00."""
+    days: list[int]
+    start: str
+    end: str
+
+    @field_validator("days")
+    @classmethod
+    def _days(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError("Pick at least one day.")
+        if len(set(v)) != len(v):
+            raise ValueError("Pick each day only once.")
+        if any(d < 0 or d > 6 for d in v):
+            raise ValueError("Days are 0 (Monday) to 6 (Sunday).")
+        return v
+
+    @field_validator("start", "end", mode="before")
+    @classmethod
+    def _time(cls, v: object) -> str:
+        time = parse_time(v)
+        if time is None:
+            raise ValueError("Times must look like HH:MM, e.g. 22:30.")
+        return time
+
+    @model_validator(mode="after")
+    def _different(self) -> "WorkSchedule":
+        if self.start == self.end:
+            raise ValueError("Start and end can't be the same.")
+        return self
+
+
+class WorkProfile(BaseModel):
+    """What the user told us about their work."""
+    kind: Literal[*WORK_KINDS] | None = None
+    role: Name | None = None
+    schedule: WorkSchedule | None = None
+    hours_vary: bool = False
+    focus: Literal[*WORK_FOCUS] | None = None
+    goal: Name | None = None
+    derailers: list[Literal[*DERAILERS]] = []
+
+    @field_validator("role", "goal", mode="before")
+    @classmethod
+    def _blank_text(cls, v: object) -> object:
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+    @field_validator("derailers")
+    @classmethod
+    def _derailers(cls, v: list[str]) -> list[str]:
+        if len(set(v)) != len(v):
+            raise ValueError("Pick each one only once.")
+        return sorted(v, key=DERAILERS.index)
+
+    @model_validator(mode="after")
+    def _vary_or_schedule(self) -> "WorkProfile":
+        if self.hours_vary and self.schedule is not None:
+            raise ValueError("Hours that vary can't also have a set schedule.")
+        return self
+
+
 class Settings(BaseModel):
     onboarded: bool = False
     modules: Annotated[list[str], Field(max_length=3)] = []
@@ -171,3 +239,4 @@ class Settings(BaseModel):
     theme: Literal["light", "dark", "system"] = "system"
     sleep_schedule: SleepSchedule | None = None
     study_goals: Annotated[list[StudyGoal], Field(max_length=MAX_STUDY_GOALS)] = []
+    work: WorkProfile = WorkProfile()

@@ -90,7 +90,7 @@ Every screen: a heading (the question, which gets focus), the control, an error 
     derailers: list of "priorities" | "procrastination" | "interruptions" | "energy" | "projects" | "other", no repeats, kept in screen order
   }
   ```
-- `sync_work_target(settings)`, next to `sync_sleep_target`: with a schedule and Work picked, the Work target = days × hours. With `kind` set, the mode is `limit` for employed and `up` for anything else. It runs wherever `sync_sleep_target` runs today (`check_settings`, `apply_onboarding`, and loading or importing settings).
+- `sync_work_target(settings)`, next to `sync_sleep_target`: with a schedule and Work picked, the Work target = days × hours. With `kind` set, the mode is `limit` for employed and `up` for anything else. Employed with no schedule and no "It varies" hours gets 40 h unless a custom target is saved. It runs wherever `sync_sleep_target` runs today (`check_settings`, `apply_onboarding`, and loading or importing settings).
 - **Work leaves the target rows in Settings > Targets**, the same way Sleep and Study already do (`skip: OWN_PAGE` in `web/js/app.js`). Its hours and direction are set in Settings > Work instead. *(my call: one place for each value)*
 - **The Settings > Targets panel stays.** It also holds Sleep's goal-or-schedule controls (`#settings-sleep` inside `#targets-form`), and Sleep is out of scope this round. With Work gone from it, it shows only Sleep's controls when Sleep is picked, and the whole panel is hidden when Sleep isn't. *(my call, after the builder check)*
 - The profile stays saved when Work is unticked, and comes back if it's ticked again, the same as Sleep schedules and study goals. *(my call)*

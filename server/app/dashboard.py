@@ -1,6 +1,6 @@
 """Everything the dashboard shows for one day: brief, area cards, habit grid.
 
-The Study card also carries the nearest study goal.
+The Study card also carries the nearest study goal, and the Work card its role and goal line.
 
 Recomputed on every request, so it is live as you log.
 """
@@ -10,6 +10,7 @@ from app.lists import habit_completion, is_logged
 from app.models import Settings, normalize_day
 from app.settings_rules import AREAS_BY_ID, target_for
 from app.study import card_goal
+from app.work import work_card
 
 STATUS_WORDS = {"on_track": "On track", "behind": "Behind", "no_data": "No data"}
 
@@ -44,6 +45,8 @@ def build_dashboard(days: list[dict], settings: Settings, today: str) -> dict:
         }
         if area.id == "study":
             entry["goal"] = card_goal(settings.study_goals, today)
+        if area.id == "work":
+            entry["goal"] = work_card(settings.work)
         areas.append(entry)
 
     habits = [h.model_dump() for h in settings.habits]

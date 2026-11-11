@@ -6,7 +6,7 @@ import {
   renderHabitGrid, renderGoals, renderTasks,
   renderTargetRows, renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
-  renderStudyGoals,
+  renderStudyGoals, WORK_QUESTIONS, renderWorkQuestion, weekHoursText,
 } from "../js/render.js";
 
 const EVIL = "<script>alert(1)</script>";
@@ -328,4 +328,77 @@ test("renderSleepChoice in Settings has a plain Sleep legend", () => {
   const settings = { sleep_schedule: null, targets: [] };
   assert.ok(renderSleepChoice(settings, "set", false).includes("<legend>Sleep</legend>"));
   assert.ok(renderSleepChoice(settings, "onb", true).includes("Do you already know"));
+});
+
+// --- Work ---
+
+const WORK = {
+  kind: "student", role: "Dev", schedule: { days: [0, 1, 2, 3, 4], start: "09:00", end: "17:00" },
+  hours_vary: false, focus: "evening", goal: "Fix 3 bugs", derailers: ["energy"],
+};
+
+test("renderWorkQuestion redraws saved answers", () => {
+  assert.match(renderWorkQuestion(0, WORK, "", "onb"), /value="student"[^>]*checked/);
+  assert.ok(!/value="employed"[^>]*checked/.test(renderWorkQuestion(0, WORK, "", "onb")));
+  const derail = renderWorkQuestion(5, WORK, "", "onb");
+  assert.strictEqual((derail.match(/ checked/g) || []).length, 1);
+  assert.match(derail, /value="energy"[^>]*checked/);
+  const days = renderWorkQuestion(2, WORK, "", "onb");
+  assert.strictEqual((days.match(/aria-pressed="true"/g) || []).length, 5);
+  assert.strictEqual((days.match(/aria-pressed="false"/g) || []).length, 2);
+  assert.ok(days.includes('value="09:00"'));
+  assert.ok(days.includes("= 40 h a week"));
+  assert.match(renderWorkQuestion(3, WORK, "", "onb"), /value="evening"[^>]*checked/);
+});
+
+test("renderWorkQuestion screen 3 with hours_vary", () => {
+  const html = renderWorkQuestion(2, { ...WORK, schedule: null, hours_vary: true }, 16, "onb");
+  assert.match(html, /name="work-varies"[^>]*checked/);
+  assert.match(html, /name="work-hours"[^>]*value="16"/);
+  assert.ok(!/class="work-varies-panel"[^>]*hidden/.test(html));
+});
+
+test("renderWorkQuestion screen 3 hides the hours panel unless it varies", () => {
+  assert.match(renderWorkQuestion(2, WORK, "", "onb"), /class="work-varies-panel"[^>]*hidden/);
+});
+
+test("renderWorkQuestion escapes role and goal", () => {
+  const html = renderWorkQuestion(1, { ...WORK, role: EVIL }, "", "onb")
+    + renderWorkQuestion(4, { ...WORK, goal: EVIL }, "", "onb");
+  assert.ok(!html.includes("<script"));
+  assert.ok(html.includes("&lt;script&gt;"));
+});
+
+test("renderWorkQuestion uses the prefix in ids", () => {
+  for (let i = 0; i < WORK_QUESTIONS.length; i++) {
+    const a = renderWorkQuestion(i, WORK, 16, "onb");
+    const b = renderWorkQuestion(i, WORK, 16, "set");
+    const idsA = [...a.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+    const idsB = [...b.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(idsA.length > 0);
+    assert.ok(idsA.every((id) => !idsB.includes(id)));
+    for (const id of idsA) {
+      assert.ok(a.includes(`for="${id}"`) || a.includes(`aria-labelledby="${id}"`) || a.includes(`aria-describedby="${id}"`), `no label for ${id}`);
+    }
+  }
+});
+
+test("renderWorkQuestion hides the legend when asked", () => {
+  assert.ok(renderWorkQuestion(0, WORK, "", "onb", { hideLegend: true }).includes('<legend class="visually-hidden">'));
+  assert.ok(!renderWorkQuestion(0, WORK, "", "onb").includes("visually-hidden"));
+  assert.ok(renderWorkQuestion(3, WORK, "", "onb").includes(WORK_QUESTIONS[3]));
+});
+
+test("weekHoursText", () => {
+  assert.strictEqual(weekHoursText(5, "09:00", "17:00"), "= 40 h a week");
+  assert.strictEqual(weekHoursText(1, "22:00", "06:00"), "= 8 h a week");
+  assert.strictEqual(weekHoursText(0, "09:00", "17:00"), "");
+  assert.strictEqual(weekHoursText(5, "", "17:00"), "");
+  assert.strictEqual(weekHoursText(5, "09:00", "09:00"), "");
+});
+
+test("renderAreaCard shows the Work line", () => {
+  const html = renderAreaCard(card({ id: "work", label: "Work", goal: { text: "Software developer · Goal: Fix 3 bugs" } }));
+  assert.ok(html.includes("Software developer · Goal: Fix 3 bugs"));
+  assert.match(html, /aria-label="[^"]*, Software developer · Goal: Fix 3 bugs"/);
 });

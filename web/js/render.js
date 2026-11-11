@@ -363,3 +363,104 @@ export function renderStudyGoals(goals, hours, prefix) {
     </div>
   </div>`;
 }
+
+// --- Work ---
+
+export const WORK_QUESTIONS = [
+  "What best describes your work right now?",
+  "What's your role or main kind of work?",
+  "Which days and hours do you usually work?",
+  "When do you do your best focused work?",
+  "What's the one work goal that matters most in the next 3 months?",
+  "What usually gets in the way of your work week?",
+];
+
+// Same values as the server; the server is the one that enforces them.
+const WORK_KINDS = ["employed", "freelance", "student", "job_hunting", "other"];
+const WORK_KIND_LABELS = ["Employed", "Freelance or self-employed", "Student who works", "Looking for work", "Other"];
+const WORK_FOCUS = ["morning", "afternoon", "evening", "varies"];
+const WORK_FOCUS_LABELS = ["Morning", "Afternoon", "Evening", "It varies"];
+const DERAILERS = ["priorities", "procrastination", "interruptions", "energy", "projects", "other"];
+const DERAILER_LABELS = ["Unclear priorities", "Putting things off", "Interruptions", "Low energy", "Too many projects", "Something else"];
+const WORK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+// 5 days, "09:00", "17:00" -> "= 40 h a week". No days, a blank time or equal times -> "".
+// Only for showing; the server works out the hours that are saved.
+export function weekHoursText(dayCount, start, end) {
+  const from = minutesOf(start);
+  const to = minutesOf(end);
+  if (!dayCount || from === null || to === null) return "";
+  const gap = (to - from + MINUTES_A_DAY) % MINUTES_A_DAY;
+  return gap === 0 ? "" : `= ${formatNumber((gap * dayCount) / 60)} h a week`;
+}
+
+function workChoices(type, name, id, values, labels, checkedFn) {
+  return values.map((value, i) => `<div class="work-option">
+      <input type="${type}" id="${id}-work-${name}-${value}" name="work-${name}" value="${value}"${checkedFn(value) ? " checked" : ""}>
+      <label for="${id}-work-${name}-${value}">${labels[i]}</label>
+    </div>`).join("");
+}
+
+function workTextField(id, name, label, hint, value) {
+  return `<div class="field">
+      <label for="${id}-work-${name}">${label}</label>
+      <input id="${id}-work-${name}" name="work-${name}" type="text" maxlength="100" autocomplete="off" aria-describedby="${id}-work-${name}-hint" value="${escapeHtml(value || "")}">
+      <p class="hint" id="${id}-work-${name}-hint">${hint}</p>
+    </div>`;
+}
+
+function workSchedule(work, hours, id) {
+  const schedule = work.schedule;
+  const days = schedule ? schedule.days : [];
+  const start = schedule ? schedule.start : "";
+  const end = schedule ? schedule.end : "";
+  const varies = Boolean(work.hours_vary);
+
+  const toggles = WORK_DAYS.map((name, i) => `<button type="button" class="day-toggle" data-day="${i}" aria-pressed="${days.includes(i)}">${name}</button>`).join("");
+
+  return `<div class="work-schedule"${varies ? " hidden" : ""}>
+      <span class="field-label" id="${id}-work-days-label"><span class="visually-hidden">Days</span></span>
+      <div class="day-toggles" role="group" aria-labelledby="${id}-work-days-label">${toggles}</div>
+      <div class="field">
+        <label for="${id}-work-start">From</label>
+        <input id="${id}-work-start" name="work-start" type="time" value="${escapeHtml(start)}">
+      </div>
+      <div class="field">
+        <label for="${id}-work-end">To</label>
+        <input id="${id}-work-end" name="work-end" type="time" value="${escapeHtml(end)}">
+      </div>
+      <output class="work-week">${escapeHtml(weekHoursText(days.length, start, end))}</output>
+    </div>
+    <div class="work-option">
+      <input type="checkbox" id="${id}-work-varies" name="work-varies"${varies ? " checked" : ""}>
+      <label for="${id}-work-varies">It varies</label>
+    </div>
+    <div class="work-varies-panel"${varies ? "" : " hidden"}>
+      <div class="field">
+        <label for="${id}-work-hours">Hours a week</label>
+        <div class="input-unit">
+          <input id="${id}-work-hours" name="work-hours" type="number" inputmode="decimal" min="0" max="168" step="any" value="${escapeHtml(hours)}">
+          <span class="unit">h</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// One Work question as a fieldset, filled in from the saved work profile.
+// hours: the saved Work target, for "It varies"; prefix keeps ids unique ("onb" or "set").
+export function renderWorkQuestion(index, work, hours, prefix, { hideLegend = false } = {}) {
+  const id = escapeHtml(prefix);
+  const controls = [
+    () => workChoices("radio", "kind", id, WORK_KINDS, WORK_KIND_LABELS, (v) => work.kind === v),
+    () => workTextField(id, "role", "Role or main kind of work", "For example: Software developer, Nurse, Barista.", work.role),
+    () => workSchedule(work, hours, id),
+    () => workChoices("radio", "focus", id, WORK_FOCUS, WORK_FOCUS_LABELS, (v) => work.focus === v),
+    () => workTextField(id, "goal", "Work goal", "For example: Fix 3 bugs.", work.goal),
+    () => workChoices("checkbox", "derailer", id, DERAILERS, DERAILER_LABELS, (v) => (work.derailers || []).includes(v)),
+  ][index]();
+
+  return `<fieldset class="work-question" data-work="${index}">
+    <legend${hideLegend ? ' class="visually-hidden"' : ""}>${escapeHtml(WORK_QUESTIONS[index])}</legend>
+    ${controls}
+  </fieldset>`;
+}

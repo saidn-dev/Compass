@@ -186,3 +186,86 @@ def test_set_target_above_cap_is_rejected():
     s = Settings(modules=["sleep"])
     with pytest.raises(ValueError):
         set_target(s, "sleep", 30, "up")
+
+
+# --- work profile: the schedule and kind decide the work target ---
+
+WEEK = {"days": [0, 1, 2, 3, 4], "start": "09:00", "end": "17:00"}
+
+
+def work_target(s: Settings) -> Target:
+    return next(t for t in s.targets if t.area_id == "work")
+
+
+def work_settings(modules=("work",), targets=(), **work) -> Settings:
+    return Settings(modules=list(modules), targets=list(targets), work=work)
+
+
+def test_work_schedule_sets_the_target():
+    s = check_settings(work_settings(schedule=WEEK))
+    assert work_target(s) == Target(area_id="work", target=40, mode="up")
+
+
+@pytest.mark.parametrize("kind, mode", [
+    ("employed", "limit"), ("freelance", "up"), ("student", "up"),
+    ("job_hunting", "up"), ("other", "up"),
+])
+def test_kind_sets_the_mode(kind, mode):
+    s = check_settings(work_settings(kind=kind, schedule=WEEK))
+    assert work_target(s) == Target(area_id="work", target=40, mode=mode)
+
+
+def test_no_kind_keeps_the_saved_mode():
+    saved = Target(area_id="work", target=10, mode="limit")
+    s = check_settings(work_settings(targets=[saved], schedule=WEEK))
+    assert work_target(s) == Target(area_id="work", target=40, mode="limit")
+
+
+def test_empty_profile_changes_nothing():
+    s = work_settings(targets=[Target(area_id="work", target=25, mode="limit")])
+    assert check_settings(s) == s
+
+
+def test_work_unticked_leaves_the_target_alone():
+    stale = Target(area_id="work", target=10, mode="up")
+    s = work_settings(modules=("sleep",), targets=[stale], schedule=WEEK)
+    assert Target(area_id="work", target=10, mode="up") in check_settings(s).targets
+
+
+def test_ticking_work_again_resyncs():
+    s = Settings(modules=["sleep"], work={"schedule": WEEK})
+    s = apply_onboarding(s, ["work"])
+    assert work_target(s).target == 40
+
+
+def test_hours_vary_keeps_the_typed_target():
+    s = work_settings(
+        targets=[Target(area_id="work", target=25, mode="up")], kind="employed", hours_vary=True)
+    assert work_target(check_settings(s)) == Target(area_id="work", target=25, mode="limit")
+
+
+def test_employed_without_hours_defaults_to_40_limit():
+    s = check_settings(work_settings(kind="employed"))
+    assert work_target(s) == Target(area_id="work", target=40, mode="limit")
+
+
+def test_employed_keeps_a_custom_saved_target():
+    s = work_settings(targets=[Target(area_id="work", target=30, mode="up")], kind="employed")
+    assert work_target(check_settings(s)) == Target(area_id="work", target=30, mode="limit")
+
+
+def test_employed_schedule_hours_win():
+    s = check_settings(work_settings(kind="employed", schedule=WEEK))
+    assert work_target(s) == Target(area_id="work", target=40, mode="limit")
+    short = {"days": [0, 1], "start": "09:00", "end": "13:00"}
+    assert work_target(check_settings(work_settings(kind="employed", schedule=short))).target == 8
+
+
+def test_employed_hours_vary_keeps_the_area_default():
+    s = check_settings(work_settings(kind="employed", hours_vary=True))
+    assert work_target(s) == Target(area_id="work", target=16, mode="limit")
+
+
+def test_freelance_without_hours_stays_16_up():
+    s = check_settings(work_settings(kind="freelance"))
+    assert work_target(s) == Target(area_id="work", target=16, mode="up")

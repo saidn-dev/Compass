@@ -511,3 +511,41 @@ def test_put_settings_with_sleep_target_over_24_is_rejected(client):
     s = client.get("/api/settings", headers=HOST).json()
     s["targets"] = [{"area_id": "sleep", "target": 30, "mode": "up"}]
     assert_error(client.put("/api/settings", json=s, headers=HOST), 422)
+
+
+def test_stale_work_target_is_replaced_by_the_schedule(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    s["work"] = {"schedule": {"days": [0, 1, 2, 3, 4], "start": "09:00", "end": "17:00"}}
+    s["targets"] = [t for t in s["targets"] if t["area_id"] != "work"]
+    s["targets"].append({"area_id": "work", "target": 12, "mode": "up"})
+    r = client.put("/api/settings", json=s, headers=HOST)
+    assert r.status_code == 200, r.text
+    for body in (r.json(), client.get("/api/settings", headers=HOST).json()):
+        assert next(t for t in body["targets"] if t["area_id"] == "work")["target"] == 40
+
+
+def test_bad_work_schedule_is_rejected(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    s["work"] = {"schedule": {"days": [0], "start": "09:00", "end": "09:00"}}
+    assert_error(client.put("/api/settings", json=s, headers=HOST), 422)
+
+
+# --- work card line ---
+
+def test_dashboard_work_card_line(client):
+    onboard(client)
+    s = client.get("/api/settings", headers=HOST).json()
+    s["work"] = {**s["work"], "role": "Software developer", "goal": "Fix 3 bugs"}
+    r = client.put("/api/settings", json=s, headers=HOST)
+    assert r.status_code == 200, r.text
+    d = client.get("/api/dashboard?date=2026-10-21", headers=HOST).json()
+    assert area(d, "work")["goal"] == {"text": "Software developer · Goal: Fix 3 bugs"}
+
+
+def test_dashboard_work_card_without_profile_has_no_line(client):
+    onboard(client)
+    d = client.get("/api/dashboard?date=2026-10-21", headers=HOST).json()
+    assert area(d, "work")["goal"] is None
+    assert "goal" not in area(d, "sleep")

@@ -2,12 +2,13 @@ import re
 
 from app.areas import AREAS, last_n_dates
 from app.brief import LOW_SLEEP_LINE, build_brief
-from app.models import Settings, SleepSchedule, StudyGoal, normalize_day
+from app.models import Settings, SleepSchedule, StudyGoal, WorkProfile, normalize_day
 from app.settings_rules import apply_onboarding, check_settings
+from app.work import ALL_WORK_TIPS, STOP_TIP
 
 TODAY = "2026-10-21"  # a Wednesday
 FIRST_BRIEF = "Log today's numbers to get your first brief."
-SUGGESTIONS = {a.suggestion for a in AREAS}
+SUGGESTIONS = {a.suggestion for a in AREAS} | set(ALL_WORK_TIPS)
 
 
 def week(**series) -> list[dict]:
@@ -192,6 +193,8 @@ def test_every_number_in_the_sentences_is_in_facts():
         (week(study_hours=[1, 1.5, None, 2, 0, 0.5, 1]), settings("study")),
         (week(sleep_hours=[4.5] * 7), settings("sleep")),
         (week(work_hours=[3] * 7), settings("work")),
+        (week(work_hours=[3] * 7), settings("work").model_copy(
+            update={"work": WorkProfile(derailers=["procrastination"])})),
         # Study is the focus and has a dated goal: "Exam is in 12 days." (deadline fact)
         (week(study_hours=[1] * 7), settings("study").model_copy(
             update={"study_goals": [StudyGoal(name="Exam", date="2026-11-02")]})),
@@ -384,3 +387,24 @@ def test_brief_never_over_four_sentences_with_study():
     ]
     for days, s in cases:
         assert len(build_brief(days, s, TODAY)["sentences"]) <= 4
+
+
+# --- Work tip from the profile ---
+
+def test_work_tip_replaces_the_fixed_suggestion():
+    s = settings("work").model_copy(update={"work": WorkProfile(derailers=["procrastination"], focus="morning")})
+    brief = build_brief(week(work_hours=[3] * 7), s, TODAY)
+    assert brief["sentences"][2] == "Spend 10 minutes in the morning on the task you've been putting off."
+
+
+def test_work_limit_gives_the_stop_tip():
+    brief = build_brief(week(work_hours=[10] * 7), work_limit(40), TODAY)
+    assert brief["sentences"][0].startswith("Work")
+    assert brief["sentences"][2] == STOP_TIP
+
+
+def test_work_tip_only_when_work_is_the_focus():
+    s = settings("sleep", "work").model_copy(update={"work": WorkProfile(derailers=["procrastination"])})
+    brief = build_brief(week(sleep_hours=[4] * 7, work_hours=[8] * 7), s, TODAY)
+    assert brief["sentences"][0].startswith("Sleep")
+    assert not any(t in brief["sentences"] for t in ALL_WORK_TIPS)

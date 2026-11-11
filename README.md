@@ -4,7 +4,7 @@ A local, single-user life dashboard that reads your last seven days and tells yo
 
 You log a few numbers a day (sleep, study, work). Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
 
-> **Status: v1 done.** Start it with `python start.py`. Every check in the [QA checklist](docs/qa-checklist.md) has passed except the Narrator checks on the Sleep and Study pages.
+> **Status: v1 done.** Start it with `python start.py`. Every check in the [QA checklist](docs/qa-checklist.md) has passed except the Narrator checks (onboarding, Sleep, Study and Work), which still need a person.
 
 ---
 
@@ -29,7 +29,7 @@ The server owns every rule. The page only draws what the API returns. Data lives
 
 | Feature | What it does |
 |---|---|
-| **Onboarding** | Welcome, then pick any of the three modules, a Sleep page (a goal, a schedule, or help working one out), a Study page (what you're studying for, dates, hours a week), targets for the rest, optional habits and goals |
+| **Onboarding** | Welcome, then pick any of the three modules, a Sleep page (a goal, a schedule, or help working one out), a Study page (what you're studying for, dates, hours a week), six one-question Work screens (type of work, role, days and hours, best focus time, a 3-month goal, what gets in the way), optional habits and goals |
 | **Sleep** | With a sleep schedule you log bed and wake times and Compass works out the hours; the brief says how often you were in bed on time |
 | **Daily brief** | 3-4 sentences from the last 7 days, plus the numbers it used |
 | **Area cards** | Value, progress, 7-day trend, and status in words: "On track", "Behind", "No data" |
@@ -45,7 +45,7 @@ The three modules and their default targets:
 |---|---|---|
 | Sleep | average hours | 7.5 h, more is better |
 | Study | total hours | 12 h, more is better |
-| Work | total paid hours | 16 h, more is better |
+| Work | total paid hours (hours spent searching for job hunters) | 16 h, more is better; with Work answers it comes from your work days and hours, or a typed number, and "Employed" means stay under |
 
 Movement (steps) was taken out on 2026-11-08: logging steps by hand needs a step counter, so it comes back in v2 when Compass can read them from another app.
 
@@ -111,8 +111,8 @@ Then, from the repository root:
 
 | Suite | Command | Count |
 |---|---|---|
-| Server (pytest) | `python -m pytest server/tests` | 343 |
-| Web renderers (`node:test`) | `node --test "web/tests/*.test.js"` | 35 |
+| Server (pytest) | `python -m pytest server/tests` | 395 |
+| Web renderers (`node:test`) | `node --test "web/tests/*.test.js"` | 43 |
 
 While the server is running, `http://127.0.0.1:8765/docs` lets you try every API endpoint in the browser.
 
@@ -169,9 +169,10 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 | Web page, served by the server (Tasks 9-11) | Done; dark theme only for now |
 | Java CSV importer (Task 12) | Built, then parked for v2 on 2026-11-08 with Movement |
 | Launcher `start.py` (Task 13) | Done |
-| QA pass (Task 13) | Done, except a Narrator pass on the Sleep and Study pages |
+| QA pass (Task 13) | Done, except a Narrator pass on the Sleep, Study and Work pages |
 | Sleep onboarding page (2026-10-29) | Done; see `docs/superpowers/specs/2026-10-29-sleep-onboarding-design.md` |
 | Study onboarding page (2026-11-04) | Done; see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md` |
+| Work onboarding screens (2026-11-09) | Done; see `docs/superpowers/specs/2026-11-08-work-onboarding-design.md` |
 
 **Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server. Movement comes back here too, with steps read from another app; the Java CSV importer in `tools/importer/` is kept for that.
 

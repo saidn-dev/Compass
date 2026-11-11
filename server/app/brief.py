@@ -12,6 +12,7 @@ from app.models import Settings
 from app.settings_rules import AREAS_BY_ID, target_for
 from app.sleep import LATE_GRACE_MINUTES, minutes_late
 from app.study import study_line
+from app.work import work_tip
 
 FIRST_BRIEF = "Log today's numbers to get your first brief."
 MIN_PATTERN_POINTS = 4
@@ -114,7 +115,8 @@ def build_brief(days: list[dict], settings: Settings, today: str) -> dict:
     else:
         second = f"Log {area.label} on more days to see a pattern."
 
-    sentences = [first, second, area.suggestion]
+    tip = work_tip(settings.work, mode) if area.id == "work" else area.suggestion
+    sentences = [first, second, tip]
     sleep = next((r for r in rows if r[0].id == "sleep"), None)
     low_sleep = sleep is not None and sleep[1] < LOW_SLEEP_HOURS
 

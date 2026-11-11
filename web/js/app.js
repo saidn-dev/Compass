@@ -7,6 +7,7 @@ import {
   renderTargetRows, renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
   renderStudyGoals,
+  renderWorkQuestion, WORK_QUESTIONS, weekHoursText,
 } from "./render.js";
 
 const MAX_TASKS = 3;
@@ -93,20 +94,19 @@ async function start() {
 // --- Onboarding ---
 
 // Every step, in order. Each is a <div id="onboarding-step-NAME"> in index.html.
-const ALL_STEPS = ["welcome", "modules", "sleep", "study", "targets", "habits", "goals"];
+const ALL_STEPS = ["welcome", "modules", "sleep", "study", "work", "habits", "goals"];
 let onboardingStep = "welcome"; // the step showing right now
 
-// Areas with their own onboarding page, so the Targets step leaves them out.
-const OWN_PAGE = ["sleep", "study"];
+// Areas with their own onboarding page.
+const OWN_PAGE = ["sleep", "study", "work"];
 
-// The steps this user goes through: Sleep and Study only if they picked them, Targets
-// only for the other areas. A fresh start (nothing picked yet) counts 5 steps.
+// The steps this user goes through: Sleep, Study and Work only if they picked them.
 function onboardingSteps() {
   const picked = settings.modules;
   const steps = ["welcome", "modules"];
   if (picked.includes("sleep")) steps.push("sleep");
   if (picked.includes("study")) steps.push("study");
-  if (picked.length === 0 || picked.some((id) => !OWN_PAGE.includes(id))) steps.push("targets");
+  if (picked.includes("work")) steps.push("work");
   return [...steps, "habits", "goals"];
 }
 
@@ -152,8 +152,20 @@ function drawOnboardingStudy() {
   showFormError("onboarding-study-error", "");
 }
 
-function drawOnboardingTargets() {
-  $("onboarding-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "onb-target", skip: OWN_PAGE });
+// The saved work hours a week, or the default.
+function workHours() {
+  const saved = settings.targets.find((t) => t.area_id === "work");
+  return saved ? saved.target : areas.find((a) => a.id === "work").default_target;
+}
+
+// Work: one question at a time (workScreen 0 to 5), filled in from what is saved.
+let workScreen = 0;
+
+function drawOnboardingWork() {
+  $("onboarding-work").innerHTML = renderWorkQuestion(workScreen, settings.work, workHours(), "onb", { hideLegend: true });
+  $("onb-heading-work").textContent = WORK_QUESTIONS[workScreen];
+  $("onboarding-work-sub").textContent = `Work \u00b7 ${workScreen + 1} of 6`;
+  showFormError("onboarding-work-error", "");
 }
 
 function drawOnboardingHabits() {
@@ -161,11 +173,15 @@ function drawOnboardingHabits() {
 }
 
 // Draws a step (if it has anything to draw) and shows it.
-function goToStep(step) {
+// For Work, screen says which of its six questions to show.
+function goToStep(step, screen = 0) {
   if (step === "modules") drawOnboardingModules();
   if (step === "sleep") drawOnboardingSleep();
   if (step === "study") drawOnboardingStudy();
-  if (step === "targets") drawOnboardingTargets();
+  if (step === "work") {
+    workScreen = screen;
+    drawOnboardingWork();
+  }
   if (step === "habits") drawOnboardingHabits();
   showOnboardingStep(step);
 }
@@ -182,7 +198,7 @@ function nextStep() {
 function showOnboarding() {
   drawOnboardingModules();
   $("onboarding-goals-form").reset();
-  for (const id of ["onboarding-error", "onboarding-sleep-error", "onboarding-study-error", "onboarding-targets-error", "onboarding-habits-error", "onboarding-goals-error"]) {
+  for (const id of ["onboarding-error", "onboarding-sleep-error", "onboarding-study-error", "onboarding-work-error", "onboarding-habits-error", "onboarding-goals-error"]) {
     showFormError(id, "");
   }
   showView("onboarding");
@@ -202,7 +218,7 @@ async function finishOnboarding(goals = []) {
 // Welcome.
 $("onboarding-start").addEventListener("click", () => showOnboardingStep("modules"));
 
-// Areas: save the modules (new ones get default targets), then go on to Sleep or Targets.
+// Areas: save the modules (new ones get default targets), then go on to the first screen of the chosen areas.
 $("onboarding-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
@@ -284,25 +300,28 @@ $("onboarding-study-form").addEventListener("submit", async (event) => {
   }
 });
 
-// Targets (every area without its own page): save them, keeping the others, then show the habits.
-$("onboarding-targets-form").addEventListener("submit", async (event) => {
+// Work: after a screen, show the next one, or the next step after the last.
+function afterWorkScreen() {
+  if (workScreen < 5) goToStep("work", workScreen + 1);
+  else goToStep(nextStep());
+}
+
+// Work: check the answer, save it, then go on.
+$("onboarding-work-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const targets = [];
-  for (const row of $("onboarding-targets").querySelectorAll(".target-row")) {
-    const target = Number(row.querySelector("input").value);
-    if (!(target > 0)) {
-      return showFormError("onboarding-targets-error", "Each target must be a number above 0.");
-    }
-    targets.push({ area_id: row.dataset.area, target, mode: row.querySelector("select").value });
-  }
+  const { changes, hours, error } = readWorkAnswer(workScreen, $("onboarding-work"));
+  if (error) return showFormError("onboarding-work-error", error);
   try {
-    settings = await api.putSettings({ ...settings, targets: mergeTargets(settings.targets, targets) });
-    showFormError("onboarding-targets-error", "");
-    goToStep(nextStep());
+    settings = await api.putSettings(withWork(settings, changes, hours));
+    showFormError("onboarding-work-error", "");
+    afterWorkScreen();
   } catch (error) {
-    showFormError("onboarding-targets-error", error.message);
+    showFormError("onboarding-work-error", error.message);
   }
 });
+
+// Work: skipping saves nothing from this screen.
+$("onboarding-work-skip").addEventListener("click", afterWorkScreen);
 
 // Habits: each Add or Remove saves straight away and redraws the list.
 async function saveOnboardingHabits(habits) {
@@ -357,9 +376,10 @@ $("onboarding-skip-goals").addEventListener("click", () => safely(finishOnboardi
 // Back buttons: go to the step before the one showing, redrawn from what is saved.
 $("onboarding-view").addEventListener("click", (event) => {
   if (!event.target.closest("[data-back]")) return;
+  if (onboardingStep === "work" && workScreen > 0) return goToStep("work", workScreen - 1);
   const steps = onboardingSteps();
   const previous = steps[steps.indexOf(onboardingStep) - 1];
-  if (previous) goToStep(previous);
+  if (previous) goToStep(previous, 5);
 });
 
 // --- Sleep answers (onboarding and Settings) ---
@@ -446,6 +466,47 @@ function withStudy(oldSettings, goals, hours) {
   return { ...oldSettings, study_goals: goals, targets: mergeTargets(oldSettings.targets, [target]) };
 }
 
+// --- Work answers ---
+
+// Reads the Work question showing in container: { changes, hours, error }.
+// changes is part of the work profile; nothing answered gives {} (the same as Skip).
+function readWorkAnswer(index, container) {
+  const ticked = (name) => [...container.querySelectorAll(`input[name="${name}"]:checked`)].map((i) => i.value);
+  const text = (name) => container.querySelector(`input[name="${name}"]`).value.trim() || null;
+  if (index === 0) return { changes: ticked("work-kind").length ? { kind: ticked("work-kind")[0] } : {} };
+  if (index === 1) return { changes: { role: text("work-role") } };
+  if (index === 3) return { changes: ticked("work-focus").length ? { focus: ticked("work-focus")[0] } : {} };
+  if (index === 4) return { changes: { goal: text("work-goal") } };
+  if (index === 5) return { changes: { derailers: ticked("work-derailer") } };
+
+  if (container.querySelector('input[name="work-varies"]').checked) {
+    const hoursText = container.querySelector('input[name="work-hours"]').value;
+    const hours = Number(hoursText);
+    if (hoursText.trim() === "" || !(hours > 0 && hours <= 168)) {
+      return { error: "Hours a week must be between 0 and 168." };
+    }
+    return { changes: { hours_vary: true, schedule: null }, hours };
+  }
+  const days = [...container.querySelectorAll('.day-toggle[aria-pressed="true"]')].map((b) => Number(b.dataset.day));
+  const start = container.querySelector('input[name="work-start"]').value;
+  const end = container.querySelector('input[name="work-end"]').value;
+  if (days.length === 0 && !start && !end) return { changes: {} };
+  if (days.length === 0) return { error: "Pick at least one day." };
+  if (!start || !end) return { error: "Enter a start and end time." };
+  if (start === end) return { error: "Start and end can't be the same." };
+  return { changes: { hours_vary: false, schedule: { days, start, end } } };
+}
+
+// Settings with the answer merged into the work profile. With hours (It varies),
+// the Work target is set too, keeping a saved "Stay under" rule.
+function withWork(current, changes, hours) {
+  const next = { ...current, work: { ...current.work, ...changes } };
+  if (hours === undefined) return next;
+  const saved = current.targets.find((t) => t.area_id === "work");
+  const target = { area_id: "work", target: hours, mode: saved ? saved.mode : "up" };
+  return { ...next, targets: mergeTargets(current.targets, [target]) };
+}
+
 // The new targets, plus the old ones for areas the new list doesn't cover
 // (so saving the other areas never drops the sleep target).
 function mergeTargets(oldTargets, newTargets) {
@@ -464,6 +525,36 @@ document.addEventListener("input", (event) => {
   if (!times || event.target.type !== "time") return;
   const [bed, wake] = times.querySelectorAll('input[type="time"]');
   times.querySelector(".sleep-gap").textContent = gapText(bed.value, wake.value);
+});
+
+// Day buttons toggle on click.
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest(".day-toggle");
+  if (!toggle) return;
+  toggle.setAttribute("aria-pressed", String(toggle.getAttribute("aria-pressed") !== "true"));
+  updateWorkWeek(toggle.closest(".work-question"));
+});
+
+// Changing days or times updates "= 40 h a week".
+function updateWorkWeek(question) {
+  const schedule = question.querySelector(".work-schedule");
+  if (!schedule) return;
+  const days = schedule.querySelectorAll('.day-toggle[aria-pressed="true"]').length;
+  const [start, end] = schedule.querySelectorAll('input[type="time"]');
+  schedule.querySelector(".work-week").textContent = weekHoursText(days, start.value, end.value);
+}
+
+document.addEventListener("input", (event) => {
+  const question = event.target.closest(".work-question");
+  if (question && event.target.type === "time") updateWorkWeek(question);
+});
+
+// "It varies" swaps the schedule for the hours a week.
+document.addEventListener("change", (event) => {
+  const question = event.target.closest(".work-question");
+  if (!question || event.target.name !== "work-varies") return;
+  question.querySelector(".work-schedule").hidden = event.target.checked;
+  question.querySelector(".work-varies-panel").hidden = !event.target.checked;
 });
 
 // --- Dashboard ---
@@ -509,6 +600,8 @@ function fillLogForm() {
       const saved = day[input.name];
       input.value = saved === null || saved === undefined ? "" : saved;
     }
+    const label = field.querySelector('label[for="log-work_hours"]');
+    if (label) label.textContent = settings.work.kind === "job_hunting" ? "Job search" : "Paid work";
     const gap = field.querySelector(".sleep-gap");
     if (gap) gap.textContent = gapText(day.bedtime, day.wake_time);
   }
@@ -631,12 +724,18 @@ function drawSettings() {
   $("settings-modules").innerHTML = renderOnboarding(areas, settings.modules);
   $("settings-sleep").innerHTML = settings.modules.includes("sleep") ? renderSleepChoice(settings, "set", false) : "";
   $("settings-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "target", skip: OWN_PAGE });
+  $("settings-targets-panel").hidden = !settings.modules.includes("sleep");
+  const work = settings.modules.includes("work");
+  $("settings-work-panel").hidden = !work;
+  $("settings-work").innerHTML = work
+    ? [0, 1, 2, 3, 4, 5].map((i) => renderWorkQuestion(i, settings.work, workHours(), "set")).join("")
+    : "";
   const study = settings.modules.includes("study");
   $("settings-study-panel").hidden = !study;
   $("settings-study").innerHTML = study ? renderStudyGoals(settings.study_goals, studyHours(), "set") : "";
   $("settings-habits").innerHTML = renderHabitList(settings.habits);
   $("settings-goals").innerHTML = renderGoalList(settings.goals);
-  for (const id of ["modules-error", "targets-error", "study-error", "habit-error", "goal-error", "import-error"]) {
+  for (const id of ["modules-error", "targets-error", "work-error", "study-error", "habit-error", "goal-error", "import-error"]) {
     showFormError(id, "");
   }
 }
@@ -686,6 +785,30 @@ $("targets-form").addEventListener("submit", async (event) => {
 $("settings-study").addEventListener("click", (event) => {
   changeStudyRows(event, $("settings-study"), "set");
   $("study-status").textContent = "";
+});
+
+$("work-form").addEventListener("input", () => {
+  $("work-status").textContent = "";
+});
+
+$("work-form").addEventListener("click", () => {
+  $("work-status").textContent = "";
+});
+
+$("work-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  let next = settings;
+  for (const [i, fieldset] of [...$("settings-work").querySelectorAll(".work-question")].entries()) {
+    const { changes, hours, error } = readWorkAnswer(i, fieldset);
+    if (error) return showFormError("work-error", error);
+    next = withWork(next, changes, hours);
+  }
+  try {
+    await saveSettings(next);
+    $("work-status").textContent = "Saved";
+  } catch (error) {
+    showFormError("work-error", error.message);
+  }
 });
 
 $("study-form").addEventListener("submit", async (event) => {

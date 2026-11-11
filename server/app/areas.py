@@ -34,7 +34,7 @@ AREAS: list[Area] = [
     Area("study", "Study", "h", "study_hours", "sum", 12, "up",
          "Do one 30-minute study block on your nearest deadline.", 168),
     Area("work", "Work", "h", "work_hours", "sum", 16, "up",
-         "Block 30 minutes for your most urgent paid task.", 168),
+         "Block 30 minutes today for your most urgent task.", 168),
 ]
 
 

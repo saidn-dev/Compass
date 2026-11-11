@@ -3,7 +3,7 @@ import sqlite3
 import pytest
 
 from app.db import SCHEMA_VERSION, Repository
-from app.models import Goal, Settings, Target, normalize_day
+from app.models import Goal, Settings, Target, WorkProfile, normalize_day
 
 
 @pytest.fixture
@@ -232,3 +232,41 @@ def test_round_trip_keeps_a_study_goal_without_a_date(repo, tmp_path):
     fresh = Repository(str(tmp_path / "other.db"))
     fresh.import_all(backup)
     assert fresh.export_all()["settings"]["study_goals"] == [{"name": "Read more", "date": None}]
+
+
+def test_old_backup_without_work_imports(repo):
+    repo.import_all({"schema": 1, "days": [], "settings": {
+        "onboarded": True, "modules": ["study"],
+        "targets": [{"area_id": "study", "target": 12, "mode": "up"}],
+    }})
+    assert repo.get_settings().work == WorkProfile()
+
+
+def test_work_profile_survives_export_and_import(repo, tmp_path):
+    work = WorkProfile(
+        kind="freelance", role="Designer",
+        schedule={"days": [0, 1, 2, 3, 4], "start": "09:00", "end": "17:00"},
+        focus="morning", goal="Ship the site", derailers=["procrastination"],
+    )
+    repo.put_settings(Settings(modules=["work"], work=work))
+    fresh = Repository(str(tmp_path / "other.db"))
+    fresh.import_all(repo.export_all())
+    assert fresh.get_settings().work == work
+
+
+def test_saved_settings_without_work_load(repo):
+    repo._conn.execute(
+        "INSERT OR REPLACE INTO settings (id, json) VALUES (1, ?)",
+        ('{"onboarded": true, "modules": ["work"]}',),
+    )
+    assert repo.get_settings().work == WorkProfile()
+
+
+def test_backup_work_target_is_synced_on_import(repo):
+    repo.import_all({"schema": 1, "days": [], "settings": {
+        "modules": ["work"],
+        "targets": [{"area_id": "work", "target": 12, "mode": "up"}],
+        "work": {"schedule": {"days": [0, 1, 2, 3, 4], "start": "09:00", "end": "17:00"}},
+    }})
+    targets = repo.export_all()["settings"]["targets"]
+    assert targets == [{"area_id": "work", "target": 40, "mode": "up"}]

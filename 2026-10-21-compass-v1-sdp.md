@@ -124,8 +124,13 @@ Goal     { name, percent: 0-100, detail }
 Settings { onboarded: bool, modules: [area_id] (1-3), targets: [Target], habits: [{id, name}],
            goals: [Goal] (<=3), theme: "light"|"dark"|"system",
            sleep_schedule: {bedtime, wake_time: "HH:MM"}|null,
-           study_goals: [{name, date: "YYYY-MM-DD"|null}] (0-5) }
+           study_goals: [{name, date: "YYYY-MM-DD"|null}] (0-5),
+           work: WorkProfile }
+WorkProfile { kind: "employed"|"freelance"|"student"|"job_hunting"|"other"|null, role, goal: str|null,
+           schedule: {days: [0-6], start, end: "HH:MM"}|null, hours_vary: bool,
+           focus: "morning"|"afternoon"|"evening"|"varies"|null, derailers: [priorities|procrastination|interruptions|energy|projects|other] }
 ```
+Note 2026-11-09: `work: WorkProfile` was added for the Work onboarding screens, see `docs/superpowers/specs/2026-11-08-work-onboarding-design.md`. A work type sets the Work mode (employed is "limit", the rest "up"), and a schedule sets the Work target to days times the hours between start and end (also on import). Old backups without `work` still import. The Work card's dashboard entry also carries `goal: {text} | null`.
 Note 2026-11-08: `steps` was removed from Day with the Movement area; older saved days and backups still load, and their steps are dropped.
 Note 2026-11-07: the Sleep fields (`bedtime`, `wake_time`, `sleep_schedule`) and the target caps were added to this block. With a schedule, the sleep target is always the hours between its two times (also on import).
 Note 2026-11-04: `study_goals` was added for the Study onboarding page, see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md`. The Study card's dashboard entry also carries `goal: {name, date, days_left, text} | null`.
@@ -140,7 +145,7 @@ SQLite tables: `meta(key PRIMARY KEY, value)` (holds `schema_version`), `days(da
 | `POST /api/sleep/suggestion` `{age?, role?, habits, wake_time?}` | suggested sleep goal or schedule, nothing saved (added 2026-10-29, see `docs/superpowers/specs/2026-10-29-sleep-onboarding-design.md`) |
 | `GET /api/days/{date}` / `PUT /api/days/{date}` | read (empty day if none) / save a day (normalized) |
 | `POST /api/days/bulk` `{days:[{date, <field>:number}]}` | merge numeric fields only (used by Java importer); returns `{saved:int, skipped:[{date,reason}]}` |
-| `GET /api/dashboard?date=YYYY-MM-DD` | `{brief:{sentences,facts}, areas:[{id,label,value,target,mode,status,progress,trend,series, goal (Study only): {name,date,days_left,text}|null}], habits:{grid,completion}}` |
+| `GET /api/dashboard?date=YYYY-MM-DD` | `{brief:{sentences,facts}, areas:[{id,label,value,target,mode,status,progress,trend,series, goal (Study: {name,date,days_left,text}|null; Work: {text}|null)}], habits:{grid,completion}}` |
 | `GET /api/export` | full JSON backup |
 | `POST /api/import` | replace all data from a backup (<= 2 MB) |
 | `DELETE /api/data` | requires header `X-Confirm: delete-all` |
