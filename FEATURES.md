@@ -31,10 +31,10 @@ Each feature lists what it needs first. Build top to bottom: a feature starts on
 |---|---|
 | Page shell, themes (light, dark, system), safe text display | nothing |
 | Onboarding screen (4-7 steps, with Sleep, Study and Work pages) | REST API, Page shell |
-| Dashboard: brief and area cards | REST API, Page shell, Onboarding screen |
-| Daily log form | Dashboard |
+| Dashboard: brief and one line per module | REST API, Page shell, Onboarding screen |
+| Daily log (on each module's page since 2026-11-13) | Dashboard |
 | Focus, habits and goals sections | Dashboard |
-| Quick capture notes (autosave) | Daily log form |
+| Quick capture notes (autosave) | Dashboard |
 | Settings screen (modules, habits, goals, export, import, delete) | Dashboard, Export/import/delete |
 | Side nav and module pages (Sleep, Study, Work) | Dashboard, Settings screen |
 

@@ -2,7 +2,7 @@
 
 A local, single-user life dashboard that reads your last seven days and tells you what to do next.
 
-You log a few numbers a day (sleep, study, work). Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
+You log a few numbers a day (sleep, study, work), each on its module's page. Compass turns them into a short rules-based brief: the area furthest behind its target, one pattern worth noticing, and one action that takes 30 minutes or less. Everything runs on your own computer.
 
 > **Status: v1 done.** Start it with `python start.py`. Every check in the [QA checklist](docs/qa-checklist.md) has passed except the Narrator checks (onboarding, Sleep, Study, Work, and the menu and module pages), which still need a person.
 
@@ -30,10 +30,10 @@ The server owns every rule. The page only draws what the API returns. Data lives
 | Feature | What it does |
 |---|---|
 | **Onboarding** | Welcome, then pick any of the three modules, a Sleep page (a goal, a schedule, or help working one out), a Study page (what you're studying for, dates, hours a week), six one-question Work screens (type of work, role, days and hours, best focus time, a 3-month goal, what gets in the way), optional habits and goals |
-| **Module pages** | A page each for Sleep, Study and Work, reached from the menu: this week, the last 7 days, today's log, and its goal or schedule with an Edit button |
+| **Module pages** | A page each for Sleep, Study and Work, reached from the menu: this week with its 7-day trend, the last 7 days, today's log, and its goal or schedule with an Edit button |
 | **Sleep** | With a sleep schedule you log bed and wake times and Compass works out the hours; the brief says how often you were in bed on time |
 | **Daily brief** | 3-4 sentences from the last 7 days, plus the numbers it used |
-| **Area cards** | Value, progress, 7-day trend, and status in words: "On track", "Behind", "No data" |
+| **Home** | Today's brief, then one line per module (value, target, and status in words: "On track", "Behind", "No data") that opens its page, then focus tasks, goals, notes and habits |
 | **Today's focus** | Up to 3 tasks a day |
 | **Habits** | 7-day yes/no grid with a weekly completion rate |
 | **Goals** | Up to 3, each with a percent and one line of context |
@@ -113,7 +113,7 @@ Then, from the repository root:
 | Suite | Command | Count |
 |---|---|---|
 | Server (pytest) | `python -m pytest server/tests` | 414 |
-| Web renderers and addresses (`node:test`) | `node --test "web/tests/*.test.js"` | 53 |
+| Web renderers and addresses (`node:test`) | `node --test "web/tests/*.test.js"` | 49 |
 
 While the server is running, `http://127.0.0.1:8765/docs` lets you try every API endpoint in the browser.
 
@@ -134,7 +134,7 @@ All endpoints take and return JSON. Errors always look like `{"error": {"code": 
 | `GET /api/days/{date}` | Read one day (`YYYY-MM-DD`); empty day if none |
 | `PUT /api/days/{date}` | Save one day; blank or invalid numbers become `null` |
 | `POST /api/days/bulk` | Merge numeric fields only; returns `{"saved", "skipped"}` |
-| `GET /api/dashboard?date=YYYY-MM-DD` | Brief, area cards and habit grid, plus the 7 dates and each area's page details; date defaults to local today |
+| `GET /api/dashboard?date=YYYY-MM-DD` | Brief, each area's numbers and habit grid, plus the 7 dates and each area's page details; date defaults to local today |
 | `GET /api/export` | Full JSON backup |
 | `POST /api/import` | Replace all data from a backup (max 2 MB) |
 | `DELETE /api/data` | Delete everything; needs `X-Confirm: delete-all` |
@@ -175,6 +175,7 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 | Study onboarding page (2026-11-04) | Done; see `docs/superpowers/specs/2026-11-03-study-onboarding-design.md` |
 | Work onboarding screens (2026-11-09) | Done; see `docs/superpowers/specs/2026-11-08-work-onboarding-design.md` |
 | Side nav and module pages (2026-11-12) | Done; see `docs/superpowers/specs/2026-11-12-side-nav-module-pages-design.md` |
+| Home trimmed (2026-11-13) | Done; the log form and area cards left Home, which now shows one line per module |
 
 **Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server. Movement comes back here too, with steps read from another app; the Java CSV importer in `tools/importer/` is kept for that.
 

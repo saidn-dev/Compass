@@ -13,7 +13,7 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 ## 1. Daily use
 
 - [x] First visit shows onboarding; starting with 0 modules shows the server's message (browser script)
-- [x] Onboarding with 3 modules shows 3 area cards and only those 3 log fields (browser script)
+- [x] Onboarding with 3 modules shows 3 area cards and only those 3 log fields (browser script) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] Onboarding: a fresh start shows Welcome, then 5 steps labelled "Step 1 of 5" to "Step 5 of 5"; picking Sleep and another area makes it 6 (browser script) — superseded 2026-11-09: the onboarding Targets step was removed
 - [x] Onboarding: a fresh start shows "Step 1 of 4" to "Step 4 of 4" (Welcome, Areas, Habits, Goals); each of Sleep, Study and Work adds one step (checked by Claude in the browser, 2026-11-10)
 - [x] Onboarding targets: 0 is rejected with a message; a changed target shows on the dashboard card; the sleep target is kept (browser script) — superseded 2026-11-09: the onboarding Targets step was removed
@@ -30,14 +30,14 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Sleep page, schedule: the panel switches, "= 8 h a night" updates as you type, the schedule is saved and sets the target (browser script)
 - [x] Sleep page, "Let's work it out": all answered gives a schedule with a tip; all skipped gives an 8 h goal; a shift worker gets no times and a note; Next before a suggestion shows a message (browser script)
 - [x] Only Sleep picked: no Targets step; Sleep not picked: no Sleep step (browser script) — superseded 2026-11-09: the onboarding Targets step was removed
-- [x] Daily log: schedule users log bed and wake times and the card shows the hours; goal users log hours; after switching to a goal, typed hours win (browser script)
+- [x] Daily log: schedule users log bed and wake times and the card shows the hours; goal users log hours; after switching to a goal, typed hours win (browser script) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] Brief: with a schedule and 4+ logged bedtimes, "In bed after ... on X of Y nights" shows, with its numbers under "Numbers used" (browser script)
 - [x] Settings: Sleep switches between goal and schedule; other targets are kept; target labels point at the Settings inputs (browser script) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Study page: Study alone is "Step 3 of 5" with no Targets step; Sleep + Study + another area is 7 steps and Targets shows only the other area (browser script) — superseded 2026-11-09: the onboarding Targets step was removed
 - [x] Study page: "+ Add another" up to 5 rows, then "Up to 5 goals."; Remove works; focus moves to the new row or to Add; typed text is kept (browser script)
 - [x] Study page: the four messages (no goal named, a date with no name, a half-typed date, hours outside 0-168) (browser script)
 - [x] Study page: goals, blank dates (saved as no date) and hours are saved; a saved "Stay under" rule is kept; Back and resume redraw the saved goals (browser script)
-- [x] Study card: "in 12 days", "today", "tomorrow", "date passed" (up to 7 days), no line after 8 days, name only for an undated goal; the card's label reads the same (browser script)
+- [x] Study card: "in 12 days", "today", "tomorrow", "date passed" (up to 7 days), no line after 8 days, name only for an undated goal; the card's label reads the same (browser script) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] Brief: with Study furthest behind and a dated goal, "Exam is in 12 days." shows, with its date under "Numbers used" (browser script)
 - [x] Study on with no goals: the dashboard loads and Settings > Save targets works; Save targets and unticking Study keep saved goals (browser script) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Work screens: Work alone is "Step 3 of 5" with "Work · 1 of 6" to "Work · 6 of 6"; Sleep + Study + Work is "Step 3 of 7" to "Step 5 of 7" with no Targets step (checked by Claude in the browser, 2026-11-09)
@@ -46,17 +46,17 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Work screens: Skip on all six gives 16 h, more is better (checked by Claude in the browser, 2026-11-09)
 - [x] Work target: employed + Mon-Fri 09:00-17:00 shows "Limit 40 h"; freelance shows "Target 40 h"; "It varies" with 25 saves 25 and clears the schedule (checked by Claude in the browser, 2026-11-09)
 - [x] Settings > Work: shown only with Work on; Save work changes the card's target and direction and leaves Sleep and Study settings alone; Settings > Targets still saves Sleep's goal or schedule and is hidden without Sleep (checked by Claude in the browser, 2026-11-09) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
-- [x] Log form: the Work field reads "Job search" for a job hunter, "Paid work" otherwise (checked by Claude in the browser, 2026-11-09)
+- [x] Log form: the Work field reads "Job search" for a job hunter, "Paid work" otherwise (checked by Claude in the browser, 2026-11-09) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] Settings > Work at 360 px: no sideways scrolling (checked by Claude in the browser, 2026-11-09) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Work onboarding and Settings: console shows only the favicon 404; every request goes to 127.0.0.1 (checked by Claude in the browser, 2026-11-09)
 - [x] Onboarding Work screens at 360 px: no sideways scrolling (checked by Claude in the browser, 2026-11-10)
 - [ ] Narrator: Work screens (headings, day buttons, It varies, focus)
 - [x] Settings > Work saves a role with no schedule and "It varies" unticked (no error, "Saved"); a day button click clears "Saved" (checked by Claude in the browser, 2026-11-10) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
-- [x] Onboarding: employed, Skip on the schedule screen, finish: the Work card says "Limit 40 h" (checked by Claude in the browser, 2026-11-10)
+- [x] Onboarding: employed, Skip on the schedule screen, finish: the Work card says "Limit 40 h" (checked by Claude in the browser, 2026-11-10) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] Menu: Home, the modules that are on, Settings; turning a module on or off in Settings changes the menu at once; the page showing is marked as current (checked by Claude in the browser, 2026-11-12)
 - [x] Addresses: `#/sleep`, `#/work`, `#/settings` open their pages; reload stays on the page; Back and Forward work; `#/study` with Study off and `#/nonsense` go Home (checked by Claude in the browser, 2026-11-12)
 - [x] Menu hidden through onboarding (an address typed during onboarding changes nothing) and after Delete everything (checked by Claude in the browser, 2026-11-12)
-- [x] Module page: the week panel matches the Home card; the 7-day list shows gaps as "not logged"; focus lands on the page heading; a Home card title opens its page (checked by Claude in the browser, 2026-11-12)
+- [x] Module page: the week panel matches the Home card; the 7-day list shows gaps as "not logged"; focus lands on the page heading; a Home card title opens its page (checked by Claude in the browser, 2026-11-12) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] Module log: saving Sleep keeps today's Work hours, focus task and note; a cleared field is saved as a gap ("not logged"), not 0 (checked by Claude in the browser, 2026-11-12)
 - [x] Sleep page Edit: a goal changes the target here and on the Home card; a schedule changes the log to In bed and Up; equal times show the message and keep the form open; Cancel changes nothing (checked by Claude in the browser, 2026-11-12)
 - [x] Study page Edit: add up to 5 rows, Remove, typed text kept; the no-name and hours messages; a dated goal shows "in 12 days" (checked by Claude in the browser, 2026-11-12)
@@ -68,8 +68,13 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] "Skip to content" on a module page moves focus to the content and stays on that page (checked by Claude in the browser, 2026-11-12)
 - [x] Cancel on an Edit form puts the details back without a request and keeps an unsaved log entry (checked by Claude in the browser, 2026-11-12)
 - [x] Past midnight with a note being typed: the note is saved to the old day, the new day's note starts empty, and focus is not moved (clock moved forward in the browser) (checked by Claude in the browser, 2026-11-12)
+- [x] Home: Today's brief, Your modules, Today's focus, Goals, Quick capture, Habits; no log form (checked by Claude in the browser, 2026-11-13)
+- [x] Home module lines: one per module that is on, with value, status in words and target; no data shows a dash and "No data"; a line opens its module page (checked by Claude in the browser, 2026-11-13)
+- [x] Module page: the week panel shows the trend in words (checked by Claude in the browser, 2026-11-13)
+- [x] Home at 360 px: no sideways scrolling, module lines not cut off; focus tasks and the habit grid still work (checked by Claude in the browser, 2026-11-13)
+- [ ] Narrator: Home's module lines (name, value, status and target read in one go)
 - [ ] Narrator: the menu (current page announced), a module page heading, the 7-day table, the Edit form and where focus goes after Save and Cancel
-- [x] A blank log field is saved as a gap: its card says "No data" and the brief ignores it (browser script)
+- [x] A blank log field is saved as a gap: its card says "No data" and the brief ignores it (browser script) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] A real `0` stays `0` (browser script: spending 0%)
 - [x] Focus tasks: blank rejected, 4th rejected, ticked task stays visible but muted (browser script)
 - [x] Habit grid: one click per cell, today and earlier days, weekly completion shown (browser script)
@@ -101,7 +106,7 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Layout at 1280 px: no gaps in the grid (screenshot)
 - [x] Layout at 360 px: one column, no sideways scrolling (browser script)
 - [x] Every control works with the keyboard only (Tab, Shift+Tab, Space, Enter, Esc closes the delete dialog) (by hand)
-- [x] Screen reader (e.g. Windows Narrator): form labels, area card labels and habit cell labels are read out sensibly (by hand)
+- [x] Screen reader (e.g. Windows Narrator): form labels, area card labels and habit cell labels are read out sensibly (by hand) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 
 ## 5. Launcher and importer
 
