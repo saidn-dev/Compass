@@ -160,11 +160,12 @@ function workHours() {
 
 // Work: one question at a time (workScreen 0 to 5), filled in from what is saved.
 let workScreen = 0;
+const LAST_WORK_SCREEN = WORK_QUESTIONS.length - 1;
 
 function drawOnboardingWork() {
   $("onboarding-work").innerHTML = renderWorkQuestion(workScreen, settings.work, workHours(), "onb", { hideLegend: true });
   $("onb-heading-work").textContent = WORK_QUESTIONS[workScreen];
-  $("onboarding-work-sub").textContent = `Work \u00b7 ${workScreen + 1} of 6`;
+  $("onboarding-work-sub").textContent = `Work \u00b7 ${workScreen + 1} of ${WORK_QUESTIONS.length}`;
   showFormError("onboarding-work-error", "");
 }
 
@@ -302,7 +303,7 @@ $("onboarding-study-form").addEventListener("submit", async (event) => {
 
 // Work: after a screen, show the next one, or the next step after the last.
 function afterWorkScreen() {
-  if (workScreen < 5) goToStep("work", workScreen + 1);
+  if (workScreen < LAST_WORK_SCREEN) goToStep("work", workScreen + 1);
   else goToStep(nextStep());
 }
 
@@ -379,7 +380,8 @@ $("onboarding-view").addEventListener("click", (event) => {
   if (onboardingStep === "work" && workScreen > 0) return goToStep("work", workScreen - 1);
   const steps = onboardingSteps();
   const previous = steps[steps.indexOf(onboardingStep) - 1];
-  if (previous) goToStep(previous, 5);
+  // Going back into Work lands on its last question; other steps ignore the screen.
+  if (previous) goToStep(previous, LAST_WORK_SCREEN);
 });
 
 // --- Sleep answers (onboarding and Settings) ---
@@ -600,11 +602,11 @@ function fillLogForm() {
       const saved = day[input.name];
       input.value = saved === null || saved === undefined ? "" : saved;
     }
-    const label = field.querySelector('label[for="log-work_hours"]');
-    if (label) label.textContent = settings.work.kind === "job_hunting" ? "Job search" : "Paid work";
     const gap = field.querySelector(".sleep-gap");
     if (gap) gap.textContent = gapText(day.bedtime, day.wake_time);
   }
+  const workLabel = $("log-form").querySelector('label[for="log-work_hours"]');
+  if (workLabel) workLabel.textContent = settings.work.kind === "job_hunting" ? "Job search" : "Paid work";
 }
 
 $("log-form").addEventListener("submit", (event) => {

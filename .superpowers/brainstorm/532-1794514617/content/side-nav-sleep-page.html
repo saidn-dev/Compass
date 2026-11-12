@@ -1,0 +1,136 @@
+<style>
+  .cmp { --bg:#121418; --surface:#1a1d22; --surface2:#23272e; --text:#e9e7e2; --muted:#a4a8b0; --line:#2f343c; --accent:#84b6e3; --accent-soft:#1d2b3a; --warn:#f2a65e; --warn-soft:#3a2615; --good:#74d095;
+    background:var(--bg); color:var(--text); font:14px/1.5 system-ui,"Segoe UI",sans-serif; border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+  .cmp * { box-sizing:border-box; }
+  .cmp .shell { display:flex; min-height:520px; }
+  .cmp .side { width:190px; flex:none; background:var(--surface); border-right:1px solid var(--line); padding:16px 10px; display:flex; flex-direction:column; gap:4px; }
+  .cmp .brand { font-weight:700; font-size:16px; padding:4px 10px 14px; }
+  .cmp .brand i { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--accent); margin-right:8px; }
+  .cmp .link { padding:8px 10px; border-radius:8px; color:var(--muted); }
+  .cmp .link.on { background:var(--accent-soft); color:var(--text); font-weight:600; box-shadow:inset 3px 0 0 var(--accent); }
+  .cmp .side .grow { flex:1; }
+  .cmp .side .label { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:12px 10px 2px; }
+  .cmp .main { flex:1; padding:20px 22px; min-width:0; }
+  .cmp h4 { font-size:22px; margin:0 0 2px; }
+  .cmp .date { color:var(--muted); margin-bottom:14px; }
+  .cmp .panel { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .cmp .panel b.t { display:block; font-size:13px; color:var(--muted); font-weight:600; margin-bottom:8px; }
+  .cmp .big { font-size:30px; font-weight:700; line-height:1.1; }
+  .cmp .pill { display:inline-block; padding:2px 10px; border-radius:99px; background:var(--warn-soft); color:var(--warn); font-size:12px; font-weight:600; margin-left:10px; vertical-align:middle; }
+  .cmp .grid2 { display:grid; grid-template-columns:1.3fr 1fr; gap:12px; }
+  .cmp table { width:100%; border-collapse:collapse; }
+  .cmp td { padding:5px 0; border-bottom:1px solid var(--line); }
+  .cmp td:last-child { text-align:right; }
+  .cmp tr:last-child td { border-bottom:0; }
+  .cmp .gap { color:var(--muted); font-style:italic; }
+  .cmp .inp { display:inline-block; background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:5px 10px; min-width:74px; }
+  .cmp .btn { display:inline-block; background:var(--accent); color:#0e1a26; font-weight:600; border-radius:8px; padding:6px 12px; }
+  .cmp .btn.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+  .cmp .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .cmp .mut { color:var(--muted); }
+  .phones { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:12px; }
+  .cmp.phone { width:100%; max-width:250px; margin:0 auto; font-size:12px; }
+  .cmp.phone .bar { background:var(--surface); border-bottom:1px solid var(--line); padding:9px 12px; display:flex; align-items:center; gap:10px; font-weight:700; }
+  .cmp.phone .body { padding:12px; min-height:210px; }
+  .cmp.phone .tabs { display:flex; gap:4px; padding:6px 8px; background:var(--surface); border-bottom:1px solid var(--line); }
+  .cmp.phone .tabs span { padding:4px 8px; border-radius:99px; color:var(--muted); }
+  .cmp.phone .tabs span.on { background:var(--accent-soft); color:var(--text); font-weight:600; }
+  .cmp.phone .burger { display:inline-block; width:16px; height:2px; background:var(--text); box-shadow:0 5px 0 var(--text),0 -5px 0 var(--text); }
+  .cmp.phone .drawer { position:absolute; inset:0 35% 0 0; background:var(--surface); border-right:1px solid var(--line); padding:10px 8px; }
+  .cmp.phone .bottom { display:flex; justify-content:space-around; background:var(--surface); border-top:1px solid var(--line); padding:8px 4px; color:var(--muted); }
+  .cmp.phone .bottom span.on { color:var(--accent); font-weight:700; }
+</style>
+
+<h2>Side nav and the Sleep page</h2>
+<p class="subtitle">On a laptop: the nav sits on the left the whole time. Study and Work pages follow the same layout as Sleep, with their own details in the lower right panel.</p>
+
+<div class="cmp">
+  <div class="shell">
+    <div class="side">
+      <div class="brand"><i></i>Compass</div>
+      <div class="link">Home</div>
+      <div class="label">Modules</div>
+      <div class="link on">Sleep</div>
+      <div class="link">Study</div>
+      <div class="link">Work</div>
+      <div class="grow"></div>
+      <div class="link">Settings</div>
+    </div>
+    <div class="main">
+      <h4>Sleep</h4>
+      <div class="date">Thursday 12 November</div>
+
+      <div class="panel">
+        <b class="t">This week</b>
+        <span class="big">6.8 h</span><span class="pill">Behind</span>
+        <div class="mut">average a night · Target 7.5 h</div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <b class="t">Last 7 days</b>
+          <table>
+            <tr><td>Fri 6</td><td>7.5 h</td></tr>
+            <tr><td>Sat 7</td><td>8 h</td></tr>
+            <tr><td>Sun 8</td><td class="gap">not logged</td></tr>
+            <tr><td>Mon 9</td><td>6 h</td></tr>
+            <tr><td>Tue 10</td><td>6.5 h</td></tr>
+            <tr><td>Wed 11</td><td>6 h</td></tr>
+            <tr><td>Today</td><td class="gap">not logged</td></tr>
+          </table>
+        </div>
+        <div>
+          <div class="panel">
+            <b class="t">Log last night</b>
+            <div class="row"><span class="mut">In bed</span><span class="inp">23:10</span><span class="mut">Up</span><span class="inp">06:40</span></div>
+            <div class="row" style="margin-top:10px"><span class="btn">Save</span><span class="mut">= 7.5 h a night</span></div>
+          </div>
+          <div class="panel">
+            <b class="t">Your schedule</b>
+            <div>In bed 22:30 · Up 06:00</div>
+            <div class="mut">In bed after 22:30 on 4 of 5 nights</div>
+            <div style="margin-top:10px"><span class="btn ghost">Edit sleep</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:28px">On a phone, where should the nav go?</h3>
+<p class="subtitle">A side nav doesn't fit at 360 px. Click the one you prefer.</p>
+
+<div class="phones">
+  <div class="card" data-choice="tabs" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px">
+      <div class="cmp phone">
+        <div class="bar"><span>Compass</span></div>
+        <div class="tabs"><span>Home</span><span class="on">Sleep</span><span>Study</span><span>Work</span><span>Settings</span></div>
+        <div class="body"><h4 style="font-size:16px">Sleep</h4><div class="panel"><span class="big" style="font-size:20px">6.8 h</span><span class="pill">Behind</span></div><div class="panel mut">Last 7 days…</div></div>
+      </div>
+    </div>
+    <div class="card-body"><h3>A · Row of tabs at the top</h3><p>Always visible, one tap. The simplest to build and read. Scrolls sideways if the row ever gets longer.</p></div>
+  </div>
+
+  <div class="card" data-choice="drawer" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px">
+      <div class="cmp phone" style="position:relative">
+        <div class="bar"><span class="burger"></span><span>Compass</span></div>
+        <div class="body"><h4 style="font-size:16px">Sleep</h4><div class="panel"><span class="big" style="font-size:20px">6.8 h</span></div></div>
+        <div class="drawer"><div class="link">Home</div><div class="link on">Sleep</div><div class="link">Study</div><div class="link">Work</div><div class="link">Settings</div></div>
+      </div>
+    </div>
+    <div class="card-body"><h3>B · Menu button that slides the nav in</h3><p>Same nav as the laptop, hidden until you tap. Two taps to move, and more JS (open, close, Esc, focus).</p></div>
+  </div>
+
+  <div class="card" data-choice="bottom" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px">
+      <div class="cmp phone">
+        <div class="bar"><span>Compass</span></div>
+        <div class="body"><h4 style="font-size:16px">Sleep</h4><div class="panel"><span class="big" style="font-size:20px">6.8 h</span><span class="pill">Behind</span></div><div class="panel mut">Last 7 days…</div></div>
+        <div class="bottom"><span>Home</span><span class="on">Sleep</span><span>Study</span><span>Work</span><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="card-body"><h3>C · Bar at the bottom</h3><p>Like a phone app, easy to reach with a thumb. Takes screen height all the time.</p></div>
+  </div>
+</div>

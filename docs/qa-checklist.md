@@ -2,7 +2,13 @@
 
 Manual checks to run before calling v1 done. Start the app with `python start.py`.
 
-`[x]` = checked on 2026-10-27 (how is noted in brackets), by hand on 2026-10-28 (marked "by hand"), or by the onboarding browser script on 2026-10-29, or by the Study browser script on 2026-11-04, or by Claude in the browser on 2026-11-09 and 2026-11-10 (Work). `[ ]` = still needs a person.
+`[x]` = checked; the brackets at the end of each line say how. `[ ]` = still needs a person.
+
+| In brackets | Checked on |
+|---|---|
+| browser script, curl, netstat, computed, screenshot, render tests, ran it | 2026-10-27 (first QA pass), 2026-10-29 (onboarding and Sleep lines), 2026-11-04 (Study lines) |
+| by hand | 2026-10-28 |
+| checked by Claude in the browser | the date on the line (2026-11-07 to 2026-11-10) |
 
 ## 1. Daily use
 

@@ -111,7 +111,7 @@ Then, from the repository root:
 
 | Suite | Command | Count |
 |---|---|---|
-| Server (pytest) | `python -m pytest server/tests` | 395 |
+| Server (pytest) | `python -m pytest server/tests` | 397 |
 | Web renderers (`node:test`) | `node --test "web/tests/*.test.js"` | 43 |
 
 While the server is running, `http://127.0.0.1:8765/docs` lets you try every API endpoint in the browser.

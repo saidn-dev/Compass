@@ -17,10 +17,10 @@ WHEN = {
     "evening": "in the evening",
     "varies": "today",
 }
-_WHEN_VALUES = ("in the morning", "in the afternoon", "in the evening", "today")
+NO_FOCUS_WHEN = WHEN["varies"]
 
 ALL_WORK_TIPS = [STOP_TIP] + [
-    t.format(when=w) for t in (GENERAL_TIP, *DERAILER_TIPS.values()) for w in _WHEN_VALUES
+    t.format(when=w) for t in (GENERAL_TIP, *DERAILER_TIPS.values()) for w in WHEN.values()
 ]
 
 
@@ -33,7 +33,8 @@ def work_tip(profile: WorkProfile, mode: str) -> str:
     """The brief's Work tip: stop tip in limit mode, else the first derailer's tip."""
     if mode == "limit":
         return STOP_TIP
-    when = WHEN.get(profile.focus, "today")
+    # No focus time answered reads the same as "It varies".
+    when = WHEN[profile.focus] if profile.focus else NO_FOCUS_WHEN
     for d in profile.derailers:
         if d in DERAILER_TIPS:
             return DERAILER_TIPS[d].format(when=when)

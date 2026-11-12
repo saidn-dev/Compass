@@ -397,6 +397,12 @@ def test_work_tip_replaces_the_fixed_suggestion():
     assert brief["sentences"][2] == "Spend 10 minutes in the morning on the task you've been putting off."
 
 
+def test_work_focus_with_empty_profile_gives_the_general_tip():
+    brief = build_brief(week(work_hours=[1] * 7), settings("work"), TODAY)
+    assert brief["sentences"][0].startswith("Work")
+    assert brief["sentences"][2] == "Block 30 minutes today for your most urgent task."
+
+
 def test_work_limit_gives_the_stop_tip():
     brief = build_brief(week(work_hours=[10] * 7), work_limit(40), TODAY)
     assert brief["sentences"][0].startswith("Work")

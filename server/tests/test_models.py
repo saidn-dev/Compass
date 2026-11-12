@@ -261,6 +261,11 @@ def test_hours_vary_with_a_schedule_is_rejected():
         WorkProfile(hours_vary=True, schedule=WEEK)
 
 
+def test_hours_vary_without_a_schedule_is_accepted():
+    p = WorkProfile(hours_vary=True)
+    assert p.hours_vary is True and p.schedule is None
+
+
 def test_unknown_kind_and_focus_are_rejected():
     with pytest.raises(ValidationError):
         WorkProfile(kind="boss")

@@ -232,13 +232,19 @@ function minutesOf(hhmm) {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 }
 
+// Minutes from one time to the next, going past midnight if needed:
+// "22:30", "06:30" -> 480. A blank time or equal times -> 0.
+function gapMinutes(from, to) {
+  const start = minutesOf(from);
+  const end = minutesOf(to);
+  if (start === null || end === null) return 0;
+  return (end - start + MINUTES_A_DAY) % MINUTES_A_DAY;
+}
+
 // "22:30", "06:30" -> "= 8 h a night". Blank or equal times -> "".
 // Only for showing; the server works out the hours that are saved.
 export function gapText(bedtime, wakeTime) {
-  const bed = minutesOf(bedtime);
-  const wake = minutesOf(wakeTime);
-  if (bed === null || wake === null) return "";
-  const gap = (wake - bed + MINUTES_A_DAY) % MINUTES_A_DAY;
+  const gap = gapMinutes(bedtime, wakeTime);
   return gap === 0 ? "" : `= ${formatNumber(gap / 60)} h a night`;
 }
 
@@ -387,11 +393,8 @@ const WORK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 // 5 days, "09:00", "17:00" -> "= 40 h a week". No days, a blank time or equal times -> "".
 // Only for showing; the server works out the hours that are saved.
 export function weekHoursText(dayCount, start, end) {
-  const from = minutesOf(start);
-  const to = minutesOf(end);
-  if (!dayCount || from === null || to === null) return "";
-  const gap = (to - from + MINUTES_A_DAY) % MINUTES_A_DAY;
-  return gap === 0 ? "" : `= ${formatNumber((gap * dayCount) / 60)} h a week`;
+  const gap = gapMinutes(start, end);
+  return !dayCount || gap === 0 ? "" : `= ${formatNumber((gap * dayCount) / 60)} h a week`;
 }
 
 function workChoices(type, name, id, values, labels, checkedFn) {
