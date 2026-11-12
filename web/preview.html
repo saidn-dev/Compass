@@ -10,14 +10,25 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="shell">
+  <!-- ---- Nav (renderNav) ---- -->
+  <nav class="side-nav" aria-label="Main">
+    <p class="brand"><span class="brand-mark" aria-hidden="true"></span>Compass</p>
+    <div class="nav-links">
+      <a class="nav-link" href="#/" aria-current="page">Home</a>
+      <p class="nav-label">Modules</p>
+      <a class="nav-link" href="#/sleep">Sleep</a>
+      <a class="nav-link" href="#/study">Study</a>
+      <a class="nav-link" href="#/work">Work</a>
+      <a class="nav-link nav-settings" href="#/settings">Settings</a>
+    </div>
+  </nav>
+
+  <div class="shell-main">
   <header class="site-header">
     <div class="site-header-inner">
       <p class="brand"><span class="brand-mark" aria-hidden="true"></span>Compass</p>
       <p class="today">Monday 26 October</p>
-      <nav class="site-nav" aria-label="Main">
-        <button type="button" class="btn btn-ghost" aria-current="page">Home</button>
-        <button type="button" class="btn btn-ghost">Settings</button>
-      </nav>
     </div>
   </header>
 
@@ -48,14 +59,14 @@
         <h2 id="areas-title">Life areas</h2>
         <div class="card-grid">
           <article class="card area-card" data-status="on_track" aria-label="Sleep: 7.6 h against a target of 7.5 h, On track">
-            <div class="card-head"><h3 class="card-title">Sleep</h3><span class="status">On track</span></div>
+            <div class="card-head"><h3 class="card-title"><a href="#/sleep">Sleep</a></h3><span class="status">On track</span></div>
             <p class="card-value"><span class="value">7.6</span><span class="unit">h</span></p>
             <p class="card-target">7-day average, target 7.5 h</p>
             <div class="progress" style="--progress: 101%"><span class="progress-bar"></span></div>
             <p class="trend" data-trend="up">Trending up</p>
           </article>
           <article class="card area-card" data-status="no_data" aria-label="Study: no data, target 12 h, Data Structures exam · in 12 days">
-            <div class="card-head"><h3 class="card-title">Study</h3><span class="status">No data</span></div>
+            <div class="card-head"><h3 class="card-title"><a href="#/study">Study</a></h3><span class="status">No data</span></div>
             <p class="card-value"><span class="value">-</span></p>
             <p class="card-target">This week, target 12 h</p>
             <p class="card-goal">Data Structures exam · in 12 days</p>
@@ -63,7 +74,7 @@
             <p class="trend" data-trend="none">Not enough data</p>
           </article>
           <article class="card area-card" data-status="behind" aria-label="Work: 44 h against a limit of 40 h, Behind, Software developer · Goal: Fix 3 bugs">
-            <div class="card-head"><h3 class="card-title">Work</h3><span class="status">Behind</span></div>
+            <div class="card-head"><h3 class="card-title"><a href="#/work">Work</a></h3><span class="status">Behind</span></div>
             <p class="card-value"><span class="value">44</span><span class="unit">h</span></p>
             <p class="card-target">This week, limit 40 h</p>
             <p class="card-goal">Software developer · Goal: Fix 3 bugs</p>
@@ -174,6 +185,62 @@
         </section>
       </div>
 
+      <!-- ---- A module page (renderModulePage) ---- -->
+      <div class="view view-module">
+        <h1>Sleep</h1>
+        <div class="module-grid">
+          <section class="panel module-week" data-status="behind" aria-labelledby="p-week-title">
+            <h2 id="p-week-title">This week</h2>
+            <p class="card-value"><span class="value">6.8</span><span class="unit">h</span> <span class="status">Behind</span></p>
+            <p class="card-target">average a night · Target 7.5 h</p>
+          </section>
+          <section class="panel module-log" aria-labelledby="p-mlog-title">
+            <h2 id="p-mlog-title">Log last night</h2>
+            <form novalidate>
+              <div class="sleep-times">
+                <div class="field">
+                  <label for="p-mod-bedtime">In bed</label>
+                  <input id="p-mod-bedtime" type="time" value="23:10">
+                </div>
+                <div class="field">
+                  <label for="p-mod-wake">Up</label>
+                  <input id="p-mod-wake" type="time" value="06:40">
+                </div>
+                <output class="sleep-gap">= 7.5 h a night</output>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-primary">Save</button>
+                <p class="save-status">Saved 07:05</p>
+              </div>
+            </form>
+          </section>
+          <section class="panel module-days" aria-labelledby="p-days-title">
+            <h2 id="p-days-title">Last 7 days</h2>
+            <table class="day-table">
+              <caption class="visually-hidden">Sleep, last 7 days</caption>
+              <thead class="visually-hidden"><tr><th scope="col">Day</th><th scope="col">Hours</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Tue 20</th><td>7.5 h</td></tr>
+                <tr><th scope="row">Wed 21</th><td>8 h</td></tr>
+                <tr><th scope="row">Thu 22</th><td><span class="gap">not logged</span></td></tr>
+                <tr><th scope="row">Fri 23</th><td>6 h</td></tr>
+                <tr><th scope="row">Sat 24</th><td>6.5 h</td></tr>
+                <tr><th scope="row">Sun 25</th><td>6 h</td></tr>
+                <tr><th scope="row">Today</th><td><span class="gap">not logged</span></td></tr>
+              </tbody>
+            </table>
+          </section>
+          <section class="panel module-details" aria-labelledby="p-details-title">
+            <h2 id="p-details-title">Your schedule</h2>
+            <p>In bed 22:30 · Up 06:00</p>
+            <p>In bed after 22:30 on 4 of 5 nights.</p>
+            <div class="form-actions">
+              <button type="button" class="btn">Edit sleep</button>
+            </div>
+          </section>
+        </div>
+      </div>
+
       <!-- ---- Onboarding picker (renderOnboarding) ---- -->
       <section class="panel view-onboarding" aria-labelledby="ob-title">
         <h2 id="ob-title">Onboarding picker</h2>
@@ -226,22 +293,6 @@
 
       <!-- ---- Settings pieces ---- -->
       <div class="settings-grid">
-        <section class="panel" aria-labelledby="st-title">
-          <h2 id="st-title">Targets</h2>
-          <div class="target-list">
-            <div class="target-row">
-              <label for="t-sleep">Sleep</label>
-              <div class="input-unit"><input id="t-sleep" type="number" value="7.5"><span class="unit">h</span></div>
-              <select aria-label="Sleep mode"><option selected>More is better</option><option>Stay under</option></select>
-            </div>
-            <div class="target-row">
-              <label for="t-work">Work</label>
-              <div class="input-unit"><input id="t-work" type="number" value="40"><span class="unit">h</span></div>
-              <select aria-label="Work mode"><option>More is better</option><option selected>Stay under</option></select>
-            </div>
-          </div>
-        </section>
-
         <section class="panel" aria-labelledby="sh-title">
           <h2 id="sh-title">Habits</h2>
           <ul class="edit-list">
@@ -263,5 +314,7 @@
       </section>
     </div>
   </main>
+  </div>
+  </div>
 </body>
 </html>

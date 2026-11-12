@@ -1,6 +1,7 @@
 """Everything the dashboard shows for one day: brief, area cards, habit grid.
 
 The Study card also carries the nearest study goal, and the Work card its role and goal line.
+For the module pages it also returns the 7 dates, and each area's period words and details lines.
 
 Recomputed on every request, so it is live as you log.
 """
@@ -8,6 +9,7 @@ from app.areas import area_progress, area_status, area_value, last_n_dates, tren
 from app.brief import build_brief, round_value
 from app.lists import habit_completion, is_logged
 from app.models import Settings, normalize_day
+from app.pages import PERIODS, module_details
 from app.settings_rules import AREAS_BY_ID, target_for
 from app.study import card_goal
 from app.work import work_card
@@ -42,6 +44,8 @@ def build_dashboard(days: list[dict], settings: Settings, today: str) -> dict:
             "progress": _maybe_round(area_progress(value, t.target, t.mode)),
             "trend": trend(series),
             "series": series,
+            "period": PERIODS[area.aggregate],
+            "details": module_details(area.id, settings, window, today),
         }
         if area.id == "study":
             entry["goal"] = card_goal(settings.study_goals, today)
@@ -63,6 +67,7 @@ def build_dashboard(days: list[dict], settings: Settings, today: str) -> dict:
     ]
     return {
         "date": today,
+        "dates": dates,
         "brief": build_brief(window, settings, today),
         "areas": areas,
         "habits": {"grid": grid, "completion": _maybe_round(habit_completion(window, habits))},

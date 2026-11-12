@@ -4,9 +4,10 @@ import assert from "node:assert";
 import {
   escapeHtml, renderBrief, renderAreaCard, renderOnboarding,
   renderHabitGrid, renderGoals, renderTasks,
-  renderTargetRows, renderHabitList, renderGoalList,
+  renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
   renderStudyGoals, WORK_QUESTIONS, renderWorkQuestion, weekHoursText,
+  renderNav, dayLabel, renderModulePage, renderModuleEdit,
 } from "../js/render.js";
 
 const EVIL = "<script>alert(1)</script>";
@@ -145,23 +146,6 @@ test("done tasks are marked is-done and checked", () => {
 
 // --- settings lists ---
 
-test("target rows show each enabled module with its current target and mode", () => {
-  const html = renderTargetRows(AREAS, {
-    modules: ["work"],
-    targets: [{ area_id: "work", target: 90, mode: "limit" }],
-  });
-  assert.ok(html.includes('data-area="work"'));
-  assert.ok(!html.includes('data-area="sleep"'));
-  assert.ok(html.includes('value="90"'));
-  assert.ok(/<option value="limit" selected>/.test(html));
-});
-
-test("target rows fall back to the default target", () => {
-  const html = renderTargetRows(AREAS, { modules: ["sleep"], targets: [] });
-  assert.ok(html.includes('value="7.5"'));
-  assert.ok(/<option value="up" selected>/.test(html));
-});
-
 test("settings lists escape names and have remove buttons", () => {
   const habits = renderHabitList([{ id: "h1", name: EVIL }]);
   const goals = renderGoalList([{ name: IMG, percent: 40, detail: "" }]);
@@ -175,17 +159,6 @@ test("settings lists escape names and have remove buttons", () => {
 test("empty settings lists say so", () => {
   assert.ok(renderHabitList([]).includes('class="empty"'));
   assert.ok(renderGoalList([]).includes('class="empty"'));
-});
-
-// --- target rows: each place gets its own ids ---
-
-test("target rows take an id prefix and can skip areas", () => {
-  const settings = { modules: ["sleep", "work"], targets: [] };
-  const onboarding = renderTargetRows(AREAS, settings, { prefix: "onb-target", skip: ["sleep"] });
-  assert.ok(onboarding.includes('id="onb-target-work"'));
-  assert.ok(onboarding.includes('for="onb-target-work"'));
-  assert.ok(!onboarding.includes("sleep"));
-  assert.ok(renderTargetRows(AREAS, settings).includes('id="target-sleep"'));
 });
 
 // --- sleep ---
@@ -401,4 +374,106 @@ test("renderAreaCard shows the Work line", () => {
   const html = renderAreaCard(card({ id: "work", label: "Work", goal: { text: "Software developer · Goal: Fix 3 bugs" } }));
   assert.ok(html.includes("Software developer · Goal: Fix 3 bugs"));
   assert.match(html, /aria-label="[^"]*, Software developer · Goal: Fix 3 bugs"/);
+});
+
+// --- nav and module pages ---
+
+const NAV_AREAS = [
+  { id: "sleep", label: "Sleep" }, { id: "study", label: "Study" }, { id: "work", label: "Work" },
+];
+const DATES = ["2026-11-06", "2026-11-07", "2026-11-08", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"];
+const TODAY = "2026-11-12";
+const DAY = { sleep_hours: null, bedtime: null, wake_time: null, study_hours: null, work_hours: null };
+const SETTINGS = {
+  modules: ["sleep", "study", "work"], targets: [], sleep_schedule: null, study_goals: [],
+  work: { kind: null, role: null, schedule: null, hours_vary: false, focus: null, goal: null, derailers: [] },
+};
+const entry = (over = {}) => ({
+  id: "sleep", label: "Sleep", unit: "h", value: 6.8, target: 7.5, mode: "up", status: "Behind",
+  period: "average a night", series: [7.5, 8, null, 6, 6.5, 0, null],
+  details: { title: "Your goal", lines: ["7.5 h a night"] }, ...over,
+});
+
+test("renderNav lists Home, the modules that are on, then Settings", () => {
+  const html = renderNav(NAV_AREAS, ["work", "sleep"], "sleep");
+  const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
+  assert.deepStrictEqual(hrefs, ["#/", "#/sleep", "#/work", "#/settings"]);
+  assert.ok(!html.includes("Study"));
+  assert.strictEqual(html.match(/aria-current="page"/g).length, 1);
+  assert.match(html, /href="#\/sleep"[^>]*aria-current="page"/);
+  assert.ok(html.includes("Modules"));
+});
+
+test("renderNav without modules has no Modules label", () => {
+  assert.ok(!renderNav(NAV_AREAS, [], "home").includes("Modules"));
+});
+
+test("dayLabel", () => {
+  assert.strictEqual(dayLabel("2026-11-06", "2026-11-12"), "Fri 6");
+  assert.strictEqual(dayLabel("2026-11-12", "2026-11-12"), "Today");
+  assert.strictEqual(dayLabel("2026-11-12", "2026-11-13"), "Thu 12");
+});
+
+test("module page: week panel", () => {
+  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes("6.8"));
+  assert.ok(html.includes("Behind"));
+  assert.ok(html.includes("average a night · Target 7.5 h"));
+});
+
+test("module page: no data", () => {
+  const html = renderModulePage(entry({ value: null, status: "No data" }), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes("No data"));
+  assert.ok(html.includes("Target 7.5 h"));
+});
+
+test("module page: gaps read 'not logged' and a real 0 reads '0 h'", () => {
+  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
+  assert.strictEqual(html.match(/not logged/g).length, 2);
+  assert.ok(html.includes("0 h"));
+  assert.ok(html.includes("Fri 6"));
+  assert.ok(html.includes("Today"));
+  assert.strictEqual(html.match(/<tr/g).length, 8);
+});
+
+test("module page: log fields per module", () => {
+  const goal = renderModulePage(entry(), DATES, TODAY, { ...DAY, sleep_hours: 7 }, SETTINGS);
+  assert.ok(goal.includes('name="sleep_hours"') && goal.includes('value="7"'));
+  assert.ok(goal.includes("Log last night"));
+  const sched = renderModulePage(entry(), DATES, TODAY, { ...DAY, bedtime: "23:10", wake_time: "06:40" },
+    { ...SETTINGS, sleep_schedule: { bedtime: "22:30", wake_time: "06:00" } });
+  assert.ok(sched.includes('name="bedtime"') && sched.includes('name="wake_time"'));
+  assert.ok(!sched.includes('name="sleep_hours"'));
+  assert.ok(sched.includes("= 7.5 h a night"));
+  const work = renderModulePage(entry({ id: "work", label: "Work", period: "this week" }), DATES, TODAY, DAY,
+    { ...SETTINGS, work: { ...SETTINGS.work, kind: "job_hunting" } });
+  assert.ok(work.includes('name="work_hours"') && work.includes("Job search") && work.includes("Log today"));
+});
+
+test("module page: a blank log field stays blank, never 0", () => {
+  const html = renderModulePage(entry(), DATES, TODAY, { ...DAY, sleep_hours: null }, SETTINGS);
+  assert.match(html, /name="sleep_hours"[^>]*value=""/);
+});
+
+test("module page: details lines are escaped and the Edit button names the module", () => {
+  const html = renderModulePage(entry({ details: { title: "Your goals", lines: [IMG] } }), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(!html.includes("<img"));
+  assert.ok(html.includes("Your goals"));
+  assert.match(html, /id="module-edit"[^>]*>Edit sleep</);
+});
+
+test("renderModuleEdit uses each module's form with the mod prefix", () => {
+  const sleep = renderModuleEdit("sleep", SETTINGS, null);
+  assert.ok(sleep.includes('id="mod-sleep-mode-goal"') && !sleep.includes("Let's work it out"));
+  const study = renderModuleEdit("study", { ...SETTINGS, study_goals: [{ name: "Exam", date: null }] }, 12);
+  assert.ok(study.includes('id="module-study"') && study.includes('id="mod-study-name-0"') && study.includes('value="12"'));
+  const work = renderModuleEdit("work", SETTINGS, 16);
+  assert.strictEqual(work.match(/class="work-question"/g).length, 6);
+  for (const html of [sleep, study, work]) {
+    assert.ok(html.includes('id="module-edit-form"') && html.includes('id="module-edit-error"') && html.includes('id="module-edit-cancel"'));
+  }
+});
+
+test("area card title links to the module page", () => {
+  assert.match(renderAreaCard(card()), /<h3 class="card-title"><a href="#\/sleep">Sleep<\/a><\/h3>/);
 });

@@ -25,34 +25,50 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [ ] Onboarding with Narrator: each step heading is read when it appears, the Sleep radio group, time inputs and suggestion are read sensibly
 - [ ] Narrator: Study step (row labels "Goal N" and "Date for goal N", Add and Remove, focus after each)
 - [x] After onboarding, Settings > Modules still works and does not send you back to onboarding (browser script)
-- [x] Settings > Study (2026-11-07): shown only with Study on; add a goal, Save study, goals and hours saved, no console errors (checked by Claude in the browser)
+- [x] Settings > Study (2026-11-07): shown only with Study on; add a goal, Save study, goals and hours saved, no console errors (checked by Claude in the browser) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Sleep page, goal: the hours are saved as the sleep target and shown on the card (browser script)
 - [x] Sleep page, schedule: the panel switches, "= 8 h a night" updates as you type, the schedule is saved and sets the target (browser script)
 - [x] Sleep page, "Let's work it out": all answered gives a schedule with a tip; all skipped gives an 8 h goal; a shift worker gets no times and a note; Next before a suggestion shows a message (browser script)
 - [x] Only Sleep picked: no Targets step; Sleep not picked: no Sleep step (browser script) — superseded 2026-11-09: the onboarding Targets step was removed
 - [x] Daily log: schedule users log bed and wake times and the card shows the hours; goal users log hours; after switching to a goal, typed hours win (browser script)
 - [x] Brief: with a schedule and 4+ logged bedtimes, "In bed after ... on X of Y nights" shows, with its numbers under "Numbers used" (browser script)
-- [x] Settings: Sleep switches between goal and schedule; other targets are kept; target labels point at the Settings inputs (browser script)
+- [x] Settings: Sleep switches between goal and schedule; other targets are kept; target labels point at the Settings inputs (browser script) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Study page: Study alone is "Step 3 of 5" with no Targets step; Sleep + Study + another area is 7 steps and Targets shows only the other area (browser script) — superseded 2026-11-09: the onboarding Targets step was removed
 - [x] Study page: "+ Add another" up to 5 rows, then "Up to 5 goals."; Remove works; focus moves to the new row or to Add; typed text is kept (browser script)
 - [x] Study page: the four messages (no goal named, a date with no name, a half-typed date, hours outside 0-168) (browser script)
 - [x] Study page: goals, blank dates (saved as no date) and hours are saved; a saved "Stay under" rule is kept; Back and resume redraw the saved goals (browser script)
 - [x] Study card: "in 12 days", "today", "tomorrow", "date passed" (up to 7 days), no line after 8 days, name only for an undated goal; the card's label reads the same (browser script)
 - [x] Brief: with Study furthest behind and a dated goal, "Exam is in 12 days." shows, with its date under "Numbers used" (browser script)
-- [x] Study on with no goals: the dashboard loads and Settings > Save targets works; Save targets and unticking Study keep saved goals (browser script)
+- [x] Study on with no goals: the dashboard loads and Settings > Save targets works; Save targets and unticking Study keep saved goals (browser script) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Work screens: Work alone is "Step 3 of 5" with "Work · 1 of 6" to "Work · 6 of 6"; Sleep + Study + Work is "Step 3 of 7" to "Step 5 of 7" with no Targets step (checked by Claude in the browser, 2026-11-09)
 - [x] Work screen 3: the four messages (pick a day, enter start and end, start and end can't be the same, hours a week 0 to 168); "It varies" swaps the schedule for one hours box; "= N h a week" updates as you type (checked by Claude in the browser, 2026-11-09)
 - [x] Work screens: Back through all six and from Habits to screen 6; reload redraws days, times, "It varies", focus and goal; a blank derailer list is saved as none (checked by Claude in the browser, 2026-11-09)
 - [x] Work screens: Skip on all six gives 16 h, more is better (checked by Claude in the browser, 2026-11-09)
 - [x] Work target: employed + Mon-Fri 09:00-17:00 shows "Limit 40 h"; freelance shows "Target 40 h"; "It varies" with 25 saves 25 and clears the schedule (checked by Claude in the browser, 2026-11-09)
-- [x] Settings > Work: shown only with Work on; Save work changes the card's target and direction and leaves Sleep and Study settings alone; Settings > Targets still saves Sleep's goal or schedule and is hidden without Sleep (checked by Claude in the browser, 2026-11-09)
+- [x] Settings > Work: shown only with Work on; Save work changes the card's target and direction and leaves Sleep and Study settings alone; Settings > Targets still saves Sleep's goal or schedule and is hidden without Sleep (checked by Claude in the browser, 2026-11-09) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Log form: the Work field reads "Job search" for a job hunter, "Paid work" otherwise (checked by Claude in the browser, 2026-11-09)
-- [x] Settings > Work at 360 px: no sideways scrolling (checked by Claude in the browser, 2026-11-09)
+- [x] Settings > Work at 360 px: no sideways scrolling (checked by Claude in the browser, 2026-11-09) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Work onboarding and Settings: console shows only the favicon 404; every request goes to 127.0.0.1 (checked by Claude in the browser, 2026-11-09)
 - [x] Onboarding Work screens at 360 px: no sideways scrolling (checked by Claude in the browser, 2026-11-10)
 - [ ] Narrator: Work screens (headings, day buttons, It varies, focus)
-- [x] Settings > Work saves a role with no schedule and "It varies" unticked (no error, "Saved"); a day button click clears "Saved" (checked by Claude in the browser, 2026-11-10)
+- [x] Settings > Work saves a role with no schedule and "It varies" unticked (no error, "Saved"); a day button click clears "Saved" (checked by Claude in the browser, 2026-11-10) — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Onboarding: employed, Skip on the schedule screen, finish: the Work card says "Limit 40 h" (checked by Claude in the browser, 2026-11-10)
+- [x] Menu: Home, the modules that are on, Settings; turning a module on or off in Settings changes the menu at once; the page showing is marked as current (checked by Claude in the browser, 2026-11-12)
+- [x] Addresses: `#/sleep`, `#/work`, `#/settings` open their pages; reload stays on the page; Back and Forward work; `#/study` with Study off and `#/nonsense` go Home (checked by Claude in the browser, 2026-11-12)
+- [x] Menu hidden through onboarding (an address typed during onboarding changes nothing) and after Delete everything (checked by Claude in the browser, 2026-11-12)
+- [x] Module page: the week panel matches the Home card; the 7-day list shows gaps as "not logged"; focus lands on the page heading; a Home card title opens its page (checked by Claude in the browser, 2026-11-12)
+- [x] Module log: saving Sleep keeps today's Work hours, focus task and note; a cleared field is saved as a gap ("not logged"), not 0 (checked by Claude in the browser, 2026-11-12)
+- [x] Sleep page Edit: a goal changes the target here and on the Home card; a schedule changes the log to In bed and Up; equal times show the message and keep the form open; Cancel changes nothing (checked by Claude in the browser, 2026-11-12)
+- [x] Study page Edit: add up to 5 rows, Remove, typed text kept; the no-name and hours messages; a dated goal shows "in 12 days" (checked by Claude in the browser, 2026-11-12)
+- [x] Work page Edit: all six answers save; employed + Mon-Fri 09:00-17:00 gives "Limit 40 h"; a day with no times shows the message; "It varies" with 25 gives "Hours vary · 25 h a week"; a role with HTML shows as text (checked by Claude in the browser, 2026-11-12)
+- [x] Saving the log while an Edit form is open closes the form unsaved; Enter in a text field saves the Edit form (checked by Claude in the browser, 2026-11-12)
+- [x] Settings shows only Modules, Habits, Goals and Your data (checked by Claude in the browser, 2026-11-12)
+- [x] 360 px: the menu is a bottom bar with every link in one row; no sideways scrolling on Home, Sleep, Work, Settings or the Work Edit form; the bar never covers the last panel or the Save and Cancel buttons (checked by Claude in the browser, 2026-11-12)
+- [x] Menu and module pages: console shows only the favicon 404; every request goes to 127.0.0.1 (checked by Claude in the browser, 2026-11-12)
+- [x] "Skip to content" on a module page moves focus to the content and stays on that page (checked by Claude in the browser, 2026-11-12)
+- [x] Cancel on an Edit form puts the details back without a request and keeps an unsaved log entry (checked by Claude in the browser, 2026-11-12)
+- [x] Past midnight with a note being typed: the note is saved to the old day, the new day's note starts empty, and focus is not moved (clock moved forward in the browser) (checked by Claude in the browser, 2026-11-12)
+- [ ] Narrator: the menu (current page announced), a module page heading, the 7-day table, the Edit form and where focus goes after Save and Cancel
 - [x] A blank log field is saved as a gap: its card says "No data" and the brief ignores it (browser script)
 - [x] A real `0` stays `0` (browser script: spending 0%)
 - [x] Focus tasks: blank rejected, 4th rejected, ticked task stays visible but muted (browser script)
@@ -63,7 +79,7 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 
 ## 2. Settings and data
 
-- [x] Targets: 0 rejected, a new target changes the card status (browser script) — superseded 2026-11-09: Settings > Targets has no target rows now that Sleep, Study and Work each have their own section
+- [x] Targets: 0 rejected, a new target changes the card status (browser script) — superseded 2026-11-09: Settings > Targets has no target rows now that Sleep, Study and Work each have their own section — superseded 2026-11-12: Sleep, Study and Work are edited on their own pages
 - [x] Export returns all days and settings (browser script)
 - [x] Import of a broken file shows an error and changes nothing (browser script)
 - [x] Import of a good backup works (browser script)

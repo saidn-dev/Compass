@@ -42,6 +42,7 @@ Verified on this machine: Python 3.12.10, Node 25.6.1, OpenJDK 17.0.20, git pres
 - Compass is the decision layer; other apps (TickTick, Google Calendar) are v2 data sources, not rebuilt.
 - v1 is laptop-only and **advice-only** (no chat, no model, no write-back to other apps).
 - Moodle dropped; Google Calendar replaces it in v2. Steps and fasting are manual or CSV in v1.
+- Note 2026-11-12: side nav and module pages added, see `docs/superpowers/specs/2026-11-12-side-nav-module-pages-design.md`. The top-bar Home and Settings buttons became a nav (a left column from 800 px, a bottom bar below); each page has an address (`#/`, `#/sleep`, `#/study`, `#/work`, `#/settings`). Sleep, Study and Work are edited on their own pages, so Settings keeps Modules, Habits, Goals and Your data. `GET /api/dashboard` also returns `dates`, and each area's `period` and `details` (`server/app/pages.py`).
 - Note 2026-11-08: Movement (steps) taken out of v1 and the Java CSV importer parked for v2; logging steps by hand needs a step counter. v1 areas are now Sleep, Study and Work.
 - Onboarding asks which modules to enable; each module works with zero integrations.
 - Stack must be languages the user can edit: Python, Java, JavaScript, HTML, CSS, API.

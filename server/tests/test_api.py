@@ -549,3 +549,23 @@ def test_dashboard_work_card_without_profile_has_no_line(client):
     d = client.get("/api/dashboard?date=2026-10-21", headers=HOST).json()
     assert area(d, "work")["goal"] is None
     assert "goal" not in area(d, "sleep")
+
+
+# --- module pages ---
+
+def test_dashboard_has_the_seven_dates(client):
+    onboard(client, ("sleep",))
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    assert d["dates"] == ["2026-11-06", "2026-11-07", "2026-11-08", "2026-11-09",
+                          "2026-11-10", "2026-11-11", "2026-11-12"]
+
+
+def test_dashboard_areas_carry_period_and_details(client):
+    onboard(client)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    assert area(d, "sleep")["period"] == "average a night"
+    assert area(d, "study")["period"] == "this week"
+    assert area(d, "work")["period"] == "this week"
+    assert area(d, "sleep")["details"] == {"title": "Your goal", "lines": ["7.5 h a night"]}
+    assert area(d, "study")["details"]["lines"] == ["No study goals yet."]
+    assert area(d, "work")["details"]["title"] == "Your work"

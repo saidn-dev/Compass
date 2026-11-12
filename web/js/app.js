@@ -4,11 +4,13 @@
 import * as api from "./api.js";
 import {
   renderBrief, renderAreaCard, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
-  renderTargetRows, renderHabitList, renderGoalList,
+  renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
   renderStudyGoals,
   renderWorkQuestion, WORK_QUESTIONS, weekHoursText,
+  renderNav, renderModulePage, renderModuleEdit,
 } from "./render.js";
+import { pageFromHash, hashFor } from "./route.js";
 
 const MAX_TASKS = 3;
 const MAX_GOALS = 3;
@@ -20,6 +22,8 @@ let settings = null;   // the user's settings
 let today = todayKey();
 let day = null;        // today's logged data
 let editingGoal = null; // index of the goal being edited in Settings, or null
+let modulePage = null; // the module whose page is showing ("sleep", "study", "work"), or null
+let pageShown = false; // false until the first page has been shown
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,17 +37,15 @@ function todayKey() {
   return `${d.getFullYear()}-${month}-${date}`;
 }
 
-// Shows one view ("onboarding", "dashboard" or "settings") and hides the others.
+// Shows one view ("onboarding", "dashboard", "module" or "settings") and hides the others.
+// The nav is hidden during onboarding.
 function showView(name) {
   $("loading").hidden = true;
   $("onboarding-view").hidden = name !== "onboarding";
   $("dashboard-view").hidden = name !== "dashboard";
+  $("module-view").hidden = name !== "module";
   $("settings-view").hidden = name !== "settings";
-  // Highlight the matching nav button.
-  const current = name === "settings" ? $("nav-settings") : $("nav-home");
-  const other = name === "settings" ? $("nav-home") : $("nav-settings");
-  current.setAttribute("aria-current", "page");
-  other.removeAttribute("aria-current");
+  $("side-nav").hidden = name === "onboarding";
 }
 
 // Puts a message in one of the small red boxes under a form. Empty text hides it.
@@ -83,12 +85,53 @@ function showTodayLabel() {
 async function start() {
   showTodayLabel();
   [areas, settings] = await Promise.all([api.getAreas(), api.getSettings()]);
-  if (settings.onboarded) {
+  if (settings.onboarded) await showPage();
+  else showOnboarding();
+}
+
+// --- Pages and the nav ---
+
+// Draws the nav's links, with the page showing marked as current.
+function drawNav(current) {
+  $("nav-links").innerHTML = renderNav(areas, settings.modules, current);
+}
+
+// Reads the address ("#/sleep") and shows that page. An address that doesn't
+// match a page is put right, so the address bar always says what is showing.
+async function showPage(moveFocus = true) {
+  if (!settings.onboarded) return;
+  const page = pageFromHash(location.hash, settings.modules);
+  if (location.hash !== hashFor(page)) history.replaceState(null, "", hashFor(page));
+  drawNav(page);
+  modulePage = null;
+  let view = "module";
+  if (page === "home") {
     await loadDashboard();
-    showView("dashboard");
+    view = "dashboard";
+  } else if (page === "settings") {
+    drawSettings();
+    view = "settings";
   } else {
-    showOnboarding();
+    await loadModulePage(page);
+    modulePage = page;
   }
+  showView(view);
+  // Move focus to the new page's heading so screen readers read it,
+  // but not on the very first page: that would steal focus on load.
+  if (pageShown && moveFocus) $(`${view}-view`).querySelector("h1").focus();
+  pageShown = true;
+}
+
+// Clicking a nav link, Back and Forward all change the address.
+window.addEventListener("hashchange", () => safely(() => showPage()));
+
+// Loads one module's page and draws it.
+async function loadModulePage(id) {
+  const [dashboard, todayData] = await Promise.all([api.getDashboard(today), api.getDay(today)]);
+  day = todayData;
+  const area = dashboard.areas.find((a) => a.id === id);
+  $("module-title").textContent = area.label;
+  $("module-body").innerHTML = renderModulePage(area, dashboard.dates, today, day, settings);
 }
 
 // --- Onboarding ---
@@ -96,9 +139,6 @@ async function start() {
 // Every step, in order. Each is a <div id="onboarding-step-NAME"> in index.html.
 const ALL_STEPS = ["welcome", "modules", "sleep", "study", "work", "habits", "goals"];
 let onboardingStep = "welcome"; // the step showing right now
-
-// Areas with their own onboarding page.
-const OWN_PAGE = ["sleep", "study", "work"];
 
 // The steps this user goes through: Sleep, Study and Work only if they picked them.
 function onboardingSteps() {
@@ -212,8 +252,9 @@ async function finishOnboarding(goals = []) {
   const finished = { ...settings, onboarded: true };
   if (goals.length > 0) finished.goals = goals;
   settings = await api.putSettings(finished);
-  await loadDashboard();
-  showView("dashboard");
+  history.replaceState(null, "", hashFor("home"));
+  pageShown = true;
+  await showPage();
 }
 
 // Welcome.
@@ -265,7 +306,7 @@ $("onboarding-sleep-form").addEventListener("submit", async (event) => {
 });
 
 // Study: "+ Add another" and "Remove" redraw the rows, keeping anything typed so far.
-// Used by onboarding ("onb") and Settings ("set").
+// Used by onboarding ("onb") and the Study page ("mod").
 function changeStudyRows(event, container, prefix) {
   const add = event.target.closest("[data-add-study]");
   const remove = event.target.closest("[data-remove-study]");
@@ -609,28 +650,105 @@ function fillLogForm() {
   if (workLabel) workLabel.textContent = settings.work.kind === "job_hunting" ? "Job search" : "Paid work";
 }
 
+// What is typed in some log inputs, as changes to a day: { sleep_hours: 7, ... }.
+// Blank means "I don't know": null, never 0.
+function readLogInputs(inputs) {
+  const changes = {};
+  for (const input of inputs) {
+    const blank = input.value.trim() === "";
+    if (input.type === "time") changes[input.name] = blank ? null : input.value;
+    else changes[input.name] = blank ? null : Number(input.value);
+  }
+  return changes;
+}
+
+// Only one sleep version counts: with times, the server works out the hours;
+// with hours, any old times are cleared so they can't override them.
+function sleepLogRule() {
+  return settings.sleep_schedule ? { sleep_hours: null } : { bedtime: null, wake_time: null };
+}
+
 $("log-form").addEventListener("submit", (event) => {
   event.preventDefault();
   safely(async () => {
     const changes = {};
     for (const field of $("log-form").querySelectorAll(".field[data-area]")) {
-      if (field.hidden) continue;
-      for (const input of field.querySelectorAll("input")) {
-        // Blank means "I don't know": send null, never 0.
-        const blank = input.value.trim() === "";
-        if (input.type === "time") changes[input.name] = blank ? null : input.value;
-        else changes[input.name] = blank ? null : Number(input.value);
-      }
+      if (!field.hidden) Object.assign(changes, readLogInputs(field.querySelectorAll("input")));
     }
-    // Only one sleep version counts: with times, the server works out the hours;
-    // with hours, any old times are cleared so they can't override them.
-    if (settings.modules.includes("sleep")) {
-      if (settings.sleep_schedule) changes.sleep_hours = null;
-      else Object.assign(changes, { bedtime: null, wake_time: null });
-    }
+    if (settings.modules.includes("sleep")) Object.assign(changes, sleepLogRule());
     await saveToday(changes);
     $("log-status").textContent = `Saved ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
   });
+});
+
+// --- Module pages ---
+
+// The page's log form: saves only this module's fields on today, then redraws the page.
+$("module-view").addEventListener("submit", (event) => {
+  if (event.target.id !== "module-log-form") return;
+  event.preventDefault();
+  safely(async () => {
+    const changes = readLogInputs(event.target.querySelectorAll("input"));
+    if (event.target.dataset.area === "sleep") Object.assign(changes, sleepLogRule());
+    day = await api.putDay(today, { ...day, ...changes });
+    await loadModulePage(modulePage);
+    // After the redraw, because the redraw replaces the status line.
+    $("module-log-status").textContent = `Saved ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  });
+});
+
+let detailsBeforeEdit = ""; // the details panel's HTML, kept while the Edit form is open
+
+// Edit swaps the details panel for the module's form; Cancel puts the details back
+// as they were, without touching the rest of the page.
+// Inside the Study form, "+ Add another" and "Remove" redraw its rows.
+$("module-view").addEventListener("click", (event) => {
+  if (event.target.closest("#module-edit")) {
+    const hours = { study: studyHours, work: workHours }[modulePage];
+    detailsBeforeEdit = $("module-details").innerHTML;
+    $("module-details").innerHTML = renderModuleEdit(modulePage, settings, hours ? hours() : null);
+    $("module-edit-form").querySelector("input, select, button").focus();
+  } else if (event.target.closest("#module-edit-cancel")) {
+    $("module-details").innerHTML = detailsBeforeEdit;
+    $("module-edit").focus();
+  } else if (event.target.closest("#module-study")) {
+    changeStudyRows(event, $("module-study"), "mod");
+  }
+});
+
+// The settings with the Edit form's answers in, or { error } with the message to show.
+function readModuleEdit(form) {
+  if (modulePage === "sleep") {
+    const choice = readSleepChoice(form);
+    return choice.error ? { error: choice.error } : { next: withSleepChoice(settings, choice) };
+  }
+  if (modulePage === "study") {
+    const hoursText = form.querySelector('input[name="study-hours"]').value;
+    const { goals, hours, error } = checkStudy(readStudyRows($("module-study")), hoursText);
+    return error ? { error } : { next: withStudy(settings, goals, hours) };
+  }
+  let next = settings;
+  for (const [i, fieldset] of [...form.querySelectorAll(".work-question")].entries()) {
+    const { changes, hours, error } = readWorkAnswer(i, fieldset);
+    if (error) return { error };
+    next = withWork(next, changes, hours);
+  }
+  return { next };
+}
+
+// The Edit form: check it, save the settings, then redraw the page.
+$("module-view").addEventListener("submit", async (event) => {
+  if (event.target.id !== "module-edit-form") return;
+  event.preventDefault();
+  const { next, error } = readModuleEdit(event.target);
+  if (error) return showFormError("module-edit-error", error);
+  try {
+    settings = await api.putSettings(next);
+    await loadModulePage(modulePage);
+    $("module-edit").focus();
+  } catch (error) {
+    showFormError("module-edit-error", error.message);
+  }
 });
 
 // --- Error banner ---
@@ -705,39 +823,13 @@ $("note").addEventListener("input", () => {
 });
 $("note").addEventListener("blur", saveNote);
 
-// --- Navigation ---
-
-$("nav-home").addEventListener("click", () => {
-  if (!settings.onboarded) return showOnboarding();
-  safely(async () => {
-    await loadDashboard();
-    showView("dashboard");
-  });
-});
-
-$("nav-settings").addEventListener("click", () => {
-  drawSettings();
-  showView("settings");
-});
-
 // --- Settings ---
 
 function drawSettings() {
   $("settings-modules").innerHTML = renderOnboarding(areas, settings.modules);
-  $("settings-sleep").innerHTML = settings.modules.includes("sleep") ? renderSleepChoice(settings, "set", false) : "";
-  $("settings-targets").innerHTML = renderTargetRows(areas, settings, { prefix: "target", skip: OWN_PAGE });
-  $("settings-targets-panel").hidden = !settings.modules.includes("sleep");
-  const work = settings.modules.includes("work");
-  $("settings-work-panel").hidden = !work;
-  $("settings-work").innerHTML = work
-    ? [0, 1, 2, 3, 4, 5].map((i) => renderWorkQuestion(i, settings.work, workHours(), "set")).join("")
-    : "";
-  const study = settings.modules.includes("study");
-  $("settings-study-panel").hidden = !study;
-  $("settings-study").innerHTML = study ? renderStudyGoals(settings.study_goals, studyHours(), "set") : "";
   $("settings-habits").innerHTML = renderHabitList(settings.habits);
   $("settings-goals").innerHTML = renderGoalList(settings.goals);
-  for (const id of ["modules-error", "targets-error", "work-error", "study-error", "habit-error", "goal-error", "import-error"]) {
+  for (const id of ["modules-error", "habit-error", "goal-error", "import-error"]) {
     showFormError(id, "");
   }
 }
@@ -754,76 +846,10 @@ $("modules-form").addEventListener("submit", async (event) => {
   try {
     settings = await api.postOnboarding(tickedModules(event.target));
     drawSettings();
+    drawNav("settings");
     $("data-status").textContent = "";
   } catch (error) {
     showFormError("modules-error", error.message);
-  }
-});
-
-// Targets, with Sleep's goal or schedule at the top when Sleep is enabled.
-$("targets-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const targets = [];
-  for (const row of $("settings-targets").querySelectorAll(".target-row")) {
-    const target = Number(row.querySelector("input").value);
-    if (!(target > 0)) {
-      return showFormError("targets-error", "Each target must be a number above 0.");
-    }
-    targets.push({ area_id: row.dataset.area, target, mode: row.querySelector("select").value });
-  }
-  let newSettings = { ...settings, targets: mergeTargets(settings.targets, targets) };
-  if ($("settings-sleep").querySelector(".sleep-choice")) {
-    const choice = readSleepChoice(event.target);
-    if (choice.error) return showFormError("targets-error", choice.error);
-    newSettings = withSleepChoice(newSettings, choice);
-  }
-  try {
-    await saveSettings(newSettings);
-  } catch (error) {
-    showFormError("targets-error", error.message);
-  }
-});
-
-$("settings-study").addEventListener("click", (event) => {
-  changeStudyRows(event, $("settings-study"), "set");
-  $("study-status").textContent = "";
-});
-
-$("work-form").addEventListener("input", () => {
-  $("work-status").textContent = "";
-});
-
-$("work-form").addEventListener("click", () => {
-  $("work-status").textContent = "";
-});
-
-$("work-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  let next = settings;
-  for (const [i, fieldset] of [...$("settings-work").querySelectorAll(".work-question")].entries()) {
-    const { changes, hours, error } = readWorkAnswer(i, fieldset);
-    if (error) return showFormError("work-error", error);
-    next = withWork(next, changes, hours);
-  }
-  try {
-    await saveSettings(next);
-    $("work-status").textContent = "Saved";
-  } catch (error) {
-    showFormError("work-error", error.message);
-  }
-});
-
-$("study-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const container = $("settings-study");
-  const hoursText = container.querySelector('input[name="study-hours"]').value;
-  const { goals, hours, error } = checkStudy(readStudyRows(container), hoursText);
-  if (error) return showFormError("study-error", error);
-  try {
-    await saveSettings(withStudy(settings, goals, hours));
-    $("study-status").textContent = "Saved";
-  } catch (error) {
-    showFormError("study-error", error.message);
   }
 });
 
@@ -929,6 +955,7 @@ $("import-file").addEventListener("change", async (event) => {
   }
   settings = await api.getSettings();
   drawSettings();
+  drawNav("settings");
   $("data-status").textContent = "Imported.";
 });
 
@@ -953,9 +980,27 @@ $("delete-dialog").addEventListener("close", () => {
 // If the page stays open past midnight, switch to the new day when the user comes back.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden || todayKey() === today) return;
-  today = todayKey();
-  showTodayLabel();
-  if (settings && settings.onboarded && !$("dashboard-view").hidden) safely(loadDashboard);
+  safely(async () => {
+    const onboarded = settings && settings.onboarded;
+    // Save yesterday's note to yesterday first, and leave the box, so its
+    // text can't be carried into the new day.
+    if (onboarded && day) {
+      await saveNote();
+      $("note").blur();
+    }
+    today = todayKey();
+    showTodayLabel();
+    // No focus move: the user didn't ask to go anywhere.
+    if (onboarded) await showPage(false);
+  });
+});
+
+// --- Skip link ---
+
+// Moves focus to the content without changing the address (which would mean "go Home").
+document.querySelector(".skip-link").addEventListener("click", (event) => {
+  event.preventDefault();
+  $("app").focus();
 });
 
 safely(start);

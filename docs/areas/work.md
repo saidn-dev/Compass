@@ -14,9 +14,9 @@ How Compass handles it now:
   - Interruptions: "Turn off notifications for one 30-minute block {when}."
   - Low energy: "Do 30 minutes on your hardest task {when}, then take a short break."
   - Too many projects: "Choose one project to move forward {when} and leave the rest for now."
-- Work profile (`Settings.work`): `kind`, `role`, `schedule`, `hours_vary`, `focus`, `goal`, `derailers`. Answered on six one-question screens in onboarding, and changed later in Settings > Work. The profile stays saved when Work is unticked.
+- Work profile (`Settings.work`): `kind`, `role`, `schedule`, `hours_vary`, `focus`, `goal`, `derailers`. Answered on six one-question screens in onboarding, and changed later on the Work page with its Edit button. The profile stays saved when Work is unticked.
 - Work card: a line under the target with the role and goal joined by " · ", for example "Software developer · Goal: Fix 3 bugs". One of them alone is shown alone; with neither there is no line.
-- Defined in `server/app/areas.py:36` (default target), `server/app/work.py` (`week_hours` at line 27, `work_tip` at 32, `work_card` at 43), `server/app/models.py:202` (`WorkProfile`) and `server/app/settings_rules.py:66` (`sync_work_target`). The tip is used at `server/app/brief.py:118` and the card line at `server/app/dashboard.py:49`.
+- Defined in `server/app/areas.py:36` (default target), `server/app/work.py` (`week_hours` at line 27, `work_tip` at 32, `work_card` at 44), `server/app/models.py:202` (`WorkProfile`) and `server/app/settings_rules.py:66` (`sync_work_target`). The tip is used at `server/app/brief.py:118` and the card line at `server/app/dashboard.py:53`.
 
 ## Notes
 

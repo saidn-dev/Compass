@@ -84,7 +84,7 @@ export function renderAreaCard(area) {
 
   return `<article class="card area-card" data-status="${statusKey}" aria-label="${escapeHtml(label)}">
     <div class="card-head">
-      <h3 class="card-title">${escapeHtml(area.label)}</h3>
+      <h3 class="card-title"><a href="#/${escapeHtml(area.id)}">${escapeHtml(area.label)}</a></h3>
       <span class="status">${escapeHtml(area.status)}</span>
     </div>
     <p class="card-value"><span class="value">${value}</span>${unit}</p>
@@ -171,34 +171,6 @@ export function renderTasks(tasks) {
 }
 
 // --- Settings screen ---
-
-// One row per enabled module: target number + "More is better" / "Stay under".
-// areas: the full module list; settings: { modules, targets }.
-// prefix keeps input ids unique when onboarding and Settings both show rows;
-// skip leaves areas out (Sleep has its own row).
-export function renderTargetRows(areas, settings, { prefix = "target", skip = [] } = {}) {
-  const rows = settings.modules.map((id) => {
-    const area = areas.find((a) => a.id === id);
-    if (!area || skip.includes(id)) return "";
-    const saved = settings.targets.find((t) => t.area_id === id);
-    const target = saved ? saved.target : area.default_target;
-    const mode = saved ? saved.mode : area.default_mode;
-    const inputId = `${escapeHtml(prefix)}-${escapeHtml(id)}`;
-    return `<div class="target-row" data-area="${escapeHtml(id)}">
-      <label for="${inputId}">${escapeHtml(area.label)}</label>
-      <div class="input-unit">
-        <input id="${inputId}" type="number" inputmode="decimal" min="0" step="any" value="${escapeHtml(target)}">
-        <span class="unit">${escapeHtml(area.unit)}</span>
-      </div>
-      <select aria-label="${escapeHtml(area.label)} rule">
-        <option value="up"${mode === "up" ? " selected" : ""}>More is better</option>
-        <option value="limit"${mode === "limit" ? " selected" : ""}>Stay under</option>
-      </select>
-    </div>`;
-  }).join("");
-  if (rows) return rows;
-  return settings.modules.length > 0 ? "" : `<p class="empty">Choose some modules first.</p>`;
-}
 
 export function renderHabitList(habits) {
   if (habits.length === 0) return `<p class="empty">No habits yet.</p>`;
@@ -466,4 +438,130 @@ export function renderWorkQuestion(index, work, hours, prefix, { hideLegend = fa
     <legend${hideLegend ? ' class="visually-hidden"' : ""}>${escapeHtml(WORK_QUESTIONS[index])}</legend>
     ${controls}
   </fieldset>`;
+}
+
+// --- Nav and module pages ---
+
+// The nav's links: Home, the modules that are switched on, Settings.
+// areas: [{ id, label }]; current: the page showing ("home", a module id or "settings").
+export function renderNav(areas, modules, current) {
+  const link = (page, href, text, extra = "") =>
+    `<a class="nav-link${extra}" href="${href}"${page === current ? ' aria-current="page"' : ""}>${escapeHtml(text)}</a>`;
+  const shown = areas.filter((a) => modules.includes(a.id));
+  const label = shown.length > 0 ? `<p class="nav-label">Modules</p>` : "";
+  const moduleLinks = shown.map((a) => link(a.id, `#/${escapeHtml(a.id)}`, a.label)).join("");
+  return `${link("home", "#/", "Home")}${label}${moduleLinks}${link("settings", "#/settings", "Settings", " nav-settings")}`;
+}
+
+// "2026-11-06" -> "Fri 6"; today's own date -> "Today".
+export function dayLabel(dateKey, todayKey) {
+  if (dateKey === todayKey) return "Today";
+  const date = new Date(dateKey + "T00:00");
+  return `${DAY_NAMES[date.getDay()]} ${date.getDate()}`;
+}
+
+// One number input with its unit, for the module page's log form.
+function logNumber(name, label, step, value) {
+  return `<div class="field">
+      <label for="mod-log-${name}">${label}</label>
+      <div class="input-unit">
+        <input id="mod-log-${name}" name="${name}" type="number" inputmode="decimal" min="0" max="24" step="${step}" value="${escapeHtml(value)}">
+        <span class="unit">h</span>
+      </div>
+    </div>`;
+}
+
+function logTime(name, label, value) {
+  return `<div class="field">
+      <label for="mod-log-${name}">${label}</label>
+      <input id="mod-log-${name}" name="${name}" type="time" value="${escapeHtml(value)}">
+    </div>`;
+}
+
+// Today's log fields for one module. The names match the Home log form.
+function moduleLogFields(areaId, day, settings) {
+  if (areaId === "sleep" && settings.sleep_schedule) {
+    return `<div class="sleep-times">
+      ${logTime("bedtime", "In bed", day.bedtime)}
+      ${logTime("wake_time", "Up", day.wake_time)}
+      <output class="sleep-gap">${escapeHtml(gapText(day.bedtime, day.wake_time))}</output>
+    </div>`;
+  }
+  if (areaId === "sleep") return logNumber("sleep_hours", "Sleep", "0.1", day.sleep_hours);
+  if (areaId === "study") return logNumber("study_hours", "Study", "0.25", day.study_hours);
+  const label = settings.work.kind === "job_hunting" ? "Job search" : "Paid work";
+  return logNumber("work_hours", label, "0.25", day.work_hours);
+}
+
+// A module's page: this week, today's log, the last 7 days, and its details.
+// area: the module's entry from the dashboard; dates: the 7 days in area.series;
+// day: what is logged today; settings: for the sleep schedule and the work type.
+export function renderModulePage(area, dates, today, day, settings) {
+  const id = escapeHtml(area.id);
+  const hasValue = area.value !== null && area.value !== undefined;
+  const value = hasValue ? formatNumber(area.value) : "-";
+  const unit = hasValue ? `<span class="unit">${escapeHtml(area.unit)}</span>` : "";
+  const target = targetText(area.target, area.mode, area.unit);
+
+  const rows = dates.map((date, i) => {
+    const logged = area.series[i];
+    const cell = logged === null || logged === undefined
+      ? `<span class="gap">not logged</span>`
+      : escapeHtml(withUnit(logged, area.unit));
+    return `<tr><th scope="row">${dayLabel(date, today)}</th><td>${cell}</td></tr>`;
+  }).join("");
+
+  const lines = area.details.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+
+  return `<section class="panel module-week" data-status="${STATUS_KEYS[area.status] || "no_data"}" aria-labelledby="module-week-title">
+    <h2 id="module-week-title">This week</h2>
+    <p class="card-value"><span class="value">${value}</span>${unit} <span class="status">${escapeHtml(area.status)}</span></p>
+    <p class="card-target">${escapeHtml(`${area.period} · ${target}`)}</p>
+  </section>
+  <section class="panel module-log" aria-labelledby="module-log-title">
+    <h2 id="module-log-title">${area.id === "sleep" ? "Log last night" : "Log today"}</h2>
+    <form id="module-log-form" data-area="${id}" novalidate>
+      ${moduleLogFields(area.id, day, settings)}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <p class="save-status" id="module-log-status" role="status" aria-live="polite"></p>
+      </div>
+    </form>
+  </section>
+  <section class="panel module-days" aria-labelledby="module-days-title">
+    <h2 id="module-days-title">Last 7 days</h2>
+    <table class="day-table">
+      <caption class="visually-hidden">${escapeHtml(area.label)}, last 7 days</caption>
+      <thead class="visually-hidden"><tr><th scope="col">Day</th><th scope="col">Hours</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </section>
+  <section class="panel module-details" id="module-details" aria-labelledby="module-details-title">
+    <h2 id="module-details-title">${escapeHtml(area.details.title)}</h2>
+    ${lines}
+    <div class="form-actions">
+      <button type="button" class="btn" id="module-edit">Edit ${escapeHtml(area.label.toLowerCase())}</button>
+    </div>
+  </section>`;
+}
+
+// The form that replaces a module's details when Edit is pressed.
+// hours: the saved Study or Work hours a week (not used for Sleep).
+export function renderModuleEdit(areaId, settings, hours) {
+  let fields;
+  if (areaId === "sleep") {
+    fields = renderSleepChoice(settings, "mod", false);
+  } else if (areaId === "study") {
+    fields = `<div id="module-study">${renderStudyGoals(settings.study_goals, hours, "mod")}</div>`;
+  } else {
+    fields = WORK_QUESTIONS.map((_, i) => renderWorkQuestion(i, settings.work, hours, "mod")).join("");
+  }
+  return `<form id="module-edit-form" data-area="${escapeHtml(areaId)}" novalidate>
+    ${fields}
+    <p class="form-error" id="module-edit-error" role="alert" hidden></p>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <button type="button" class="btn btn-ghost" id="module-edit-cancel">Cancel</button>
+    </div>
+  </form>`;
 }

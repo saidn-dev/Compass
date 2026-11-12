@@ -10,14 +10,17 @@
 <body>
   <a class="skip-link" href="#app">Skip to content</a>
 
+  <div class="shell">
+  <nav class="side-nav" id="side-nav" aria-label="Main" hidden>
+    <p class="brand"><span class="brand-mark" aria-hidden="true"></span>Compass</p>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+
+  <div class="shell-main">
   <header class="site-header">
     <div class="site-header-inner">
       <p class="brand"><span class="brand-mark" aria-hidden="true"></span>Compass</p>
       <p class="today" id="today-label"></p>
-      <nav class="site-nav" aria-label="Main">
-        <button type="button" class="btn btn-ghost" id="nav-home" aria-current="page">Home</button>
-        <button type="button" class="btn btn-ghost" id="nav-settings">Settings</button>
-      </nav>
     </div>
   </header>
 
@@ -216,7 +219,7 @@
     </section>
 
     <div class="view view-dashboard" id="dashboard-view" hidden>
-      <h1 class="visually-hidden">Your dashboard</h1>
+      <h1 class="visually-hidden" tabindex="-1">Your dashboard</h1>
 
       <section class="panel panel-brief" aria-labelledby="brief-title">
         <h2 id="brief-title">Today's brief</h2>
@@ -312,54 +315,23 @@
       </div>
     </div>
 
+    <div class="view view-module" id="module-view" hidden>
+      <h1 id="module-title" tabindex="-1"></h1>
+      <div class="module-grid" id="module-body"></div>
+    </div>
+
     <div class="view view-settings" id="settings-view" hidden>
-      <h1>Settings</h1>
+      <h1 tabindex="-1">Settings</h1>
 
       <div class="settings-grid">
         <section class="panel" aria-labelledby="set-modules-title">
           <h2 id="set-modules-title">Modules</h2>
           <form id="modules-form" novalidate>
             <div id="settings-modules"></div>
+            <p class="hint">Each module has its own page in the menu, where you can change its goal.</p>
             <p class="form-error" id="modules-error" role="alert" hidden></p>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">Save modules</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel" id="settings-targets-panel" aria-labelledby="set-targets-title">
-          <h2 id="set-targets-title">Targets</h2>
-          <p class="hint">"More is better" counts as on track at or above the target. "Stay under" counts as on track at or below it.</p>
-          <form id="targets-form" novalidate>
-            <div id="settings-sleep"></div>
-            <div class="target-list" id="settings-targets"></div>
-            <p class="form-error" id="targets-error" role="alert" hidden></p>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Save targets</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel" id="settings-study-panel" aria-labelledby="set-study-title" hidden>
-          <h2 id="set-study-title">Study</h2>
-          <form id="study-form" novalidate>
-            <div id="settings-study"></div>
-            <p class="form-error" id="study-error" role="alert" hidden></p>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Save study</button>
-              <p class="save-status" id="study-status" role="status" aria-live="polite"></p>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel" id="settings-work-panel" aria-labelledby="set-work-title" hidden>
-          <h2 id="set-work-title">Work</h2>
-          <form id="work-form" novalidate>
-            <div id="settings-work"></div>
-            <p class="form-error" id="work-error" role="alert" hidden></p>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Save work</button>
-              <p class="save-status" id="work-status" role="status" aria-live="polite"></p>
             </div>
           </form>
         </section>
@@ -422,6 +394,8 @@
       </div>
     </div>
   </main>
+  </div>
+  </div>
 
   <dialog class="dialog" id="delete-dialog" aria-labelledby="delete-dialog-title">
     <form method="dialog">

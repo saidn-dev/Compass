@@ -35,7 +35,8 @@ Each feature lists what it needs first. Build top to bottom: a feature starts on
 | Daily log form | Dashboard |
 | Focus, habits and goals sections | Dashboard |
 | Quick capture notes (autosave) | Daily log form |
-| Settings screen (targets, theme, export, import, delete) | Dashboard, Export/import/delete |
+| Settings screen (modules, habits, goals, export, import, delete) | Dashboard, Export/import/delete |
+| Side nav and module pages (Sleep, Study, Work) | Dashboard, Settings screen |
 
 ## Stage 5: Extras
 | Feature | Needs |
