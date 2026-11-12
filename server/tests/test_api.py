@@ -569,3 +569,33 @@ def test_dashboard_areas_carry_period_and_details(client):
     assert area(d, "sleep")["details"] == {"title": "Your goal", "lines": ["7.5 h a night"]}
     assert area(d, "study")["details"]["lines"] == ["No study goals yet."]
     assert area(d, "work")["details"]["title"] == "Your work"
+
+
+# --- scores ---
+
+def test_dashboard_scores(client):
+    onboard(client)
+    client.put("/api/days/2026-11-12", json={"sleep_hours": 6, "work_hours": 16}, headers=JSON)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    assert (area(d, "sleep")["score"], area(d, "sleep")["score_label"], area(d, "sleep")["headline"]) == (
+        80, "Fair", "Drifting a little")
+    assert area(d, "work")["score"] == 100
+    assert area(d, "study")["score"] is None and area(d, "study")["score_label"] == "No data"
+    assert [c["label"] for c in area(d, "sleep")["contributors"]] == ["Hours", "Logging"]
+    # The overall score is the average of the modules that have one: (80 + 100) / 2.
+    assert d["score"] == {"value": 90, "label": "Good", "headline": "Close to course"}
+
+
+def test_dashboard_score_with_nothing_logged(client):
+    onboard(client)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    assert d["score"] == {"value": None, "label": "No data", "headline": "No bearings yet"}
+
+
+def test_dashboard_daily_target(client):
+    onboard(client)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    # An average's target is already per day; a weekly total's is shared over 7 days.
+    assert area(d, "sleep")["daily_target"] == 7.5
+    assert area(d, "study")["daily_target"] == 1.71
+    assert area(d, "work")["daily_target"] == 2.29

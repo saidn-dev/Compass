@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert";
 import {
-  escapeHtml, renderBrief, renderModuleLine, renderOnboarding,
+  escapeHtml, renderBrief, renderScoreChip, renderToday, renderOnboarding,
   renderHabitGrid, renderGoals, renderTasks,
   renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
@@ -43,7 +43,7 @@ test("tasks, goals, habits never contain raw <script", () => {
     renderGoals([{ name: EVIL, percent: 10, detail: EVIL }]),
     renderHabitGrid([{ id: "h1", name: EVIL, days: [{ date: "2026-10-21", done: true }] }], [{ id: "h1", name: EVIL }]),
     renderBrief({ sentences: [EVIL], facts: [] }),
-    renderModuleLine(card({ label: EVIL })),
+    renderScoreChip(card({ label: EVIL })),
     renderOnboarding([{ ...AREAS[0], label: EVIL }], []),
   ].join("");
   assert.ok(!html.includes("<script"));
@@ -347,7 +347,12 @@ const SETTINGS = {
 const entry = (over = {}) => ({
   id: "sleep", label: "Sleep", unit: "h", value: 6.8, target: 7.5, mode: "up", status: "Behind",
   period: "average a night", series: [7.5, 8, null, 6, 6.5, 0, null],
-  details: { title: "Your goal", lines: ["7.5 h a night"] }, ...over,
+  details: { title: "Your goal", lines: ["7.5 h a night"] },
+  score: 91, score_label: "Optimal", headline: "Right on course", daily_target: 7.5,
+  contributors: [
+    { label: "Hours", text: "6.8 h average a night", score: 91, level: "Optimal" },
+    { label: "Logging", text: "5 of 7 days", score: 71, level: "Good" },
+  ], ...over,
 });
 
 test("renderNav lists Home, the modules that are on, then Settings", () => {
@@ -368,28 +373,6 @@ test("dayLabel", () => {
   assert.strictEqual(dayLabel("2026-11-06", "2026-11-12"), "Fri 6");
   assert.strictEqual(dayLabel("2026-11-12", "2026-11-12"), "Today");
   assert.strictEqual(dayLabel("2026-11-12", "2026-11-13"), "Thu 12");
-});
-
-test("module page: week panel", () => {
-  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
-  assert.ok(html.includes("6.8"));
-  assert.ok(html.includes("Behind"));
-  assert.ok(html.includes("average a night · Target 7.5 h"));
-});
-
-test("module page: no data", () => {
-  const html = renderModulePage(entry({ value: null, status: "No data" }), DATES, TODAY, DAY, SETTINGS);
-  assert.ok(html.includes("No data"));
-  assert.ok(html.includes("Target 7.5 h"));
-});
-
-test("module page: gaps read 'not logged' and a real 0 reads '0 h'", () => {
-  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
-  assert.strictEqual(html.match(/not logged/g).length, 2);
-  assert.ok(html.includes("0 h"));
-  assert.ok(html.includes("Fri 6"));
-  assert.ok(html.includes("Today"));
-  assert.strictEqual(html.match(/<tr/g).length, 8);
 });
 
 test("module page: log fields per module", () => {
@@ -430,35 +413,104 @@ test("renderModuleEdit uses each module's form with the mod prefix", () => {
   }
 });
 
-// --- Home: one line per module ---
+// --- scores: chips, the hero, bars ---
 
-test("module line links to the module's page and shows value, status and target", () => {
-  const html = renderModuleLine(card());
-  assert.match(html, /^<a class="module-line" href="#\/sleep" data-status="behind">/);
-  assert.ok(html.includes("Sleep"));
-  assert.ok(html.includes("6.4 h"));
-  assert.ok(html.includes('<span class="status">Behind</span>'));
-  assert.ok(html.includes("Target 7.5 h"));
-});
-
-test("module line sets data-status from the words", () => {
-  assert.ok(renderModuleLine(card({ status: "On track" })).includes('data-status="on_track"'));
-  assert.ok(renderModuleLine(card({ status: "No data", value: null })).includes('data-status="no_data"'));
-});
-
-test("module line with no data shows a dash, not 0", () => {
-  const html = renderModuleLine(card({ status: "No data", value: null }));
-  assert.ok(html.includes('aria-hidden="true">-<'));
-  assert.ok(html.includes("No data"));
-  assert.ok(!/>0\b/.test(html));
-});
-
-test("module line says Limit for a stay-under target", () => {
-  assert.ok(renderModuleLine(card({ id: "work", label: "Work", value: 44, target: 40, mode: "limit" })).includes("Limit 40 h"));
-});
-
-test("module page: the week panel shows the trend in words", () => {
+test("module page hero: the week's value, headline, status and target", () => {
   const html = renderModulePage(entry({ trend: "down" }), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes('<span class="hero-number">6.8</span>'));
+  assert.ok(html.includes("Right on course"));
+  assert.ok(html.includes('<span class="status">Behind</span>'));
+  assert.ok(html.includes("average a night"));
+  assert.ok(html.includes("Target 7.5 h"));
+  assert.ok(html.includes("Score 91"));
   assert.match(html, /<p class="trend" data-trend="down">Trending down<\/p>/);
-  assert.ok(!renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS).includes('class="trend"'));
+  assert.match(html, /stroke-dasharray="91 100"/);
+});
+
+test("module page hero with no data: a dash, no score arc, never 0", () => {
+  const html = renderModulePage(entry({ value: null, status: "No data", score: null, score_label: "No data", headline: "No bearings yet" }),
+    DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes('<span class="hero-number">-</span>'));
+  assert.ok(html.includes("No bearings yet"));
+  assert.ok(html.includes("No data"));
+  assert.match(html, /stroke-dasharray="0 100"/);
+  assert.ok(!html.includes("Score "));
+});
+
+test("module page week bars: gaps read 'not logged' and a real 0 reads '0 h'", () => {
+  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
+  assert.strictEqual(html.match(/class="week-bar"/g).length, 7);
+  assert.strictEqual(html.match(/not logged/g).length, 2);
+  assert.ok(html.includes("Fri 6: 7.5 h"));
+  assert.ok(html.includes("Wed 11: 0 h"));
+  assert.ok(html.includes("Today: not logged"));
+  assert.strictEqual(html.match(/data-gap/g).length, 2);
+  assert.strictEqual(html.match(/data-today/g).length, 1);
+});
+
+test("module page week bars are sized against the biggest of the values and the daily target", () => {
+  // biggest value 8, daily target 7.5 -> the 8 bar is 100%, the 6 bar 75%, the target line at 93.8%
+  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes("--height: 100%"));
+  assert.ok(html.includes("--height: 75%"));
+  assert.ok(html.includes("--target: 93.8%"));
+});
+
+test("module page contributors: label, text, level and a meter", () => {
+  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes("Contributors"));
+  assert.ok(html.includes("6.8 h average a night"));
+  assert.ok(html.includes("--value: 91%"));
+  assert.ok(html.includes("--value: 71%"));
+  assert.ok(html.includes('data-level="good"'));
+});
+
+test("module page contributors: no score draws an empty meter and escapes text", () => {
+  const html = renderModulePage(entry({ contributors: [{ label: "Hours", text: IMG, score: null, level: "No data" }] }),
+    DATES, TODAY, DAY, SETTINGS);
+  assert.ok(!html.includes("<img"));
+  assert.ok(html.includes("--value: 0%"));
+  assert.ok(html.includes('data-level="no_data"'));
+});
+
+test("score chip links to the module's page and reads as one sentence", () => {
+  const html = renderScoreChip(entry());
+  assert.match(html, /^<a class="score-chip" href="#\/sleep" data-level="optimal"/);
+  assert.ok(html.includes('aria-label="Sleep: score 91, Optimal. 6.8 h, Target 7.5 h, Behind"'));
+  assert.ok(html.includes('<span class="score-chip-number">91</span>'));
+  assert.ok(html.includes('<span class="score-chip-label">Sleep</span>'));
+  assert.match(html, /stroke-dasharray="91 100"/);
+});
+
+test("score chip with no data shows a dash, not 0", () => {
+  const html = renderScoreChip(entry({ value: null, status: "No data", score: null, score_label: "No data" }));
+  assert.ok(html.includes('<span class="score-chip-number">-</span>'));
+  assert.ok(html.includes('aria-label="Sleep: no data, Target 7.5 h"'));
+  assert.match(html, /stroke-dasharray="0 100"/);
+  assert.ok(html.includes('data-level="no_data"'));
+});
+
+test("score chip says Limit for a stay-under target", () => {
+  const html = renderScoreChip(entry({ id: "work", label: "Work", value: 44, target: 40, mode: "limit", score: 90 }));
+  assert.ok(html.includes("Limit 40 h"));
+});
+
+test("renderToday: the overall score with its headline", () => {
+  const html = renderToday({ value: 90, label: "Optimal", headline: "Right on course" });
+  assert.ok(html.includes('<span class="hero-number">90</span>'));
+  assert.ok(html.includes("Compass score"));
+  assert.ok(html.includes("Right on course"));
+  assert.match(html, /stroke-dasharray="90 100"/);
+});
+
+test("renderToday with nothing logged shows a dash", () => {
+  const html = renderToday({ value: null, label: "No data", headline: "No bearings yet" });
+  assert.ok(html.includes('<span class="hero-number">-</span>'));
+  assert.ok(html.includes("No bearings yet"));
+  assert.match(html, /stroke-dasharray="0 100"/);
+});
+
+test("renderNav gives every link an icon hidden from screen readers", () => {
+  const html = renderNav(NAV_AREAS, ["sleep", "study", "work"], "home");
+  assert.strictEqual(html.match(/<svg class="nav-icon" aria-hidden="true"/g).length, 5);
 });

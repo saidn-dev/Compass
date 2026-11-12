@@ -96,3 +96,39 @@ def trend(series: list[float | None]) -> Trend:
     if change < -TREND_THRESHOLD:
         return "down"
     return "flat"
+
+
+# A score's words: the label shown beside it and the headline over it.
+# The first row whose minimum the score reaches is used. Only 100 (the target is met)
+# is "on course", so the words never disagree with "On track" / "Behind".
+SCORE_BANDS = [
+    (100, "Optimal", "Right on course"),
+    (85, "Good", "Close to course"),
+    (70, "Fair", "Drifting a little"),
+    (0, "Pay attention", "Off course"),
+]
+NO_SCORE_WORDS = ("No data", "No bearings yet")
+
+
+def area_score(value: float | None, target: float, mode: str) -> int | None:
+    """How close the value is to its target, 0 to 100. A gap has no score.
+
+    "up": the percent of the target reached, capped at 100.
+    "limit": 100 at or under the limit, then one point lost for each percent over.
+    """
+    if value is None or target <= 0:
+        return None
+    if mode == "up":
+        return round(min(100.0, value / target * 100))
+    over = (value - target) / target * 100
+    return round(max(0.0, min(100.0, 100 - over)))
+
+
+def score_words(score: int | None) -> tuple[str, str]:
+    """(label, headline) for a score, e.g. (\"Good\", \"Close to course\")."""
+    if score is None:
+        return NO_SCORE_WORDS
+    for minimum, label, headline in SCORE_BANDS:
+        if score >= minimum:
+            return label, headline
+    return SCORE_BANDS[-1][1:]

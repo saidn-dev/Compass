@@ -31,12 +31,13 @@ Each feature lists what it needs first. Build top to bottom: a feature starts on
 |---|---|
 | Page shell, themes (light, dark, system), safe text display | nothing |
 | Onboarding screen (4-7 steps, with Sleep, Study and Work pages) | REST API, Page shell |
-| Dashboard: brief and one line per module | REST API, Page shell, Onboarding screen |
+| Dashboard: score chips, Compass score and brief | REST API, Page shell, Onboarding screen |
 | Daily log (on each module's page since 2026-11-13) | Dashboard |
 | Focus, habits and goals sections | Dashboard |
 | Quick capture notes (autosave) | Dashboard |
 | Settings screen (modules, habits, goals, export, import, delete) | Dashboard, Export/import/delete |
 | Side nav and module pages (Sleep, Study, Work) | Dashboard, Settings screen |
+| Scores, weekly bars and contributors | Side nav and module pages |
 
 ## Stage 5: Extras
 | Feature | Needs |

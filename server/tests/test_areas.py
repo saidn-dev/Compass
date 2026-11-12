@@ -159,3 +159,37 @@ def test_trend_needs_data_in_both_halves():
 def test_trend_from_zero():
     assert trend([0, 0, 0, 3, 3, 3, 3]) == "up"
     assert trend([0, 0, 0, 0, 0, 0, 0]) == "flat"
+
+
+# --- scores (0-100) and their words ---
+
+from app.areas import area_score, score_words
+
+
+@pytest.mark.parametrize("value, target, mode, score", [
+    (7.5, 7.5, "up", 100),
+    (9, 7.5, "up", 100),        # over the target is still 100
+    (6, 7.5, "up", 80),
+    (0, 7.5, "up", 0),
+    (None, 7.5, "up", None),    # a gap is not a 0
+    (30, 40, "limit", 100),     # under the limit
+    (40, 40, "limit", 100),
+    (44, 40, "limit", 90),      # 10% over
+    (100, 40, "limit", 0),      # never below 0
+])
+def test_area_score(value, target, mode, score):
+    assert area_score(value, target, mode) == score
+
+
+@pytest.mark.parametrize("score, label, headline", [
+    (100, "Optimal", "Right on course"),   # only a met target is "on course"
+    (99, "Good", "Close to course"),
+    (85, "Good", "Close to course"),
+    (84, "Fair", "Drifting a little"),
+    (70, "Fair", "Drifting a little"),
+    (69, "Pay attention", "Off course"),
+    (0, "Pay attention", "Off course"),
+    (None, "No data", "No bearings yet"),
+])
+def test_score_words(score, label, headline):
+    assert score_words(score) == (label, headline)

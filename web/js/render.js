@@ -70,18 +70,82 @@ export function renderBrief(brief) {
   </div>`;
 }
 
-// One module as a line on Home: name, this week's value, status and target.
-// The whole line is a link to the module's page.
-export function renderModuleLine(area) {
-  const hasValue = area.value !== null && area.value !== undefined;
-  const value = hasValue
-    ? `<span class="module-line-value">${escapeHtml(withUnit(area.value, area.unit))}</span>`
-    : `<span class="module-line-value" aria-hidden="true">-</span>`;
-  return `<a class="module-line" href="#/${escapeHtml(area.id)}" data-status="${STATUS_KEYS[area.status] || "no_data"}">
-    <span class="module-line-name">${escapeHtml(area.label)}</span>
-    ${value}
-    <span class="status">${escapeHtml(area.status)}</span>
-    <span class="module-line-target">${escapeHtml(targetText(area.target, area.mode, area.unit))}</span>
+// --- Scores: icons, rings and the hero ---
+
+// Small line icons, drawn here so the page needs no icon files.
+const ICONS = {
+  home: `<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>`,
+  sleep: `<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>`,
+  study: `<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 21H20"/>`,
+  work: `<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>`,
+  settings: `<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>`,
+};
+
+function icon(name, className) {
+  return `<svg class="${className}" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.home}</svg>`;
+}
+
+// "Pay attention" -> "pay_attention", for styling by level.
+function levelKey(label) {
+  return String(label || "No data").toLowerCase().replaceAll(" ", "_");
+}
+
+// A score as the filled part of a line 100 long. No score fills nothing.
+function filled(score) {
+  return score === null || score === undefined ? 0 : Math.max(0, Math.min(100, Number(score)));
+}
+
+// The half-circle gauge behind a hero number.
+function gauge(score) {
+  const arc = "M 16 104 A 84 84 0 0 1 184 104";
+  return `<svg class="gauge" aria-hidden="true" viewBox="0 0 200 112">
+      <path class="gauge-track" d="${arc}" pathLength="100"/>
+      <path class="gauge-fill" d="${arc}" pathLength="100" stroke-dasharray="${filled(score)} 100"/>
+    </svg>`;
+}
+
+// The big block at the top of a page: gauge, small label, big number, headline.
+// extra: more HTML under the headline (already escaped).
+function hero({ kicker, number, unit = "", headline, score, level, status = "", extra = "" }) {
+  const statusKey = status ? ` data-status="${STATUS_KEYS[status] || "no_data"}"` : "";
+  return `<section class="hero" data-level="${levelKey(level)}"${statusKey} aria-label="${escapeHtml(kicker)}">
+    ${gauge(score)}
+    <p class="hero-kicker">${escapeHtml(kicker)}</p>
+    <p class="hero-value"><span class="hero-number">${number}</span>${unit}</p>
+    <h2 class="hero-headline">${escapeHtml(headline)}</h2>
+    ${extra}
+  </section>`;
+}
+
+// Home's hero: the overall score. score: { value, label, headline } from the dashboard.
+export function renderToday(score) {
+  const has = score.value !== null && score.value !== undefined;
+  return hero({
+    kicker: "Compass score",
+    number: has ? formatNumber(score.value) : "-",
+    headline: score.headline,
+    score: score.value,
+    level: score.label,
+  });
+}
+
+// One module as a round chip on Home: icon, score and name. It links to the module's page.
+export function renderScoreChip(area) {
+  const has = area.score !== null && area.score !== undefined;
+  const target = targetText(area.target, area.mode, area.unit);
+  const label = has
+    ? `${area.label}: score ${area.score}, ${area.score_label}. ${withUnit(area.value, area.unit)}, ${target}, ${area.status}`
+    : `${area.label}: no data, ${target}`;
+  return `<a class="score-chip" href="#/${escapeHtml(area.id)}" data-level="${levelKey(area.score_label)}" aria-label="${escapeHtml(label)}">
+    <span class="score-chip-ring">
+      <svg class="score-ring" aria-hidden="true" viewBox="0 0 64 64">
+        <circle class="ring-track" cx="32" cy="32" r="29"/>
+        <circle class="ring-fill" cx="32" cy="32" r="29" pathLength="100" stroke-dasharray="${filled(area.score)} 100"/>
+      </svg>
+      ${icon(area.id, "score-chip-icon")}
+      <span class="score-chip-number">${has ? formatNumber(area.score) : "-"}</span>
+    </span>
+    <span class="score-chip-label">${escapeHtml(area.label)}</span>
   </a>`;
 }
 
@@ -436,7 +500,7 @@ export function renderWorkQuestion(index, work, hours, prefix, { hideLegend = fa
 // areas: [{ id, label }]; current: the page showing ("home", a module id or "settings").
 export function renderNav(areas, modules, current) {
   const link = (page, href, text, extra = "") =>
-    `<a class="nav-link${extra}" href="${href}"${page === current ? ' aria-current="page"' : ""}>${escapeHtml(text)}</a>`;
+    `<a class="nav-link${extra}" href="${href}"${page === current ? ' aria-current="page"' : ""}>${icon(page, "nav-icon")}<span>${escapeHtml(text)}</span></a>`;
   const shown = areas.filter((a) => modules.includes(a.id));
   const label = shown.length > 0 ? `<p class="nav-label">Modules</p>` : "";
   const moduleLinks = shown.map((a) => link(a.id, `#/${escapeHtml(a.id)}`, a.label)).join("");
@@ -483,35 +547,71 @@ function moduleLogFields(areaId, day, settings) {
   return logNumber("work_hours", label, "0.25", day.work_hours);
 }
 
-// A module's page: this week, today's log, the last 7 days, and its details.
+// The last 7 days as bars. Each bar's height is its share of the biggest value
+// (or of the daily target, if that is bigger); a line marks the daily target.
+function weekBars(area, dates, today) {
+  const logged = area.series.filter((v) => v !== null && v !== undefined);
+  const top = Math.max(Number(area.daily_target) || 0, ...logged, 0) || 1;
+  const percent = (n) => `${Math.round((n / top) * 1000) / 10}%`;
+
+  const bars = dates.map((date, i) => {
+    const value = area.series[i];
+    const gap = value === null || value === undefined;
+    const label = dayLabel(date, today);
+    const said = `${label}: ${gap ? "not logged" : withUnit(value, area.unit)}`;
+    return `<li class="week-bar"${gap ? " data-gap" : ""}${date === today ? " data-today" : ""}>
+        <span class="week-bar-value" aria-hidden="true">${gap ? "-" : formatNumber(value)}</span>
+        <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: ${gap ? "0%" : percent(value)}"></span></span>
+        <span class="week-bar-day" aria-hidden="true">${label.split(" ")[0]}</span>
+        <span class="visually-hidden">${escapeHtml(said)}</span>
+      </li>`;
+  }).join("");
+
+  const target = area.daily_target ? ` style="--target: ${percent(area.daily_target)}"` : "";
+  return `<ol class="week-bars"${target}>${bars}</ol>`;
+}
+
+// What went into this week's score, each with a small meter.
+function contributorList(contributors) {
+  const items = contributors.map((c) => `<li class="contributor" data-level="${levelKey(c.level)}">
+      <span class="contributor-label">${escapeHtml(c.label)}</span>
+      <span class="contributor-level">${escapeHtml(c.level)}</span>
+      <span class="contributor-text">${escapeHtml(c.text)}</span>
+      <span class="meter" aria-hidden="true" style="--value: ${filled(c.score)}%"><span class="meter-fill"></span></span>
+    </li>`).join("");
+  return `<ul class="contributors">${items}</ul>`;
+}
+
+// A module's page: the hero (this week), today's log, the last 7 days, contributors and details.
 // area: the module's entry from the dashboard; dates: the 7 days in area.series;
 // day: what is logged today; settings: for the sleep schedule and the work type.
 export function renderModulePage(area, dates, today, day, settings) {
   const id = escapeHtml(area.id);
   const hasValue = area.value !== null && area.value !== undefined;
-  const value = hasValue ? formatNumber(area.value) : "-";
-  const unit = hasValue ? `<span class="unit">${escapeHtml(area.unit)}</span>` : "";
+  const hasScore = area.score !== null && area.score !== undefined;
   const target = targetText(area.target, area.mode, area.unit);
-
-  const rows = dates.map((date, i) => {
-    const logged = area.series[i];
-    const cell = logged === null || logged === undefined
-      ? `<span class="gap">not logged</span>`
-      : escapeHtml(withUnit(logged, area.unit));
-    return `<tr><th scope="row">${dayLabel(date, today)}</th><td>${cell}</td></tr>`;
-  }).join("");
-
-  const lines = area.details.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
   const trend = TREND_WORDS[area.trend]
     ? `<p class="trend" data-trend="${escapeHtml(area.trend)}">${TREND_WORDS[area.trend]}</p>`
     : "";
+  const lines = area.details.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
 
-  return `<section class="panel module-week" data-status="${STATUS_KEYS[area.status] || "no_data"}" aria-labelledby="module-week-title">
-    <h2 id="module-week-title">This week</h2>
-    <p class="card-value"><span class="value">${value}</span>${unit} <span class="status">${escapeHtml(area.status)}</span></p>
-    <p class="card-target">${escapeHtml(`${area.period} · ${target}`)}</p>
-    ${trend}
-  </section>
+  const top = hero({
+    kicker: area.period,
+    number: hasValue ? formatNumber(area.value) : "-",
+    unit: hasValue ? `<span class="unit">${escapeHtml(area.unit)}</span>` : "",
+    headline: area.headline,
+    score: area.score,
+    level: area.score_label,
+    status: area.status,
+    extra: `<p class="hero-meta">
+      <span class="status">${escapeHtml(area.status)}</span>
+      <span>${escapeHtml(target)}</span>
+      ${hasScore ? `<span>Score ${formatNumber(area.score)}</span>` : ""}
+    </p>
+    ${trend}`,
+  });
+
+  return `${top}
   <section class="panel module-log" aria-labelledby="module-log-title">
     <h2 id="module-log-title">${area.id === "sleep" ? "Log last night" : "Log today"}</h2>
     <form id="module-log-form" data-area="${id}" novalidate>
@@ -524,11 +624,11 @@ export function renderModulePage(area, dates, today, day, settings) {
   </section>
   <section class="panel module-days" aria-labelledby="module-days-title">
     <h2 id="module-days-title">Last 7 days</h2>
-    <table class="day-table">
-      <caption class="visually-hidden">${escapeHtml(area.label)}, last 7 days</caption>
-      <thead class="visually-hidden"><tr><th scope="col">Day</th><th scope="col">Hours</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+    ${weekBars(area, dates, today)}
+  </section>
+  <section class="panel module-contributors" aria-labelledby="module-contributors-title">
+    <h2 id="module-contributors-title">Contributors</h2>
+    ${contributorList(area.contributors || [])}
   </section>
   <section class="panel module-details" id="module-details" aria-labelledby="module-details-title">
     <h2 id="module-details-title">${escapeHtml(area.details.title)}</h2>

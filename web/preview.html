@@ -39,6 +39,53 @@
 
   <main>
     <div class="view view-dashboard">
+      <!-- ---- Home score chips (renderScoreChip) and hero (renderToday) ---- -->
+      <nav class="score-chips" aria-label="Your modules">
+          <a class="score-chip" href="#/sleep" data-level="optimal">
+            <span class="score-chip-ring">
+              <svg class="score-ring" aria-hidden="true" viewBox="0 0 64 64">
+                <circle class="ring-track" cx="32" cy="32" r="29"/>
+                <circle class="ring-fill" cx="32" cy="32" r="29" pathLength="100" stroke-dasharray="100 100"/>
+              </svg>
+              <svg class="score-chip-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+              <span class="score-chip-number">100</span>
+            </span>
+            <span class="score-chip-label">Sleep</span>
+          </a>
+          <a class="score-chip" href="#/study" data-level="no_data">
+            <span class="score-chip-ring">
+              <svg class="score-ring" aria-hidden="true" viewBox="0 0 64 64">
+                <circle class="ring-track" cx="32" cy="32" r="29"/>
+                <circle class="ring-fill" cx="32" cy="32" r="29" pathLength="100" stroke-dasharray="0 100"/>
+              </svg>
+              <svg class="score-chip-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 21H20"/></svg>
+              <span class="score-chip-number">-</span>
+            </span>
+            <span class="score-chip-label">Study</span>
+          </a>
+          <a class="score-chip" href="#/work" data-level="good">
+            <span class="score-chip-ring">
+              <svg class="score-ring" aria-hidden="true" viewBox="0 0 64 64">
+                <circle class="ring-track" cx="32" cy="32" r="29"/>
+                <circle class="ring-fill" cx="32" cy="32" r="29" pathLength="100" stroke-dasharray="90 100"/>
+              </svg>
+              <svg class="score-chip-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg>
+              <span class="score-chip-number">90</span>
+            </span>
+            <span class="score-chip-label">Work</span>
+          </a>
+      </nav>
+
+      <section class="hero" data-level="good" aria-label="Compass score">
+        <svg class="gauge" aria-hidden="true" viewBox="0 0 200 112">
+            <path class="gauge-track" d="M 16 104 A 84 84 0 0 1 184 104" pathLength="100"/>
+            <path class="gauge-fill" d="M 16 104 A 84 84 0 0 1 184 104" pathLength="100" stroke-dasharray="95 100"/>
+          </svg>
+        <p class="hero-kicker">Compass score</p>
+        <p class="hero-value"><span class="hero-number">95</span></p>
+        <h2 class="hero-headline">Close to course</h2>
+      </section>
+
       <section class="panel panel-brief" aria-labelledby="brief-title">
         <h2 id="brief-title">Today's brief</h2>
         <div class="brief">
@@ -52,31 +99,6 @@
               <li>Work: 44 h (limit 40 h)</li>
             </ul>
           </details>
-        </div>
-      </section>
-
-      <!-- ---- Home module lines (renderModuleLine) ---- -->
-      <section class="panel" aria-labelledby="areas-title">
-        <h2 id="areas-title">Your modules</h2>
-        <div class="module-lines">
-          <a class="module-line" href="#/sleep" data-status="on_track">
-            <span class="module-line-name">Sleep</span>
-            <span class="module-line-value">7.6 h</span>
-            <span class="status">On track</span>
-            <span class="module-line-target">Target 7.5 h</span>
-          </a>
-          <a class="module-line" href="#/study" data-status="no_data">
-            <span class="module-line-name">Study</span>
-            <span class="module-line-value" aria-hidden="true">-</span>
-            <span class="status">No data</span>
-            <span class="module-line-target">Target 12 h</span>
-          </a>
-          <a class="module-line" href="#/work" data-status="behind">
-            <span class="module-line-name">Work</span>
-            <span class="module-line-value">44 h</span>
-            <span class="status">Behind</span>
-            <span class="module-line-target">Limit 40 h</span>
-          </a>
         </div>
       </section>
 
@@ -162,10 +184,19 @@
       <div class="view view-module">
         <h1>Sleep</h1>
         <div class="module-grid">
-          <section class="panel module-week" data-status="behind" aria-labelledby="p-week-title">
-            <h2 id="p-week-title">This week</h2>
-            <p class="card-value"><span class="value">6.8</span><span class="unit">h</span> <span class="status">Behind</span></p>
-            <p class="card-target">average a night · Target 7.5 h</p>
+          <section class="hero" data-level="good" data-status="behind" aria-label="average a night">
+            <svg class="gauge" aria-hidden="true" viewBox="0 0 200 112">
+            <path class="gauge-track" d="M 16 104 A 84 84 0 0 1 184 104" pathLength="100"/>
+            <path class="gauge-fill" d="M 16 104 A 84 84 0 0 1 184 104" pathLength="100" stroke-dasharray="91 100"/>
+          </svg>
+            <p class="hero-kicker">average a night</p>
+            <p class="hero-value"><span class="hero-number">6.8</span><span class="unit">h</span></p>
+            <h2 class="hero-headline">Close to course</h2>
+            <p class="hero-meta">
+              <span class="status">Behind</span>
+              <span>Target 7.5 h</span>
+              <span>Score 91</span>
+            </p>
             <p class="trend" data-trend="down">Trending down</p>
           </section>
           <section class="panel module-log" aria-labelledby="p-mlog-title">
@@ -190,19 +221,73 @@
           </section>
           <section class="panel module-days" aria-labelledby="p-days-title">
             <h2 id="p-days-title">Last 7 days</h2>
-            <table class="day-table">
-              <caption class="visually-hidden">Sleep, last 7 days</caption>
-              <thead class="visually-hidden"><tr><th scope="col">Day</th><th scope="col">Hours</th></tr></thead>
-              <tbody>
-                <tr><th scope="row">Tue 20</th><td>7.5 h</td></tr>
-                <tr><th scope="row">Wed 21</th><td>8 h</td></tr>
-                <tr><th scope="row">Thu 22</th><td><span class="gap">not logged</span></td></tr>
-                <tr><th scope="row">Fri 23</th><td>6 h</td></tr>
-                <tr><th scope="row">Sat 24</th><td>6.5 h</td></tr>
-                <tr><th scope="row">Sun 25</th><td>6 h</td></tr>
-                <tr><th scope="row">Today</th><td><span class="gap">not logged</span></td></tr>
-              </tbody>
-            </table>
+            <ol class="week-bars" style="--target: 93.8%">
+              <li class="week-bar">
+                <span class="week-bar-value" aria-hidden="true">7.5</span>
+                <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: 93.8%"></span></span>
+                <span class="week-bar-day" aria-hidden="true">Tue</span>
+                <span class="visually-hidden">Tue: 7.5 h</span>
+              </li>
+              <li class="week-bar">
+                <span class="week-bar-value" aria-hidden="true">8</span>
+                <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: 100%"></span></span>
+                <span class="week-bar-day" aria-hidden="true">Wed</span>
+                <span class="visually-hidden">Wed: 8 h</span>
+              </li>
+              <li class="week-bar" data-gap>
+                <span class="week-bar-value" aria-hidden="true">-</span>
+                <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: 0%"></span></span>
+                <span class="week-bar-day" aria-hidden="true">Thu</span>
+                <span class="visually-hidden">Thu: not logged</span>
+              </li>
+              <li class="week-bar">
+                <span class="week-bar-value" aria-hidden="true">6</span>
+                <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: 75%"></span></span>
+                <span class="week-bar-day" aria-hidden="true">Fri</span>
+                <span class="visually-hidden">Fri: 6 h</span>
+              </li>
+              <li class="week-bar">
+                <span class="week-bar-value" aria-hidden="true">6.5</span>
+                <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: 81.3%"></span></span>
+                <span class="week-bar-day" aria-hidden="true">Sat</span>
+                <span class="visually-hidden">Sat: 6.5 h</span>
+              </li>
+              <li class="week-bar">
+                <span class="week-bar-value" aria-hidden="true">6</span>
+                <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: 75%"></span></span>
+                <span class="week-bar-day" aria-hidden="true">Sun</span>
+                <span class="visually-hidden">Sun: 6 h</span>
+              </li>
+              <li class="week-bar" data-gap data-today>
+                <span class="week-bar-value" aria-hidden="true">-</span>
+                <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: 0%"></span></span>
+                <span class="week-bar-day" aria-hidden="true">Today</span>
+                <span class="visually-hidden">Today: not logged</span>
+              </li>
+            </ol>
+          </section>
+          <section class="panel module-contributors" aria-labelledby="p-contrib-title">
+            <h2 id="p-contrib-title">Contributors</h2>
+            <ul class="contributors">
+              <li class="contributor" data-level="good">
+                <span class="contributor-label">Hours</span>
+                <span class="contributor-level">Good</span>
+                <span class="contributor-text">6.8 h average a night</span>
+                <span class="meter" aria-hidden="true" style="--value: 91%"><span class="meter-fill"></span></span>
+              </li>
+              <li class="contributor" data-level="fair">
+                <span class="contributor-label">Bedtime</span>
+                <span class="contributor-level">Fair</span>
+                <span class="contributor-text">4 of 5 nights on time</span>
+                <span class="meter" aria-hidden="true" style="--value: 80%"><span class="meter-fill"></span></span>
+              </li>
+              <li class="contributor" data-level="fair">
+                <span class="contributor-label">Logging</span>
+                <span class="contributor-level">Fair</span>
+                <span class="contributor-text">5 of 7 days</span>
+                <span class="meter" aria-hidden="true" style="--value: 71%"><span class="meter-fill"></span></span>
+              </li>
+            </ul>
           </section>
           <section class="panel module-details" aria-labelledby="p-details-title">
             <h2 id="p-details-title">Your schedule</h2>

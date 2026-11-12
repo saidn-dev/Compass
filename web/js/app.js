@@ -3,7 +3,7 @@
 
 import * as api from "./api.js";
 import {
-  renderBrief, renderModuleLine, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
+  renderBrief, renderScoreChip, renderToday, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
   renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
   renderStudyGoals,
@@ -46,6 +46,7 @@ function showView(name) {
   $("module-view").hidden = name !== "module";
   $("settings-view").hidden = name !== "settings";
   $("side-nav").hidden = name === "onboarding";
+  if (name === "onboarding") document.body.dataset.page = "onboarding";
 }
 
 // Puts a message in one of the small red boxes under a form. Empty text hides it.
@@ -103,6 +104,8 @@ async function showPage(moveFocus = true) {
   const page = pageFromHash(location.hash, settings.modules);
   if (location.hash !== hashFor(page)) history.replaceState(null, "", hashFor(page));
   drawNav(page);
+  // The page's name on <body> lets the stylesheet give each page its own glow.
+  document.body.dataset.page = page;
   modulePage = null;
   let view = "module";
   if (page === "home") {
@@ -610,7 +613,8 @@ async function loadDashboard() {
 
 function drawDashboard(dashboard) {
   $("brief").innerHTML = renderBrief(dashboard.brief);
-  $("module-lines").innerHTML = dashboard.areas.map(renderModuleLine).join("");
+  $("score-chips").innerHTML = dashboard.areas.map(renderScoreChip).join("");
+  $("today-hero").innerHTML = renderToday(dashboard.score);
 
   const completion = dashboard.habits.completion;
   $("habit-completion").textContent = completion === null ? "" : `${completion}% this week`;

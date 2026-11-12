@@ -86,3 +86,49 @@ def test_work_limit_mode_gives_the_stop_tip():
 ])
 def test_work_days_text(days, text):
     assert work_days_text(days) == text
+
+
+# --- contributors (the bars under a module's score) ---
+
+from app.pages import module_contributors
+
+
+def days(field, values):
+    return [{field: v, "bedtime": None} for v in values]
+
+
+def test_contributors_hours_and_logging():
+    s = Settings(modules=["study"], targets=[Target(area_id="study", target=12, mode="up")])
+    got = module_contributors("study", s, days("study_hours", [2, None, 3, None, None, 1, None]))
+    assert got == [
+        {"label": "Hours", "text": "6 h this week", "score": 50, "level": "Pay attention"},
+        {"label": "Logging", "text": "3 of 7 days", "score": 43, "level": "Pay attention"},
+    ]
+
+
+def test_contributors_with_nothing_logged():
+    s = Settings(modules=["work"])
+    got = module_contributors("work", s, days("work_hours", [None] * 7))
+    assert got[0] == {"label": "Hours", "text": "Not logged", "score": None, "level": "No data"}
+    assert got[1] == {"label": "Logging", "text": "0 of 7 days", "score": 0, "level": "Pay attention"}
+
+
+def test_sleep_contributors_average_and_bedtime():
+    window = [{"sleep_hours": h, "bedtime": b} for h, b in [
+        (7.5, "22:00"), (7.5, "22:15"), (7.5, "23:30"), (7.5, "23:45"), (None, None), (None, None), (None, None)]]
+    got = module_contributors("sleep", with_schedule(), window)
+    assert [c["label"] for c in got] == ["Hours", "Bedtime", "Logging"]
+    assert got[0]["text"] == "7.5 h average a night"
+    assert got[1] == {"label": "Bedtime", "text": "2 of 4 nights on time", "score": 50, "level": "Pay attention"}
+
+
+def test_sleep_goal_has_no_bedtime_contributor():
+    s = Settings(modules=["sleep"])
+    got = module_contributors("sleep", s, days("sleep_hours", [8] * 7))
+    assert [c["label"] for c in got] == ["Hours", "Logging"]
+    assert got[1] == {"label": "Logging", "text": "7 of 7 days", "score": 100, "level": "Optimal"}
+
+
+def test_sleep_schedule_with_no_bedtimes_logged():
+    got = module_contributors("sleep", with_schedule(), days("sleep_hours", [None] * 7))
+    assert got[1] == {"label": "Bedtime", "text": "No bedtimes logged", "score": None, "level": "No data"}

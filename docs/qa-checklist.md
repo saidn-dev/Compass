@@ -56,7 +56,7 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Menu: Home, the modules that are on, Settings; turning a module on or off in Settings changes the menu at once; the page showing is marked as current (checked by Claude in the browser, 2026-11-12)
 - [x] Addresses: `#/sleep`, `#/work`, `#/settings` open their pages; reload stays on the page; Back and Forward work; `#/study` with Study off and `#/nonsense` go Home (checked by Claude in the browser, 2026-11-12)
 - [x] Menu hidden through onboarding (an address typed during onboarding changes nothing) and after Delete everything (checked by Claude in the browser, 2026-11-12)
-- [x] Module page: the week panel matches the Home card; the 7-day list shows gaps as "not logged"; focus lands on the page heading; a Home card title opens its page (checked by Claude in the browser, 2026-11-12) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
+- [x] Module page: the week panel matches the Home card; the 7-day list shows gaps as "not logged"; focus lands on the page heading; a Home card title opens its page (checked by Claude in the browser, 2026-11-12) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page — superseded 2026-11-13: Home shows score chips and module pages show bars (the new look)
 - [x] Module log: saving Sleep keeps today's Work hours, focus task and note; a cleared field is saved as a gap ("not logged"), not 0 (checked by Claude in the browser, 2026-11-12)
 - [x] Sleep page Edit: a goal changes the target here and on the Home card; a schedule changes the log to In bed and Up; equal times show the message and keep the form open; Cancel changes nothing (checked by Claude in the browser, 2026-11-12)
 - [x] Study page Edit: add up to 5 rows, Remove, typed text kept; the no-name and hours messages; a dated goal shows "in 12 days" (checked by Claude in the browser, 2026-11-12)
@@ -68,11 +68,17 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] "Skip to content" on a module page moves focus to the content and stays on that page (checked by Claude in the browser, 2026-11-12)
 - [x] Cancel on an Edit form puts the details back without a request and keeps an unsaved log entry (checked by Claude in the browser, 2026-11-12)
 - [x] Past midnight with a note being typed: the note is saved to the old day, the new day's note starts empty, and focus is not moved (clock moved forward in the browser) (checked by Claude in the browser, 2026-11-12)
-- [x] Home: Today's brief, Your modules, Today's focus, Goals, Quick capture, Habits; no log form (checked by Claude in the browser, 2026-11-13)
-- [x] Home module lines: one per module that is on, with value, status in words and target; no data shows a dash and "No data"; a line opens its module page (checked by Claude in the browser, 2026-11-13)
+- [x] Home: Today's brief, Your modules, Today's focus, Goals, Quick capture, Habits; no log form (checked by Claude in the browser, 2026-11-13) — superseded 2026-11-13: Home shows score chips and module pages show bars (the new look)
+- [x] Home module lines: one per module that is on, with value, status in words and target; no data shows a dash and "No data"; a line opens its module page (checked by Claude in the browser, 2026-11-13) — superseded 2026-11-13: Home shows score chips and module pages show bars (the new look)
 - [x] Module page: the week panel shows the trend in words (checked by Claude in the browser, 2026-11-13)
 - [x] Home at 360 px: no sideways scrolling, module lines not cut off; focus tasks and the habit grid still work (checked by Claude in the browser, 2026-11-13)
-- [ ] Narrator: Home's module lines (name, value, status and target read in one go)
+- [ ] Narrator: Home's module lines (name, value, status and target read in one go) — superseded 2026-11-13: Home shows score chips and module pages show bars (the new look)
+- [x] Home (new look): a score chip per module that opens its page, the Compass score on a gauge with its headline, today's brief, then focus, goals, quick capture, habits (checked by Claude in the browser, 2026-11-13)
+- [x] Scores: a week at 92% of its target reads "Good · Close to course" beside "Behind"; only a met target reads "Right on course"; no data shows a dash and "No bearings yet" (server tests + checked by Claude in the browser, 2026-11-13)
+- [x] Module page (new look): gauge with the week's value, status, target, score and trend; 7 bars with a dashed daily-target line, empty days shown as a dash; contributors with meters (checked by Claude in the browser, 2026-11-13)
+- [x] New look at 360 px and 390 px: no sideways scrolling; the floating tab bar never covers the last panel (checked by Claude in the browser, 2026-11-13)
+- [ ] Narrator: a score chip is read as one sentence (name, score, level, value, target, status); the bars are read as "Fri 6: 7.5 h"
+- [ ] By eye: contrast of the muted text and the level colours on the darker background
 - [ ] Narrator: the menu (current page announced), a module page heading, the 7-day table, the Edit form and where focus goes after Save and Cancel
 - [x] A blank log field is saved as a gap: its card says "No data" and the brief ignores it (browser script) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] A real `0` stays `0` (browser script: spending 0%)
