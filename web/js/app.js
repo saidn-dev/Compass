@@ -3,7 +3,7 @@
 
 import * as api from "./api.js";
 import {
-  renderBrief, renderAreaCard, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
+  renderBrief, renderModuleLine, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
   renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
   renderStudyGoals,
@@ -610,7 +610,7 @@ async function loadDashboard() {
 
 function drawDashboard(dashboard) {
   $("brief").innerHTML = renderBrief(dashboard.brief);
-  $("area-cards").innerHTML = dashboard.areas.map(renderAreaCard).join("");
+  $("module-lines").innerHTML = dashboard.areas.map(renderModuleLine).join("");
 
   const completion = dashboard.habits.completion;
   $("habit-completion").textContent = completion === null ? "" : `${completion}% this week`;
@@ -618,7 +618,6 @@ function drawDashboard(dashboard) {
   $("goals").innerHTML = renderGoals(settings.goals);
   $("tasks").innerHTML = renderTasks(day.tasks);
 
-  fillLogForm();
   // Don't overwrite the note while the user is typing in it.
   if (document.activeElement !== $("note")) $("note").value = day.note;
 }
@@ -630,25 +629,7 @@ async function saveToday(changes) {
   drawDashboard(await api.getDashboard(today));
 }
 
-// --- Daily log ---
-
-// Shows only the fields for enabled modules and fills in today's saved numbers.
-// Sleep has two versions: hours (a goal) or bed and wake times (a schedule).
-function fillLogForm() {
-  for (const field of $("log-form").querySelectorAll(".field[data-area]")) {
-    const sleepVersion = field.dataset.sleep;
-    const wrongSleepVersion = sleepVersion && (sleepVersion === "schedule") !== Boolean(settings.sleep_schedule);
-    field.hidden = !settings.modules.includes(field.dataset.area) || wrongSleepVersion;
-    for (const input of field.querySelectorAll("input")) {
-      const saved = day[input.name];
-      input.value = saved === null || saved === undefined ? "" : saved;
-    }
-    const gap = field.querySelector(".sleep-gap");
-    if (gap) gap.textContent = gapText(day.bedtime, day.wake_time);
-  }
-  const workLabel = $("log-form").querySelector('label[for="log-work_hours"]');
-  if (workLabel) workLabel.textContent = settings.work.kind === "job_hunting" ? "Job search" : "Paid work";
-}
+// --- Module pages ---
 
 // What is typed in some log inputs, as changes to a day: { sleep_hours: 7, ... }.
 // Blank means "I don't know": null, never 0.
@@ -667,21 +648,6 @@ function readLogInputs(inputs) {
 function sleepLogRule() {
   return settings.sleep_schedule ? { sleep_hours: null } : { bedtime: null, wake_time: null };
 }
-
-$("log-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  safely(async () => {
-    const changes = {};
-    for (const field of $("log-form").querySelectorAll(".field[data-area]")) {
-      if (!field.hidden) Object.assign(changes, readLogInputs(field.querySelectorAll("input")));
-    }
-    if (settings.modules.includes("sleep")) Object.assign(changes, sleepLogRule());
-    await saveToday(changes);
-    $("log-status").textContent = `Saved ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
-  });
-});
-
-// --- Module pages ---
 
 // The page's log form: saves only this module's fields on today, then redraws the page.
 $("module-view").addEventListener("submit", (event) => {

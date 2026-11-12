@@ -70,29 +70,19 @@ export function renderBrief(brief) {
   </div>`;
 }
 
-export function renderAreaCard(area) {
-  const statusKey = STATUS_KEYS[area.status] || "no_data";
+// One module as a line on Home: name, this week's value, status and target.
+// The whole line is a link to the module's page.
+export function renderModuleLine(area) {
   const hasValue = area.value !== null && area.value !== undefined;
-  const value = hasValue ? formatNumber(area.value) : "-";
-  const unit = hasValue ? `<span class="unit">${escapeHtml(area.unit)}</span>` : "";
-  const target = targetText(area.target, area.mode, area.unit);
-  const goal = area.goal ? `<p class="card-goal">${escapeHtml(area.goal.text)}</p>` : "";
-  const goalLabel = area.goal ? `, ${area.goal.text}` : "";
-  const label = (hasValue
-    ? `${area.label}: ${withUnit(area.value, area.unit)}, ${target}, ${area.status}`
-    : `${area.label}: no data, ${target}`) + goalLabel;
-
-  return `<article class="card area-card" data-status="${statusKey}" aria-label="${escapeHtml(label)}">
-    <div class="card-head">
-      <h3 class="card-title"><a href="#/${escapeHtml(area.id)}">${escapeHtml(area.label)}</a></h3>
-      <span class="status">${escapeHtml(area.status)}</span>
-    </div>
-    <p class="card-value"><span class="value">${value}</span>${unit}</p>
-    <p class="card-target">${escapeHtml(target)}</p>
-    ${goal}
-    ${progressBar(area.progress)}
-    <p class="trend" data-trend="${escapeHtml(area.trend)}">${TREND_WORDS[area.trend] || ""}</p>
-  </article>`;
+  const value = hasValue
+    ? `<span class="module-line-value">${escapeHtml(withUnit(area.value, area.unit))}</span>`
+    : `<span class="module-line-value" aria-hidden="true">-</span>`;
+  return `<a class="module-line" href="#/${escapeHtml(area.id)}" data-status="${STATUS_KEYS[area.status] || "no_data"}">
+    <span class="module-line-name">${escapeHtml(area.label)}</span>
+    ${value}
+    <span class="status">${escapeHtml(area.status)}</span>
+    <span class="module-line-target">${escapeHtml(targetText(area.target, area.mode, area.unit))}</span>
+  </a>`;
 }
 
 // areas: [{ id, label, unit, default_target, default_mode }]
@@ -512,11 +502,15 @@ export function renderModulePage(area, dates, today, day, settings) {
   }).join("");
 
   const lines = area.details.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  const trend = TREND_WORDS[area.trend]
+    ? `<p class="trend" data-trend="${escapeHtml(area.trend)}">${TREND_WORDS[area.trend]}</p>`
+    : "";
 
   return `<section class="panel module-week" data-status="${STATUS_KEYS[area.status] || "no_data"}" aria-labelledby="module-week-title">
     <h2 id="module-week-title">This week</h2>
     <p class="card-value"><span class="value">${value}</span>${unit} <span class="status">${escapeHtml(area.status)}</span></p>
     <p class="card-target">${escapeHtml(`${area.period} · ${target}`)}</p>
+    ${trend}
   </section>
   <section class="panel module-log" aria-labelledby="module-log-title">
     <h2 id="module-log-title">${area.id === "sleep" ? "Log last night" : "Log today"}</h2>

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert";
 import {
-  escapeHtml, renderBrief, renderAreaCard, renderOnboarding,
+  escapeHtml, renderBrief, renderModuleLine, renderOnboarding,
   renderHabitGrid, renderGoals, renderTasks,
   renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
@@ -43,7 +43,7 @@ test("tasks, goals, habits never contain raw <script", () => {
     renderGoals([{ name: EVIL, percent: 10, detail: EVIL }]),
     renderHabitGrid([{ id: "h1", name: EVIL, days: [{ date: "2026-10-21", done: true }] }], [{ id: "h1", name: EVIL }]),
     renderBrief({ sentences: [EVIL], facts: [] }),
-    renderAreaCard(card({ label: EVIL })),
+    renderModuleLine(card({ label: EVIL })),
     renderOnboarding([{ ...AREAS[0], label: EVIL }], []),
   ].join("");
   assert.ok(!html.includes("<script"));
@@ -52,32 +52,6 @@ test("tasks, goals, habits never contain raw <script", () => {
 
 // --- area card ---
 
-test("area card shows status in words", () => {
-  assert.ok(renderAreaCard(card({ status: "On track" })).includes("On track"));
-  assert.ok(renderAreaCard(card({ status: "Behind" })).includes("Behind"));
-  assert.ok(renderAreaCard(card({ status: "No data", value: null, progress: null })).includes("No data"));
-});
-
-test("area card sets data-status from the words", () => {
-  assert.ok(renderAreaCard(card({ status: "On track" })).includes('data-status="on_track"'));
-  assert.ok(renderAreaCard(card({ status: "No data", value: null })).includes('data-status="no_data"'));
-});
-
-test("area card aria-label has value and target", () => {
-  const label = renderAreaCard(card()).match(/aria-label="([^"]*)"/)[1];
-  assert.ok(label.includes("6.4"));
-  assert.ok(label.includes("7.5"));
-});
-
-test("area card with no data shows a dash, not 0", () => {
-  const html = renderAreaCard(card({ status: "No data", value: null, progress: null, trend: "none" }));
-  assert.ok(html.includes('<span class="value">-</span>'));
-  assert.ok(!html.includes(">0<"));
-});
-
-test("area card progress bar is capped at 100%", () => {
-  assert.ok(renderAreaCard(card({ progress: 180 })).includes("--progress: 100%"));
-});
 
 // --- onboarding ---
 
@@ -266,19 +240,6 @@ test("renderStudyGoals gives every input a matching label", () => {
   for (const id of ids) assert.ok(html.includes(`for="${id}"`), `no label for ${id}`);
 });
 
-test("renderAreaCard shows the study goal line", () => {
-  const html = renderAreaCard(card({ id: "study", label: "Study", goal: { text: "Exam · in 12 days" } }));
-  assert.ok(html.includes('class="card-goal"'));
-  assert.ok(html.includes("Exam · in 12 days"));
-  assert.match(html, /aria-label="[^"]*, Exam · in 12 days"/);
-});
-
-test("renderAreaCard escapes the goal line and leaves it out without a goal", () => {
-  assert.ok(!renderAreaCard(card({ goal: { text: IMG } })).includes("<img"));
-  assert.ok(!renderAreaCard(card()).includes("card-goal"));
-  assert.ok(!renderAreaCard(card({ goal: null })).includes("card-goal"));
-});
-
 test("renderBrief shows a deadline fact, escaped", () => {
   const fact = { area_id: "study", kind: "deadline", name: EVIL, date: "2026-12-12", days_left: 12 };
   const html = renderBrief({ sentences: ["x"], facts: [fact] });
@@ -370,11 +331,6 @@ test("weekHoursText", () => {
   assert.strictEqual(weekHoursText(5, "09:00", "09:00"), "");
 });
 
-test("renderAreaCard shows the Work line", () => {
-  const html = renderAreaCard(card({ id: "work", label: "Work", goal: { text: "Software developer · Goal: Fix 3 bugs" } }));
-  assert.ok(html.includes("Software developer · Goal: Fix 3 bugs"));
-  assert.match(html, /aria-label="[^"]*, Software developer · Goal: Fix 3 bugs"/);
-});
 
 // --- nav and module pages ---
 
@@ -474,6 +430,35 @@ test("renderModuleEdit uses each module's form with the mod prefix", () => {
   }
 });
 
-test("area card title links to the module page", () => {
-  assert.match(renderAreaCard(card()), /<h3 class="card-title"><a href="#\/sleep">Sleep<\/a><\/h3>/);
+// --- Home: one line per module ---
+
+test("module line links to the module's page and shows value, status and target", () => {
+  const html = renderModuleLine(card());
+  assert.match(html, /^<a class="module-line" href="#\/sleep" data-status="behind">/);
+  assert.ok(html.includes("Sleep"));
+  assert.ok(html.includes("6.4 h"));
+  assert.ok(html.includes('<span class="status">Behind</span>'));
+  assert.ok(html.includes("Target 7.5 h"));
+});
+
+test("module line sets data-status from the words", () => {
+  assert.ok(renderModuleLine(card({ status: "On track" })).includes('data-status="on_track"'));
+  assert.ok(renderModuleLine(card({ status: "No data", value: null })).includes('data-status="no_data"'));
+});
+
+test("module line with no data shows a dash, not 0", () => {
+  const html = renderModuleLine(card({ status: "No data", value: null }));
+  assert.ok(html.includes('aria-hidden="true">-<'));
+  assert.ok(html.includes("No data"));
+  assert.ok(!/>0\b/.test(html));
+});
+
+test("module line says Limit for a stay-under target", () => {
+  assert.ok(renderModuleLine(card({ id: "work", label: "Work", value: 44, target: 40, mode: "limit" })).includes("Limit 40 h"));
+});
+
+test("module page: the week panel shows the trend in words", () => {
+  const html = renderModulePage(entry({ trend: "down" }), DATES, TODAY, DAY, SETTINGS);
+  assert.match(html, /<p class="trend" data-trend="down">Trending down<\/p>/);
+  assert.ok(!renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS).includes('class="trend"'));
 });

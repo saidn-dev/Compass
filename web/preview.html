@@ -55,59 +55,32 @@
         </div>
       </section>
 
-      <section class="section-areas" aria-labelledby="areas-title">
-        <h2 id="areas-title">Life areas</h2>
-        <div class="card-grid">
-          <article class="card area-card" data-status="on_track" aria-label="Sleep: 7.6 h against a target of 7.5 h, On track">
-            <div class="card-head"><h3 class="card-title"><a href="#/sleep">Sleep</a></h3><span class="status">On track</span></div>
-            <p class="card-value"><span class="value">7.6</span><span class="unit">h</span></p>
-            <p class="card-target">7-day average, target 7.5 h</p>
-            <div class="progress" style="--progress: 101%"><span class="progress-bar"></span></div>
-            <p class="trend" data-trend="up">Trending up</p>
-          </article>
-          <article class="card area-card" data-status="no_data" aria-label="Study: no data, target 12 h, Data Structures exam · in 12 days">
-            <div class="card-head"><h3 class="card-title"><a href="#/study">Study</a></h3><span class="status">No data</span></div>
-            <p class="card-value"><span class="value">-</span></p>
-            <p class="card-target">This week, target 12 h</p>
-            <p class="card-goal">Data Structures exam · in 12 days</p>
-            <div class="progress"><span class="progress-bar"></span></div>
-            <p class="trend" data-trend="none">Not enough data</p>
-          </article>
-          <article class="card area-card" data-status="behind" aria-label="Work: 44 h against a limit of 40 h, Behind, Software developer · Goal: Fix 3 bugs">
-            <div class="card-head"><h3 class="card-title"><a href="#/work">Work</a></h3><span class="status">Behind</span></div>
-            <p class="card-value"><span class="value">44</span><span class="unit">h</span></p>
-            <p class="card-target">This week, limit 40 h</p>
-            <p class="card-goal">Software developer · Goal: Fix 3 bugs</p>
-            <div class="progress" style="--progress: 100%"><span class="progress-bar"></span></div>
-            <p class="trend" data-trend="up">Trending up</p>
-          </article>
+      <!-- ---- Home module lines (renderModuleLine) ---- -->
+      <section class="panel" aria-labelledby="areas-title">
+        <h2 id="areas-title">Your modules</h2>
+        <div class="module-lines">
+          <a class="module-line" href="#/sleep" data-status="on_track">
+            <span class="module-line-name">Sleep</span>
+            <span class="module-line-value">7.6 h</span>
+            <span class="status">On track</span>
+            <span class="module-line-target">Target 7.5 h</span>
+          </a>
+          <a class="module-line" href="#/study" data-status="no_data">
+            <span class="module-line-name">Study</span>
+            <span class="module-line-value" aria-hidden="true">-</span>
+            <span class="status">No data</span>
+            <span class="module-line-target">Target 12 h</span>
+          </a>
+          <a class="module-line" href="#/work" data-status="behind">
+            <span class="module-line-name">Work</span>
+            <span class="module-line-value">44 h</span>
+            <span class="status">Behind</span>
+            <span class="module-line-target">Limit 40 h</span>
+          </a>
         </div>
       </section>
 
       <div class="dashboard-grid">
-        <section class="panel panel-log" aria-labelledby="log-title">
-          <h2 id="log-title">Log today</h2>
-          <p class="hint">Leave anything you don't know blank. Blank is a gap, not zero.</p>
-          <form class="log-form" novalidate>
-            <div class="field">
-              <label for="p-sleep">Sleep</label>
-              <div class="input-unit"><input id="p-sleep" type="number" value="6.5"><span class="unit">h</span></div>
-            </div>
-            <div class="field">
-              <label for="p-study">Study</label>
-              <div class="input-unit"><input id="p-study" type="number" value="2"><span class="unit">h</span></div>
-            </div>
-            <div class="field">
-              <label for="p-work">Paid work</label>
-              <div class="input-unit"><input id="p-work" type="number"><span class="unit">h</span></div>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Save today</button>
-              <p class="save-status">Saved 18:42</p>
-            </div>
-          </form>
-        </section>
-
         <section class="panel panel-focus" aria-labelledby="focus-title">
           <h2 id="focus-title">Today's focus</h2>
           <ul class="task-list">
@@ -193,6 +166,7 @@
             <h2 id="p-week-title">This week</h2>
             <p class="card-value"><span class="value">6.8</span><span class="unit">h</span> <span class="status">Behind</span></p>
             <p class="card-target">average a night · Target 7.5 h</p>
+            <p class="trend" data-trend="down">Trending down</p>
           </section>
           <section class="panel module-log" aria-labelledby="p-mlog-title">
             <h2 id="p-mlog-title">Log last night</h2>

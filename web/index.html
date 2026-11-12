@@ -226,58 +226,12 @@
         <div id="brief"></div>
       </section>
 
-      <section class="section-areas" aria-labelledby="areas-title">
-        <h2 id="areas-title">Life areas</h2>
-        <div class="card-grid" id="area-cards"></div>
+      <section class="panel" aria-labelledby="areas-title">
+        <h2 id="areas-title">Your modules</h2>
+        <div class="module-lines" id="module-lines"></div>
       </section>
 
       <div class="dashboard-grid">
-        <section class="panel panel-log" aria-labelledby="log-title">
-          <h2 id="log-title">Log today</h2>
-          <p class="hint">Leave anything you don't know blank. Blank is a gap, not zero.</p>
-          <form id="log-form" class="log-form" novalidate>
-            <div class="field" data-area="sleep" data-sleep="goal" hidden>
-              <label for="log-sleep_hours">Sleep</label>
-              <div class="input-unit">
-                <input id="log-sleep_hours" name="sleep_hours" type="number" inputmode="decimal" min="0" max="24" step="0.1">
-                <span class="unit">h</span>
-              </div>
-            </div>
-            <fieldset class="field field-times" data-area="sleep" data-sleep="schedule" hidden>
-              <legend>Sleep last night</legend>
-              <div class="sleep-times">
-                <div class="field">
-                  <label for="log-bedtime">In bed</label>
-                  <input id="log-bedtime" name="bedtime" type="time">
-                </div>
-                <div class="field">
-                  <label for="log-wake_time">Up</label>
-                  <input id="log-wake_time" name="wake_time" type="time">
-                </div>
-                <output class="sleep-gap"></output>
-              </div>
-            </fieldset>
-            <div class="field" data-area="study" hidden>
-              <label for="log-study_hours">Study</label>
-              <div class="input-unit">
-                <input id="log-study_hours" name="study_hours" type="number" inputmode="decimal" min="0" max="24" step="0.25">
-                <span class="unit">h</span>
-              </div>
-            </div>
-            <div class="field" data-area="work" hidden>
-              <label for="log-work_hours">Paid work</label>
-              <div class="input-unit">
-                <input id="log-work_hours" name="work_hours" type="number" inputmode="decimal" min="0" max="24" step="0.25">
-                <span class="unit">h</span>
-              </div>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Save today</button>
-              <p class="save-status" id="log-status" role="status" aria-live="polite"></p>
-            </div>
-          </form>
-        </section>
-
         <section class="panel panel-focus" aria-labelledby="focus-title">
           <h2 id="focus-title">Today's focus</h2>
           <div id="tasks"></div>
@@ -289,19 +243,9 @@
           <p class="form-error" id="task-error" role="alert" hidden></p>
         </section>
 
-        <!-- Goals comes before Habits so that on wide screens Habits (2 columns wide)
-             and Quick capture share the second row without leaving a gap. -->
         <section class="panel panel-goals" aria-labelledby="goals-title">
           <h2 id="goals-title">Goals</h2>
           <div id="goals"></div>
-        </section>
-
-        <section class="panel panel-habits" aria-labelledby="habits-title">
-          <div class="panel-head">
-            <h2 id="habits-title">Habits</h2>
-            <p class="stat" id="habit-completion"></p>
-          </div>
-          <div class="habit-scroll" id="habit-grid"></div>
         </section>
 
         <section class="panel panel-capture" aria-labelledby="capture-title">
@@ -311,6 +255,14 @@
           </div>
           <label for="note" class="visually-hidden">Notes for today</label>
           <textarea id="note" name="note" rows="6" maxlength="5000" placeholder="Anything on your mind. Saves automatically."></textarea>
+        </section>
+
+        <section class="panel panel-habits" aria-labelledby="habits-title">
+          <div class="panel-head">
+            <h2 id="habits-title">Habits</h2>
+            <p class="stat" id="habit-completion"></p>
+          </div>
+          <div class="habit-scroll" id="habit-grid"></div>
         </section>
       </div>
     </div>
