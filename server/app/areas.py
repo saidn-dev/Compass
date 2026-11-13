@@ -98,6 +98,15 @@ def trend(series: list[float | None]) -> Trend:
     return "flat"
 
 
+def effective_target(area: Area, target: float, days: list[dict]) -> float:
+    """The target after rest days. A weekly total asks for less: 2 rest days in 7 leave 5/7
+    of it. A nightly average is left alone, since sleep still counts on a rest day."""
+    if area.aggregate != "sum" or not days:
+        return target
+    resting = sum(d.get("rest") is True for d in days)
+    return round(target * (len(days) - resting) / len(days), 1)
+
+
 # A score's words: the label shown beside it and the headline over it.
 # The first row whose minimum the score reaches is used. Only 100 (the target is met)
 # is "on course", so the words never disagree with "On track" / "Behind".

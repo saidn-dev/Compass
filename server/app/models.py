@@ -18,6 +18,19 @@ NUMERIC_FIELDS: dict[str, tuple[float, float]] = {
     "work_hours": (0, 24),
 }
 
+# The day's check-in tags, in the order they are shown. id -> label.
+TAGS: dict[str, str] = {
+    "caffeine": "Caffeine late",
+    "alcohol": "Alcohol",
+    "exercise": "Exercise",
+    "exam": "Exam or deadline",
+    "sick": "Sick",
+    "travel": "Travel",
+    "screens": "Screens late",
+    "social": "Social evening",
+}
+MOOD_RANGE = (1, 5)
+
 MAX_TASKS = 3
 MAX_TASK_TEXT = 200
 MAX_NOTE = 5000
@@ -61,6 +74,19 @@ def _habits(raw: object) -> dict[str, bool]:
     return {str(k): v for k, v in raw.items() if isinstance(v, bool)}
 
 
+def _tags(raw: object) -> list[str]:
+    """Known tags only, each once, in the order of TAGS."""
+    if not isinstance(raw, list):
+        return []
+    return [tag for tag in TAGS if tag in raw]
+
+
+def _mood(raw: object) -> int | None:
+    """A whole number from 1 to 5, or None."""
+    number = _number(raw, *MOOD_RANGE)
+    return int(number) if number is not None and number == int(number) else None
+
+
 def check_date_key(date_key: str) -> str:
     """Return date_key if it is a real YYYY-MM-DD date, else raise ValueError."""
     try:
@@ -99,6 +125,10 @@ def normalize_day(raw: dict, date_key: str) -> dict:
     day["tasks"] = _tasks(raw.get("tasks"))
     note = raw.get("note")
     day["note"] = "" if note is None else str(note)[:MAX_NOTE]
+    # The check-in: tags, mood (1-5) and whether it is a rest day.
+    day["tags"] = _tags(raw.get("tags"))
+    day["mood"] = _mood(raw.get("mood"))
+    day["rest"] = raw.get("rest") is True
     return day
 
 

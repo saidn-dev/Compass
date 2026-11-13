@@ -599,3 +599,66 @@ def test_dashboard_daily_target(client):
     assert area(d, "sleep")["daily_target"] == 7.5
     assert area(d, "study")["daily_target"] == 1.71
     assert area(d, "work")["daily_target"] == 2.29
+
+
+# --- check-in, rest days, history, carry-over, insights ---
+
+def test_day_keeps_tags_mood_and_rest(client):
+    r = client.put("/api/days/2026-11-13", json={"tags": ["exam", "nope"], "mood": 4, "rest": True}, headers=JSON)
+    assert (r.json()["tags"], r.json()["mood"], r.json()["rest"]) == (["exam"], 4, True)
+    assert client.get("/api/days/2026-11-12", headers=HOST).json()["tags"] == []
+
+
+def test_rest_days_lower_the_weekly_target_and_are_reported(client):
+    onboard(client)
+    for d in ("2026-11-10", "2026-11-11"):
+        client.put(f"/api/days/{d}", json={"rest": True}, headers=JSON)
+    client.put("/api/days/2026-11-12", json={"study_hours": 8.6}, headers=JSON)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    assert area(d, "study")["target"] == 8.6
+    assert area(d, "study")["rest_days"] == 2
+    assert area(d, "study")["status"] == "On track"
+    assert area(d, "sleep")["target"] == 7.5 and area(d, "sleep")["rest_days"] == 0
+
+
+def test_a_week_of_rest_asks_for_nothing(client):
+    onboard(client, ("study",))
+    for i in range(6, 13):
+        client.put(f"/api/days/2026-11-{i:02d}", json={"rest": True}, headers=JSON)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    assert area(d, "study")["target"] == 0
+    assert area(d, "study")["score"] is None
+    assert d["brief"]["sentences"] == ["Log today's numbers to get your first brief."]
+
+
+def test_dashboard_history_tags_and_carry_over(client):
+    onboard(client, ("study",))
+    client.put("/api/days/2026-10-20", json={"study_hours": 5}, headers=JSON)
+    client.put("/api/days/2026-11-11", json={"tasks": [{"text": "Call the bank", "done": False}]}, headers=JSON)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    history = area(d, "study")["history"]
+    assert len(history) == 12 and history[-4] == {"label": "16 Oct", "value": 5}
+    assert d["carry_over"] == ["Call the bank"]
+    assert d["tags"][0] == {"id": "caffeine", "label": "Caffeine late"}
+    assert "guidance" not in area(d, "study")
+
+
+def test_dashboard_sleep_guidance(client):
+    onboard(client, ("sleep",))
+    s = client.get("/api/settings", headers=HOST).json()
+    s["sleep_schedule"] = {"bedtime": "22:30", "wake_time": "06:30"}
+    client.put("/api/settings", json=s, headers=JSON)
+    d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
+    assert area(d, "sleep")["guidance"] == "Tonight: aim to be in bed by 22:30."
+
+
+def test_insights_endpoint(client):
+    onboard(client)
+    r = client.get("/api/insights?date=2026-11-13", headers=HOST)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["date"] == "2026-11-13"
+    assert body["review"]["range"] == "7 Nov to 13 Nov"
+    assert body["patterns"] == []
+    assert body["streaks"][0]["label"] == "Logging"
+    assert_error(client.get("/api/insights?date=nope", headers=HOST), 422)

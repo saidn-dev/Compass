@@ -7,7 +7,7 @@ far away the nearest one is.
 """
 from datetime import date
 
-from app.areas import Area, area_value, last_n_dates
+from app.areas import Area, area_value, effective_target, last_n_dates
 from app.models import Settings
 from app.settings_rules import AREAS_BY_ID, target_for
 from app.sleep import LATE_GRACE_MINUTES, minutes_late
@@ -74,7 +74,10 @@ def build_brief(days: list[dict], settings: Settings, today: str) -> dict:
         if value is None:
             continue
         t = target_for(settings, area_id)
-        rows.append((area, round_value(area, value), t.target, t.mode))
+        target = effective_target(area, t.target, window)
+        if target <= 0:
+            continue  # a whole week of rest asks for nothing
+        rows.append((area, round_value(area, value), target, t.mode))
 
     if not rows:
         return {"sentences": [FIRST_BRIEF], "facts": []}

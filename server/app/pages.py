@@ -4,7 +4,7 @@ Sleep: the goal or schedule. Study: every goal with its countdown. Work: role,
 goal, hours and this week's tip. The page shows these lines as they are.
 Also the contributors: the bars that show what went into this week's score.
 """
-from app.areas import area_score, area_value, score_words
+from app.areas import area_score, area_value, effective_target, score_words
 from app.brief import _fmt, bedtime_line, round_value
 from app.models import Settings
 from app.settings_rules import AREAS_BY_ID, target_for
@@ -89,7 +89,7 @@ def module_contributors(area_id: str, settings: Settings, window: list[dict]) ->
     else:
         shown = round_value(area, value)
         hours = _contributor("Hours", f"{_fmt(shown)} {area.unit} {PERIODS[area.aggregate]}",
-                             area_score(shown, target.target, target.mode))
+                             area_score(shown, effective_target(area, target.target, window), target.mode))
     rows = [hours]
 
     if area_id == "sleep" and settings.sleep_schedule is not None:
@@ -102,6 +102,10 @@ def module_contributors(area_id: str, settings: Settings, window: list[dict]) ->
         else:
             rows.append(_contributor("Bedtime", "No bedtimes logged", None))
 
+    # A rest day with nothing logged isn't a missed day (for weekly totals).
+    excused = sum(d.get("rest") is True and d.get(area.field) is None for d in window) if area.aggregate == "sum" else 0
+    expected = len(window) - excused
     logged = sum(d.get(area.field) is not None for d in window)
-    rows.append(_contributor("Logging", f"{logged} of {len(window)} days", round(logged / len(window) * 100)))
+    share = round(logged / expected * 100) if expected else None
+    rows.append(_contributor("Logging", f"{logged} of {expected} days", share))
     return rows

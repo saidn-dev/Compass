@@ -79,6 +79,7 @@ const ICONS = {
   study: `<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 21H20"/>`,
   work: `<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>`,
   settings: `<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>`,
+  insights: `<path d="M5 20V11M12 20V4M19 20v-6"/>`,
 };
 
 function icon(name, className) {
@@ -496,7 +497,7 @@ export function renderWorkQuestion(index, work, hours, prefix, { hideLegend = fa
 
 // --- Nav and module pages ---
 
-// The nav's links: Home, the modules that are switched on, Settings.
+// The nav's links: Home, the modules that are switched on, Insights, Settings.
 // areas: [{ id, label }]; current: the page showing ("home", a module id or "settings").
 export function renderNav(areas, modules, current) {
   const link = (page, href, text, extra = "") =>
@@ -504,7 +505,7 @@ export function renderNav(areas, modules, current) {
   const shown = areas.filter((a) => modules.includes(a.id));
   const label = shown.length > 0 ? `<p class="nav-label">Modules</p>` : "";
   const moduleLinks = shown.map((a) => link(a.id, `#/${escapeHtml(a.id)}`, a.label)).join("");
-  return `${link("home", "#/", "Home")}${label}${moduleLinks}${link("settings", "#/settings", "Settings", " nav-settings")}`;
+  return `${link("home", "#/", "Home")}${label}${moduleLinks}${link("insights", "#/insights", "Insights", " nav-insights")}${link("settings", "#/settings", "Settings", " nav-settings")}`;
 }
 
 // "2026-11-06" -> "Fri 6"; today's own date -> "Today".
@@ -547,28 +548,50 @@ function moduleLogFields(areaId, day, settings) {
   return logNumber("work_hours", label, "0.25", day.work_hours);
 }
 
-// The last 7 days as bars. Each bar's height is its share of the biggest value
-// (or of the daily target, if that is bigger); a line marks the daily target.
-function weekBars(area, dates, today) {
-  const logged = area.series.filter((v) => v !== null && v !== undefined);
-  const top = Math.max(Number(area.daily_target) || 0, ...logged, 0) || 1;
+// Bars for a run of values. Each bar's height is its share of the biggest value (or of
+// the target, if that is bigger); a dashed line marks the target.
+// items: [{ value, label, said, today }]; said is what a screen reader hears.
+function barChart(items, target, { itemClass = "week-bar", listClass = "week-bars" } = {}) {
+  const logged = items.map((item) => item.value).filter((v) => v !== null && v !== undefined);
+  const top = Math.max(Number(target) || 0, ...logged, 0) || 1;
   const percent = (n) => `${Math.round((n / top) * 1000) / 10}%`;
 
-  const bars = dates.map((date, i) => {
-    const value = area.series[i];
-    const gap = value === null || value === undefined;
-    const label = dayLabel(date, today);
-    const said = `${label}: ${gap ? "not logged" : withUnit(value, area.unit)}`;
-    return `<li class="week-bar"${gap ? " data-gap" : ""}${date === today ? " data-today" : ""}>
-        <span class="week-bar-value" aria-hidden="true">${gap ? "-" : formatNumber(value)}</span>
-        <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: ${gap ? "0%" : percent(value)}"></span></span>
-        <span class="week-bar-day" aria-hidden="true">${label.split(" ")[0]}</span>
-        <span class="visually-hidden">${escapeHtml(said)}</span>
+  const bars = items.map((item) => {
+    const gap = item.value === null || item.value === undefined;
+    return `<li class="${itemClass}"${gap ? " data-gap" : ""}${item.today ? " data-today" : ""}>
+        <span class="week-bar-value" aria-hidden="true">${gap ? "-" : formatNumber(item.value)}</span>
+        <span class="week-bar-track" aria-hidden="true"><span class="week-bar-fill" style="--height: ${gap ? "0%" : percent(item.value)}"></span></span>
+        <span class="week-bar-day" aria-hidden="true">${escapeHtml(item.label)}</span>
+        <span class="visually-hidden">${escapeHtml(item.said)}</span>
       </li>`;
   }).join("");
 
-  const target = area.daily_target ? ` style="--target: ${percent(area.daily_target)}"` : "";
-  return `<ol class="week-bars"${target}>${bars}</ol>`;
+  const line = target ? ` style="--target: ${percent(target)}"` : "";
+  return `<ol class="${listClass}"${line}>${bars}</ol>`;
+}
+
+// The last 7 days as bars, against one day's share of the target.
+function weekBars(area, dates, today) {
+  const items = dates.map((date, i) => {
+    const value = area.series[i];
+    const gap = value === null || value === undefined;
+    const label = dayLabel(date, today);
+    return { value, label: label.split(" ")[0], today: date === today,
+      said: `${label}: ${gap ? "not logged" : withUnit(value, area.unit)}` };
+  });
+  return barChart(items, area.daily_target);
+}
+
+// The last 12 weeks as bars, against a full week's target. Only every fourth
+// week is named under its bar, so the names fit on a phone.
+function historyBars(area) {
+  const last = area.history.length - 1;
+  const items = area.history.map((week, i) => {
+    const gap = week.value === null || week.value === undefined;
+    return { value: week.value, label: i % 4 === 0 || i === last ? week.label : "", today: i === last,
+      said: `Week of ${week.label}: ${gap ? "not logged" : withUnit(week.value, area.unit)}` };
+  });
+  return barChart(items, area.weekly_target, { itemClass: "week-bar history-bar", listClass: "week-bars week-bars-compact" });
 }
 
 // What went into this week's score, each with a small meter.
@@ -582,7 +605,8 @@ function contributorList(contributors) {
   return `<ul class="contributors">${items}</ul>`;
 }
 
-// A module's page: the hero (this week), today's log, the last 7 days, contributors and details.
+// A module's page: the hero (this week), today's log, the last 7 days, the last 12 weeks,
+// contributors and details.
 // area: the module's entry from the dashboard; dates: the 7 days in area.series;
 // day: what is logged today; settings: for the sleep schedule and the work type.
 export function renderModulePage(area, dates, today, day, settings) {
@@ -594,6 +618,12 @@ export function renderModulePage(area, dates, today, day, settings) {
     ? `<p class="trend" data-trend="${escapeHtml(area.trend)}">${TREND_WORDS[area.trend]}</p>`
     : "";
   const lines = area.details.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  const history = area.history && area.history.length > 0
+    ? `<section class="panel module-history" aria-labelledby="module-history-title">
+    <h2 id="module-history-title">Last 12 weeks</h2>
+    ${historyBars(area)}
+  </section>`
+    : "";
 
   const top = hero({
     kicker: area.period,
@@ -607,8 +637,10 @@ export function renderModulePage(area, dates, today, day, settings) {
       <span class="status">${escapeHtml(area.status)}</span>
       <span>${escapeHtml(target)}</span>
       ${hasScore ? `<span>Score ${formatNumber(area.score)}</span>` : ""}
+      ${area.rest_days ? `<span>${area.rest_days} rest day${area.rest_days === 1 ? "" : "s"}</span>` : ""}
     </p>
-    ${trend}`,
+    ${trend}
+    ${area.guidance ? `<p class="hero-note">${escapeHtml(area.guidance)}</p>` : ""}`,
   });
 
   return `${top}
@@ -626,6 +658,7 @@ export function renderModulePage(area, dates, today, day, settings) {
     <h2 id="module-days-title">Last 7 days</h2>
     ${weekBars(area, dates, today)}
   </section>
+  ${history}
   <section class="panel module-contributors" aria-labelledby="module-contributors-title">
     <h2 id="module-contributors-title">Contributors</h2>
     ${contributorList(area.contributors || [])}
@@ -658,4 +691,99 @@ export function renderModuleEdit(areaId, settings, hours) {
       <button type="button" class="btn btn-ghost" id="module-edit-cancel">Cancel</button>
     </div>
   </form>`;
+}
+
+// --- Check-in, carry-over and Insights ---
+
+// Home's check-in for today: mood from 1 to 5, tags, and whether it is a rest day.
+// day: { mood, tags, rest }; tags: [{ id, label }] from the dashboard.
+export function renderCheckIn(day, tags) {
+  const moods = [1, 2, 3, 4, 5].map((n) => `<label class="mood-option">
+      <input type="radio" name="mood" value="${n}"${day.mood === n ? " checked" : ""}>
+      <span>${n}<span class="visually-hidden"> out of 5</span></span>
+    </label>`).join("");
+  const clear = day.mood === null || day.mood === undefined
+    ? ""
+    : `<button type="button" class="btn btn-small btn-ghost" data-clear-mood>Clear</button>`;
+  const picked = day.tags || [];
+  const toggles = tags.map((tag) => `<button type="button" class="tag-toggle" data-tag="${escapeHtml(tag.id)}" aria-pressed="${picked.includes(tag.id)}">${escapeHtml(tag.label)}</button>`).join("");
+
+  return `<fieldset class="mood">
+      <legend>Mood</legend>
+      <div class="mood-options">${moods}${clear}</div>
+      <p class="hint">1 is low, 5 is great.</p>
+    </fieldset>
+    <div class="tag-block">
+      <p class="field-label" id="tags-label">Anything different today?</p>
+      <div class="tag-toggles" role="group" aria-labelledby="tags-label">${toggles}</div>
+    </div>
+    <label class="check-option" for="rest-day">
+      <input type="checkbox" id="rest-day"${day.rest ? " checked" : ""}> Rest day (weekly targets ask for less)
+    </label>`;
+}
+
+// Yesterday's unfinished focus tasks, each as a button that adds it to today.
+export function renderCarryOver(texts) {
+  if (texts.length === 0) return "";
+  const buttons = texts.map((text, i) => `<button type="button" class="btn btn-small" data-carry="${i}">+ ${escapeHtml(text)}</button>`).join("");
+  return `<p class="hint">From yesterday:</p><div class="button-row">${buttons}</div>`;
+}
+
+// The Insights page: the weekly review, patterns and streaks. data: GET /api/insights.
+export function renderInsights(data) {
+  const { review, patterns, streaks } = data;
+  const has = review.score.value !== null && review.score.value !== undefined;
+  const top = hero({
+    kicker: "Weekly review",
+    number: has ? formatNumber(review.score.value) : "-",
+    headline: review.score.headline,
+    score: review.score.value,
+    level: review.score.label,
+    extra: `<p class="hero-meta">
+      <span>${escapeHtml(review.range)}</span>
+      ${review.score.text ? `<span>${escapeHtml(review.score.text)}</span>` : ""}
+    </p>`,
+  });
+
+  const rows = review.modules.map((m) => {
+    const scored = m.score !== null && m.score !== undefined;
+    const said = [m.value_text + (m.value_text.endsWith(".") || !m.change_text ? "" : "."), m.change_text, m.best]
+      .filter(Boolean).join(" ");
+    return `<li class="review-row" data-level="${levelKey(m.score_label)}">
+        <a class="review-name" href="#/${escapeHtml(m.id)}">${escapeHtml(m.label)}</a>
+        <span class="review-score">${scored ? `Score ${formatNumber(m.score)}` : "No score"}</span>
+        <span class="review-text">${escapeHtml(said)}</span>
+      </li>`;
+  }).join("");
+  const extras = review.extras.map((line) => `<p class="review-extra">${escapeHtml(line)}</p>`).join("");
+  const change = review.change ? `<p class="review-change">${escapeHtml(review.change)}</p>` : "";
+
+  const patternItems = patterns.length > 0
+    ? `<ul class="pattern-list">${patterns.map((p) => `<li>
+        <p>${escapeHtml(p.text)}</p>
+        <p class="hint">${escapeHtml(p.detail)}</p>
+      </li>`).join("")}</ul>`
+    : `<p class="empty">No patterns yet. Compass needs at least 3 days on each side of a comparison, from the last 4 weeks.</p>`;
+
+  const streakItems = streaks.map((s) => `<li class="streak"${s.days > 0 ? " data-on" : ""}>
+      <span class="streak-label">${escapeHtml(s.label)}</span>
+      <span class="streak-days">${escapeHtml(s.text)}</span>
+      <span class="streak-best">Best: ${formatNumber(s.best)}</span>
+    </li>`).join("");
+
+  return `${top}
+  <section class="panel" aria-labelledby="review-title">
+    <h2 id="review-title">This week</h2>
+    <ul class="review-list">${rows}</ul>
+    ${extras}
+    ${change}
+  </section>
+  <section class="panel" aria-labelledby="patterns-title">
+    <h2 id="patterns-title">Patterns</h2>
+    ${patternItems}
+  </section>
+  <section class="panel" aria-labelledby="streaks-title">
+    <h2 id="streaks-title">Streaks</h2>
+    <ul class="streak-list">${streakItems}</ul>
+  </section>`;
 }

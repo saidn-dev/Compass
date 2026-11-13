@@ -30,12 +30,14 @@ The server owns every rule. The page only draws what the API returns. Data lives
 | Feature | What it does |
 |---|---|
 | **Onboarding** | Welcome, then pick any of the three modules, a Sleep page (a goal, a schedule, or help working one out), a Study page (what you're studying for, dates, hours a week), six one-question Work screens (type of work, role, days and hours, best focus time, a 3-month goal, what gets in the way), optional habits and goals |
-| **Module pages** | A page each for Sleep, Study and Work, reached from the menu: this week's value on an arc gauge with its score, status and trend, today's log, the last 7 days as bars against the daily target, contributors (what went into the score), and its goal or schedule with an Edit button |
+| **Module pages** | A page each for Sleep, Study and Work, reached from the menu: this week's value on an arc gauge with its score, status and trend, today's log, the last 7 days and the last 12 weeks as bars against their targets, tonight's bedtime (with a sleep schedule), contributors (what went into the score), and its goal or schedule with an Edit button |
 | **Sleep** | With a sleep schedule you log bed and wake times and Compass works out the hours; the brief says how often you were in bed on time |
 | **Scores** | Each module gets 0-100 for how close its week is to the target. 100 reads "Optimal · Right on course", 85-99 "Good · Close to course", 70-84 "Fair · Drifting a little", below 70 "Pay attention · Off course". Worked out on the server from what you log |
+| **Insights** | One page with the weekly review (this week against the one before, per module, with one thing to change), patterns ("On days after 7.5+ h of sleep you studied 3 h on average, against 1 h on other days": needs 3 days on each side and a 15% difference, from the last 4 weeks) and streaks (logging, bedtime on time, each habit) |
+| **Check-in** | On Home: mood from 1 to 5, tags for the day (caffeine late, exam, sick and so on) and a rest-day box. A rest day lowers that week's Study and Work targets |
 | **Daily brief** | 3-4 sentences from the last 7 days, plus the numbers it used |
 | **Home** | A round score chip per module that opens its page, the Compass score (the average of the module scores, 0-100) on an arc gauge with a headline, today's brief, then focus tasks, goals, notes and habits |
-| **Today's focus** | Up to 3 tasks a day |
+| **Today's focus** | Up to 3 tasks a day; yesterday's unfinished ones are offered again with one click |
 | **Habits** | 7-day yes/no grid with a weekly completion rate |
 | **Goals** | Up to 3, each with a percent and one line of context |
 | **Quick capture** | A daily note (up to 5000 characters) |
@@ -91,6 +93,22 @@ The first run creates `.venv` and installs the server's packages. After that, `p
 
 Your data is saved in `compass.db` in the repository folder. It is ignored by git. Use **Settings → Export** for a backup.
 
+### Try it with demo data
+
+After the first `python start.py` (which creates `.venv`), this runs a second copy of Compass with 12 weeks of made-up data, so every page has something to show:
+
+```powershell
+# Windows (PowerShell)
+.venv\Scripts\python.exe tools\demo.py
+```
+
+```bash
+# macOS / Linux
+.venv/bin/python tools/demo.py
+```
+
+It serves `http://127.0.0.1:8770/` from `demo.db`, which is rebuilt on every run and ignored by git. Your own `compass.db` is not touched.
+
 ### Run the tests
 
 The server tests need the dev packages in `.venv`:
@@ -113,8 +131,8 @@ Then, from the repository root:
 
 | Suite | Command | Count |
 |---|---|---|
-| Server (pytest) | `python -m pytest server/tests` | 439 |
-| Web renderers and addresses (`node:test`) | `node --test "web/tests/*.test.js"` | 53 |
+| Server (pytest) | `python -m pytest server/tests` | 482 |
+| Web renderers and addresses (`node:test`) | `node --test "web/tests/*.test.js"` | 61 |
 
 While the server is running, `http://127.0.0.1:8765/docs` lets you try every API endpoint in the browser.
 
@@ -136,6 +154,7 @@ All endpoints take and return JSON. Errors always look like `{"error": {"code": 
 | `PUT /api/days/{date}` | Save one day; blank or invalid numbers become `null` |
 | `POST /api/days/bulk` | Merge numeric fields only; returns `{"saved", "skipped"}` |
 | `GET /api/dashboard?date=YYYY-MM-DD` | Brief, each area's numbers and habit grid, plus the 7 dates, the overall score, and each area's score, contributors and page details; date defaults to local today |
+| `GET /api/insights?date=YYYY-MM-DD` | The weekly review, patterns and streaks |
 | `GET /api/export` | Full JSON backup |
 | `POST /api/import` | Replace all data from a backup (max 2 MB) |
 | `DELETE /api/data` | Delete everything; needs `X-Confirm: delete-all` |
@@ -155,7 +174,7 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 
 | Path | Language | Contents |
 |---|---|---|
-| `server/app/` | Python | API, rules (`areas.py`, `brief.py`, `lists.py`, `settings_rules.py`, `pages.py`), SQLite (`db.py`), security (`security.py`) |
+| `server/app/` | Python | API, rules (`areas.py`, `brief.py`, `lists.py`, `settings_rules.py`, `pages.py`, `insights.py`), SQLite (`db.py`), security (`security.py`) |
 | `server/tests/` | Python | pytest suite |
 | `web/` | HTML, CSS, JS | `index.html`, `styles.css`, `js/` (`app.js`, `render.js`, `route.js`, `api.js`); `preview.html` is a static design preview |
 | `web/tests/` | JS | `node:test` tests for the renderers |
@@ -178,6 +197,9 @@ The first returns the dashboard JSON. The second returns `403` with the error co
 | Side nav and module pages (2026-11-12) | Done; see `docs/superpowers/specs/2026-11-12-side-nav-module-pages-design.md` |
 | Home trimmed (2026-11-13) | Done; the log form and area cards left Home |
 | Scores and the new look (2026-11-13) | Done; score chips, arc gauges, weekly bars, contributors, a floating tab bar on phones. The layout takes its cues from the Oura app; the name, mark, wording and code are Compass's own |
+| Insights, check-in, rest days, history, carry-over, bedtime guidance (2026-11-13) | Done; ideas taken from Exist, Bearable, Sunsama, Streaks, Daylio and Oura, with Compass's own rules |
+
+**Later (v3):** points, levels and avatars.
 
 **Later (v2):** TickTick and Google Calendar as data sources, and an optional AI assistant, built on the same server. Movement comes back here too, with steps read from another app; the Java CSV importer in `tools/importer/` is kept for that.
 

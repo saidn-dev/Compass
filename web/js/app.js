@@ -9,6 +9,7 @@ import {
   renderStudyGoals,
   renderWorkQuestion, WORK_QUESTIONS, weekHoursText,
   renderNav, renderModulePage, renderModuleEdit,
+  renderCheckIn, renderCarryOver, renderInsights,
 } from "./render.js";
 import { pageFromHash, hashFor } from "./route.js";
 
@@ -24,6 +25,7 @@ let day = null;        // today's logged data
 let editingGoal = null; // index of the goal being edited in Settings, or null
 let modulePage = null; // the module whose page is showing ("sleep", "study", "work"), or null
 let pageShown = false; // false until the first page has been shown
+let carryOver = [];    // yesterday's unfinished tasks offered on Home
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,13 +39,14 @@ function todayKey() {
   return `${d.getFullYear()}-${month}-${date}`;
 }
 
-// Shows one view ("onboarding", "dashboard", "module" or "settings") and hides the others.
+// Shows one view ("onboarding", "dashboard", "module", "insights" or "settings") and hides the others.
 // The nav is hidden during onboarding.
 function showView(name) {
   $("loading").hidden = true;
   $("onboarding-view").hidden = name !== "onboarding";
   $("dashboard-view").hidden = name !== "dashboard";
   $("module-view").hidden = name !== "module";
+  $("insights-view").hidden = name !== "insights";
   $("settings-view").hidden = name !== "settings";
   $("side-nav").hidden = name === "onboarding";
   if (name === "onboarding") document.body.dataset.page = "onboarding";
@@ -114,6 +117,9 @@ async function showPage(moveFocus = true) {
   } else if (page === "settings") {
     drawSettings();
     view = "settings";
+  } else if (page === "insights") {
+    $("insights-body").innerHTML = renderInsights(await api.getInsights(today));
+    view = "insights";
   } else {
     await loadModulePage(page);
     modulePage = page;
@@ -615,6 +621,9 @@ function drawDashboard(dashboard) {
   $("brief").innerHTML = renderBrief(dashboard.brief);
   $("score-chips").innerHTML = dashboard.areas.map(renderScoreChip).join("");
   $("today-hero").innerHTML = renderToday(dashboard.score);
+  $("check-in").innerHTML = renderCheckIn(day, dashboard.tags);
+  carryOver = dashboard.carry_over;
+  $("carry-over").innerHTML = renderCarryOver(carryOver);
 
   const completion = dashboard.habits.completion;
   $("habit-completion").textContent = completion === null ? "" : `${completion}% this week`;
@@ -748,6 +757,47 @@ $("tasks").addEventListener("change", (event) => {
   const index = Number(event.target.dataset.index);
   const tasks = day.tasks.map((t, i) => (i === index ? { ...t, done: !t.done } : t));
   safely(() => saveToday({ tasks }));
+});
+
+// Yesterday's unfinished tasks: a click adds one to today.
+$("carry-over").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-carry]");
+  if (!button || day.tasks.length >= MAX_TASKS) return;
+  const text = carryOver[Number(button.dataset.carry)];
+  safely(() => saveToday({ tasks: [...day.tasks, { text, done: false }] }));
+});
+
+// --- Check-in ---
+
+// Saves one check-in change, then puts focus back on the control that was used
+// (the redraw replaces it, which would otherwise drop keyboard users at the top).
+function saveCheckIn(changes, selector) {
+  safely(async () => {
+    await saveToday(changes);
+    const control = $("check-in").querySelector(selector);
+    if (control) control.focus();
+  });
+}
+
+// Mood and the rest-day box.
+$("check-in").addEventListener("change", (event) => {
+  if (event.target.name === "mood") {
+    saveCheckIn({ mood: Number(event.target.value) }, `input[name="mood"][value="${event.target.value}"]`);
+  } else if (event.target.id === "rest-day") {
+    saveCheckIn({ rest: event.target.checked }, "#rest-day");
+  }
+});
+
+// Tags toggle on click; Clear takes the mood away again.
+$("check-in").addEventListener("click", (event) => {
+  const toggle = event.target.closest(".tag-toggle");
+  if (toggle) {
+    const tag = toggle.dataset.tag;
+    const tags = day.tags.includes(tag) ? day.tags.filter((t) => t !== tag) : [...day.tags, tag];
+    saveCheckIn({ tags }, `.tag-toggle[data-tag="${tag}"]`);
+  } else if (event.target.closest("[data-clear-mood]")) {
+    saveCheckIn({ mood: null }, 'input[name="mood"]');
+  }
 });
 
 // --- Habits ---

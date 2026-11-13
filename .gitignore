@@ -10,3 +10,6 @@ compass-*.json
 
 # compiled Java importer
 tools/importer/out/
+
+# demo data (rebuilt by tools/demo.py)
+demo.db

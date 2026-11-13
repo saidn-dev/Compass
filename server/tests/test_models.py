@@ -101,7 +101,8 @@ def test_note_keeps_html_as_plain_text():
 
 def test_unknown_keys_dropped_and_shape_complete():
     day = normalize_day({"evil": 1, "date": "1999-01-01"}, DATE)
-    assert set(day) == {"date", "habits", "tasks", "note", "bedtime", "wake_time", *NUMERIC_FIELDS}
+    assert set(day) == {"date", "habits", "tasks", "note", "bedtime", "wake_time", "tags", "mood", "rest",
+                        *NUMERIC_FIELDS}
     assert day["date"] == DATE
 
 
@@ -271,3 +272,24 @@ def test_unknown_kind_and_focus_are_rejected():
         WorkProfile(kind="boss")
     with pytest.raises(ValidationError):
         WorkProfile(focus="night")
+
+
+# --- check-in: tags, mood, rest ---
+
+def test_day_tags_keep_known_ones_once_in_list_order():
+    d = normalize_day({"tags": ["sick", "caffeine", "sick", "made-up", 5]}, "2026-11-13")
+    assert d["tags"] == ["caffeine", "sick"]
+    assert normalize_day({"tags": "caffeine"}, "2026-11-13")["tags"] == []
+
+
+@pytest.mark.parametrize("raw, mood", [
+    (1, 1), (5, 5), ("3", 3), (4.0, 4), (0, None), (6, None), (2.5, None), (True, None), (None, None), ("", None),
+])
+def test_day_mood_is_a_whole_number_from_1_to_5(raw, mood):
+    assert normalize_day({"mood": raw}, "2026-11-13")["mood"] == mood
+
+
+def test_day_rest_is_only_true_for_true():
+    assert normalize_day({"rest": True}, "2026-11-13")["rest"] is True
+    assert normalize_day({"rest": "yes"}, "2026-11-13")["rest"] is False
+    assert normalize_day({}, "2026-11-13") | {} == normalize_day({"tags": [], "mood": None, "rest": False}, "2026-11-13")

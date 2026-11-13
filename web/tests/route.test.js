@@ -11,6 +11,8 @@ test("pageFromHash", () => {
   assert.strictEqual(pageFromHash("#/", ON), "home");
   assert.strictEqual(pageFromHash("#/sleep", ON), "sleep");
   assert.strictEqual(pageFromHash("#/settings", ON), "settings");
+  assert.strictEqual(pageFromHash("#/insights", ON), "insights");
+  assert.strictEqual(pageFromHash("#/insights", []), "insights");
   assert.strictEqual(pageFromHash("#/study", ON), "home"); // switched off
   assert.strictEqual(pageFromHash("#/sleep/x", ON), "home");
   assert.strictEqual(pageFromHash("#settings", ON), "home");

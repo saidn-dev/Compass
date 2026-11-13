@@ -79,6 +79,14 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] New look at 360 px and 390 px: no sideways scrolling; the floating tab bar never covers the last panel (checked by Claude in the browser, 2026-11-13)
 - [ ] Narrator: a score chip is read as one sentence (name, score, level, value, target, status); the bars are read as "Fri 6: 7.5 h"
 - [ ] By eye: contrast of the muted text and the level colours on the darker background
+- [x] Check-in on Home: picking a mood, pressing a tag and ticking Rest day each save at once and keep focus on the control; Clear, a second press and unticking undo them (checked by Claude in the browser, 2026-11-13)
+- [x] Carry-over: yesterday's unfinished task is offered under Today's focus; one click adds it and the offer goes away; a finished task is not offered (checked by Claude in the browser, 2026-11-13)
+- [x] Rest day: a rest day in the week lowers the Study and Work targets ("Target 10.3 h", "1 rest day") and leaves Sleep alone (server tests + checked by Claude in the browser, 2026-11-13)
+- [x] Module page: "Last 12 weeks" shows 12 bars; the Sleep page shows "Tonight: aim to be in bed by ..." with a schedule (checked by Claude in the browser, 2026-11-13)
+- [x] Insights: opens from the menu, reload stays on it, focus lands on its heading; the weekly review lists each module with its change, extras and one thing to change; patterns and streaks show (checked by Claude in the browser, 2026-11-13)
+- [x] Six menu items at 360 px: all in one row, none cut off; no sideways scrolling on Home, Sleep, Insights or Settings (checked by Claude in the browser, 2026-11-13)
+- [ ] By hand: use the check-in for a week and read the Insights page; do the patterns and the review say things that are true?
+- [ ] Narrator: the mood buttons ("3 out of 5"), the tag buttons (pressed or not), the Insights page
 - [ ] Narrator: the menu (current page announced), a module page heading, the 7-day table, the Edit form and where focus goes after Save and Cancel
 - [x] A blank log field is saved as a gap: its card says "No data" and the brief ignores it (browser script) — superseded 2026-11-13: Home has one line per module and no log form; logging is on each module's page
 - [x] A real `0` stays `0` (browser script: spending 0%)

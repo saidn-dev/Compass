@@ -8,6 +8,7 @@ import {
   gapText, renderSleepChoice, renderSleepSuggestion,
   renderStudyGoals, WORK_QUESTIONS, renderWorkQuestion, weekHoursText,
   renderNav, dayLabel, renderModulePage, renderModuleEdit,
+  renderCheckIn, renderCarryOver, renderInsights,
 } from "../js/render.js";
 
 const EVIL = "<script>alert(1)</script>";
@@ -358,7 +359,7 @@ const entry = (over = {}) => ({
 test("renderNav lists Home, the modules that are on, then Settings", () => {
   const html = renderNav(NAV_AREAS, ["work", "sleep"], "sleep");
   const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
-  assert.deepStrictEqual(hrefs, ["#/", "#/sleep", "#/work", "#/settings"]);
+  assert.deepStrictEqual(hrefs, ["#/", "#/sleep", "#/work", "#/insights", "#/settings"]);
   assert.ok(!html.includes("Study"));
   assert.strictEqual(html.match(/aria-current="page"/g).length, 1);
   assert.match(html, /href="#\/sleep"[^>]*aria-current="page"/);
@@ -512,5 +513,106 @@ test("renderToday with nothing logged shows a dash", () => {
 
 test("renderNav gives every link an icon hidden from screen readers", () => {
   const html = renderNav(NAV_AREAS, ["sleep", "study", "work"], "home");
-  assert.strictEqual(html.match(/<svg class="nav-icon" aria-hidden="true"/g).length, 5);
+  assert.strictEqual(html.match(/<svg class="nav-icon" aria-hidden="true"/g).length, 6);
+});
+
+// --- check-in, carry-over, history, insights ---
+
+const TAGS = [{ id: "caffeine", label: "Caffeine late" }, { id: "exam", label: "Exam or deadline" }];
+
+test("check-in: mood 1 to 5 with the saved one ticked, tags pressed, rest ticked", () => {
+  const html = renderCheckIn({ mood: 4, tags: ["exam"], rest: true }, TAGS);
+  assert.strictEqual(html.match(/type="radio" name="mood"/g).length, 5);
+  assert.match(html, /name="mood" value="4" checked/);
+  assert.ok(!/name="mood" value="3" checked/.test(html));
+  assert.match(html, /data-tag="exam" aria-pressed="true"/);
+  assert.match(html, /data-tag="caffeine" aria-pressed="false"/);
+  assert.match(html, /id="rest-day"[^>]* checked/);
+  assert.ok(html.includes("data-clear-mood"));
+});
+
+test("check-in with nothing saved: no mood ticked, no Clear, rest unticked", () => {
+  const html = renderCheckIn({ mood: null, tags: [], rest: false }, TAGS);
+  assert.ok(!html.includes(" checked"));
+  assert.ok(!html.includes("data-clear-mood"));
+  assert.ok(!html.includes('aria-pressed="true"'));
+});
+
+test("carry-over: one button per unfinished task, escaped; nothing when there are none", () => {
+  const html = renderCarryOver(["Call the bank", IMG]);
+  assert.strictEqual(html.match(/data-carry=/g).length, 2);
+  assert.ok(html.includes("From yesterday"));
+  assert.ok(!html.includes("<img"));
+  assert.strictEqual(renderCarryOver([]), "");
+});
+
+test("module page: tonight's bedtime, rest days and 12 weeks of history", () => {
+  const history = Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1} Sep`, value: i === 0 ? null : i }));
+  const html = renderModulePage(entry({ guidance: "Tonight: aim to be in bed by 22:30.", rest_days: 2, history, weekly_target: 7.5 }),
+    DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes("Tonight: aim to be in bed by 22:30."));
+  assert.ok(html.includes("2 rest days"));
+  assert.ok(html.includes("Last 12 weeks"));
+  assert.strictEqual(html.match(/class="week-bar history-bar"/g).length, 12);
+  assert.ok(html.includes("Week of 1 Sep: not logged"));
+  assert.ok(html.includes("Week of 12 Sep: 11 h"));
+  assert.strictEqual(html.match(/class="week-bar"/g).length, 7);
+});
+
+test("module page without the extras shows none of them", () => {
+  const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(!html.includes("Last 12 weeks"));
+  assert.ok(!html.includes("rest day"));
+  assert.ok(!html.includes("hero-note"));
+  assert.ok(renderModulePage(entry({ rest_days: 1 }), DATES, TODAY, DAY, SETTINGS).includes("1 rest day<"));
+});
+
+const INSIGHTS = {
+  date: "2026-11-13",
+  review: {
+    range: "7 Nov to 13 Nov",
+    score: { value: 89, previous: 83, label: "Good", headline: "Close to course", text: "Up 6 from the week before." },
+    modules: [
+      { id: "sleep", label: "Sleep", value_text: "7.4 h average a night", change_text: "Up from 6 h.", score: 92, score_label: "Good", previous_score: 80, best: "Best day: Tuesday (8.5 h)." },
+      { id: "study", label: "Study", value_text: "Nothing logged", change_text: "", score: null, score_label: "No data", previous_score: null, best: null },
+    ],
+    extras: ["Habits: 50% done, up from 0%."],
+    change: "One thing to change: Set a wind-down alarm 30 minutes before bed tonight.",
+  },
+  patterns: [{ text: "On days tagged Caffeine late you slept 6 h on average, against 8 h on other days.", detail: "3 days against 3, from the last 4 weeks." }],
+  streaks: [{ label: "Logging", days: 3, best: 5, text: "3 days running" }, { label: IMG, days: 0, best: 0, text: "No streak yet" }],
+};
+
+test("insights: the weekly review", () => {
+  const html = renderInsights(INSIGHTS);
+  assert.ok(html.includes("Weekly review"));
+  assert.ok(html.includes("<span>7 Nov to 13 Nov</span>"));
+  assert.ok(html.includes('<span class="hero-number">89</span>'));
+  assert.ok(html.includes("Close to course"));
+  assert.ok(html.includes("Up 6 from the week before."));
+  assert.match(html, /href="#\/sleep"/);
+  assert.ok(html.includes("7.4 h average a night"));
+  assert.ok(html.includes("Best day: Tuesday (8.5 h)."));
+  assert.ok(html.includes("Nothing logged"));
+  assert.ok(html.includes("Habits: 50% done, up from 0%."));
+  assert.ok(html.includes("One thing to change: Set a wind-down alarm"));
+  assert.match(html, /class="review-row" data-level="good"/);
+  assert.match(html, /class="review-row" data-level="no_data"/);
+});
+
+test("insights: patterns and streaks, escaped", () => {
+  const html = renderInsights(INSIGHTS);
+  assert.ok(html.includes("On days tagged Caffeine late you slept 6 h"));
+  assert.ok(html.includes("3 days against 3, from the last 4 weeks."));
+  assert.ok(html.includes("3 days running"));
+  assert.ok(html.includes("Best: 5"));
+  assert.ok(!html.includes("<img"));
+});
+
+test("insights with nothing yet says what is needed", () => {
+  const html = renderInsights({ ...INSIGHTS, patterns: [],
+    review: { ...INSIGHTS.review, score: { value: null, previous: null, label: "No data", headline: "No bearings yet", text: "" }, extras: [], change: null } });
+  assert.ok(html.includes('<span class="hero-number">-</span>'));
+  assert.ok(html.includes("No patterns yet"));
+  assert.ok(html.includes("3 days"));
 });

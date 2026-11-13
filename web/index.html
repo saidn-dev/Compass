@@ -230,6 +230,11 @@
         <div id="brief"></div>
       </section>
 
+      <section class="panel panel-checkin" aria-labelledby="checkin-title">
+        <h2 id="checkin-title">Check-in</h2>
+        <div class="check-in" id="check-in"></div>
+      </section>
+
       <div class="dashboard-grid">
         <section class="panel panel-focus" aria-labelledby="focus-title">
           <h2 id="focus-title">Today's focus</h2>
@@ -240,6 +245,7 @@
             <button type="submit" class="btn">Add</button>
           </form>
           <p class="form-error" id="task-error" role="alert" hidden></p>
+          <div class="carry-over" id="carry-over"></div>
         </section>
 
         <section class="panel panel-goals" aria-labelledby="goals-title">
@@ -269,6 +275,11 @@
     <div class="view view-module" id="module-view" hidden>
       <h1 id="module-title" tabindex="-1"></h1>
       <div class="module-grid" id="module-body"></div>
+    </div>
+
+    <div class="view view-insights" id="insights-view" hidden>
+      <h1 tabindex="-1">Insights</h1>
+      <div class="module-grid" id="insights-body"></div>
     </div>
 
     <div class="view view-settings" id="settings-view" hidden>

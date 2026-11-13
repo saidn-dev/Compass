@@ -38,6 +38,11 @@ Each feature lists what it needs first. Build top to bottom: a feature starts on
 | Settings screen (modules, habits, goals, export, import, delete) | Dashboard, Export/import/delete |
 | Side nav and module pages (Sleep, Study, Work) | Dashboard, Settings screen |
 | Scores, weekly bars and contributors | Side nav and module pages |
+| Check-in on Home (mood, tags, rest day) | Dashboard |
+| Rest days lower weekly targets | Check-in, Scores |
+| Carry over yesterday's unfinished focus tasks | Focus tasks |
+| 12 weeks of history and tonight's bedtime on module pages | Side nav and module pages |
+| Insights page: weekly review, patterns, streaks | Check-in, Scores |
 
 ## Stage 5: Extras
 | Feature | Needs |
@@ -50,5 +55,8 @@ All tests pass, the QA checklist is signed off, and the app starts with one comm
 
 ## Later (v2, not in v1)
 TickTick and Google Calendar data, AI assistant. These build on the same server.
+
+## Later (v3)
+Points, levels and avatars (decided 2026-11-13).
 
 Movement (steps) and the Java CSV importer were taken out of v1 on 2026-11-08. Steps need a step counter or another app, so both come back in v2 with the app connections. The importer code stays in `tools/importer/`.

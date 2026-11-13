@@ -193,3 +193,26 @@ def test_area_score(value, target, mode, score):
 ])
 def test_score_words(score, label, headline):
     assert score_words(score) == (label, headline)
+
+
+# --- rest days ---
+
+from app.areas import effective_target
+
+STUDY = next(a for a in AREAS if a.id == "study")
+SLEEP = next(a for a in AREAS if a.id == "sleep")
+
+
+def rest_week(rest: int) -> list[dict]:
+    return [{"rest": i < rest} for i in range(7)]
+
+
+def test_rest_days_shrink_a_weekly_target():
+    assert effective_target(STUDY, 14, rest_week(0)) == 14
+    assert effective_target(STUDY, 14, rest_week(2)) == 10
+    assert effective_target(STUDY, 12, rest_week(2)) == 8.6
+    assert effective_target(STUDY, 14, rest_week(7)) == 0
+
+
+def test_rest_days_leave_a_nightly_average_alone():
+    assert effective_target(SLEEP, 7.5, rest_week(3)) == 7.5

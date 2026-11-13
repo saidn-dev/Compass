@@ -208,6 +208,10 @@ body[data-page="work"] {
   --glow: #4a3526;
 }
 
+body[data-page="insights"] {
+  --glow: #24403f;
+}
+
 body[data-page="settings"] {
   --glow: #2c3035;
 }
@@ -1162,6 +1166,214 @@ input[type="radio"] {
   color: var(--text-muted);
 }
 
+.hero-note {
+  max-width: 40ch;
+  margin: 10px 0 0;
+  color: var(--text);
+}
+
+/* The check-in on Home: mood, tags and the rest-day box. */
+.check-in {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mood {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.mood legend,
+.field-label {
+  padding: 0;
+  margin: 0 0 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.mood-options,
+.tag-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mood-option {
+  position: relative;
+  cursor: pointer;
+}
+
+.mood-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mood-option > span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-variant-numeric: tabular-nums;
+}
+
+.mood-option input:checked + span {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.mood-option input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.mood .hint {
+  margin: 6px 0 0;
+}
+
+.tag-toggle {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tag-toggle:hover {
+  color: var(--text);
+}
+
+.tag-toggle[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.carry-over {
+  margin-top: 12px;
+}
+
+.carry-over:empty {
+  display: none;
+}
+
+.carry-over .btn {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: flex-start;
+}
+
+/* Insights: the weekly review's rows, patterns and streaks. */
+.review-list,
+.pattern-list,
+.streak-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-row,
+.streak {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-row:first-child,
+.streak:first-child,
+.pattern-list li:first-child {
+  padding-top: 0;
+}
+
+.streak:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.review-name {
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.review-name:hover,
+.review-name:focus-visible {
+  text-decoration: underline;
+}
+
+.review-score {
+  font-size: 0.85rem;
+  color: var(--level);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-text {
+  grid-column: 1 / -1;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.review-extra {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+}
+
+.review-change {
+  margin: 14px 0 0;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+
+.pattern-list li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pattern-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.pattern-list p {
+  margin: 0 0 2px;
+}
+
+.streak-label {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.streak-days {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.streak[data-on] .streak-days {
+  color: var(--level-good);
+}
+
+.streak-best {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 /* Status: always words, with a shape too, so colour is never the only signal. */
 .status {
   display: inline-flex;
@@ -1543,8 +1755,33 @@ input[type="radio"] {
 }
 
 .week-bar-day {
+  min-height: 1.2em;
   font-size: 0.75rem;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 12 weeks: thinner gaps, no numbers over the bars, shorter bars. */
+.week-bars-compact {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.week-bars-compact .week-bar-value {
+  display: none;
+}
+
+.week-bars-compact .week-bar-track {
+  height: 90px;
+}
+
+.week-bars-compact .week-bar-fill {
+  width: 70%;
+}
+
+.week-bars-compact .week-bar-track::after {
+  left: -2px;
+  right: -2px;
 }
 
 .week-bar[data-today] .week-bar-day {

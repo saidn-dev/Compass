@@ -21,6 +21,8 @@ def is_logged(day: dict) -> bool:
         or bool(day.get("habits"))
         or bool(day.get("tasks"))
         or bool(day.get("note"))
+        or bool(day.get("tags"))
+        or day.get("mood") is not None
     )
 
 

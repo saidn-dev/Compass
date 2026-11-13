@@ -1,10 +1,10 @@
 // Which page an address means. The part after "#" picks the page:
-// "#/" is Home, "#/sleep" the Sleep page, "#/settings" Settings.
+// "#/" is Home, "#/sleep" the Sleep page, "#/insights" Insights, "#/settings" Settings.
 
 // "#/sleep" -> "sleep". Anything unknown, or a module that is switched off, -> "home".
 export function pageFromHash(hash, modules) {
   const name = hash.startsWith("#/") ? hash.slice(2) : "";
-  if (name === "settings" || modules.includes(name)) return name;
+  if (name === "settings" || name === "insights" || modules.includes(name)) return name;
   return "home";
 }
 

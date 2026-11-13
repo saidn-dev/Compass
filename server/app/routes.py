@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.areas import AREAS, last_n_dates
 from app.dashboard import build_dashboard
+from app.insights import HISTORY_WEEKS, build_insights
 from app.db import Repository
 from app.lists import check_tasks
 from app.models import Settings, check_date_key, merge_numbers
@@ -129,8 +130,18 @@ def save_days_bulk(body: Bulk, repo: Repo) -> dict:
 def dashboard(repo: Repo, date_key: Annotated[str | None, Query(alias="date")] = None) -> dict:
     # date.today() is the computer's local date, never UTC.
     today = check_date_key(date_key) if date_key else date.today().isoformat()
-    first = last_n_dates(today, 7)[0]
+    # 12 weeks: the last 7 days for the numbers, the rest for each area's history.
+    first = last_n_dates(today, HISTORY_WEEKS * 7)[0]
     return build_dashboard(repo.days_between(first, today), repo.get_settings(), today)
+
+
+# --- insights ---
+
+@router.get("/insights")
+def insights(repo: Repo, date_key: Annotated[str | None, Query(alias="date")] = None) -> dict:
+    today = check_date_key(date_key) if date_key else date.today().isoformat()
+    first = last_n_dates(today, HISTORY_WEEKS * 7)[0]
+    return build_insights(repo.days_between(first, today), repo.get_settings(), today)
 
 
 # --- backup and delete ---
