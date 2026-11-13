@@ -13,3 +13,6 @@ tools/importer/out/
 
 # demo data (rebuilt by tools/demo.py)
 demo.db
+
+# Claude working files (plans, ledgers, screenshots)
+.superpowers/
