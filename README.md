@@ -70,10 +70,6 @@ While the server runs, `http://127.0.0.1:8765/docs` lists every API endpoint and
 - **v2:** TickTick and Google Calendar as data sources, an optional AI assistant, and Movement (steps read from another app, using the parked importer).
 - **v3:** points, levels and avatars.
 
-## Docs
-
-[FEATURES.md](FEATURES.md) (features in build order), [docs/qa-checklist.md](docs/qa-checklist.md), the [design specs](docs/superpowers/specs/), the [v1 plan](2026-10-21-compass-v1-sdp.md) and the original [product spec](docs/product-spec.md) (partly out of date).
-
 ## License
 
 [MIT](LICENSE)
