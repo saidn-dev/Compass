@@ -5,7 +5,6 @@ import pytest
 from app.areas import (
     AREAS,
     area_progress,
-    area_status,
     area_value,
     date_key,
     last_n_dates,
@@ -91,27 +90,6 @@ def test_real_zero_is_kept():
     assert area_value(area("work"), days_with("work_hours", [0, 0])) == 0
 
 
-# --- area_status ---
-
-def test_up_status_at_and_below_target():
-    assert area_status(7.5, 7.5, "up") == "on_track"
-    assert area_status(7.4, 7.5, "up") == "behind"
-
-
-def test_limit_status_at_and_over_target():
-    assert area_status(100, 100, "limit") == "on_track"
-    assert area_status(101, 100, "limit") == "behind"
-
-
-def test_no_value_is_no_data():
-    assert area_status(None, 7.5, "up") == "no_data"
-
-
-def test_unknown_mode_is_rejected():
-    with pytest.raises(ValueError):
-        area_status(5, 5, "sideways")
-
-
 # --- area_progress ---
 
 def test_progress_is_percent_of_target():
@@ -182,17 +160,30 @@ def test_area_score(value, target, mode, score):
 
 
 @pytest.mark.parametrize("score, label, headline", [
-    (100, "Optimal", "Right on course"),   # only a met target is "on course"
-    (99, "Good", "Close to course"),
-    (85, "Good", "Close to course"),
-    (84, "Fair", "Drifting a little"),
-    (70, "Fair", "Drifting a little"),
-    (69, "Pay attention", "Off course"),
+    (100, "Optimal", "Right on course"),
+    (85, "Optimal", "Right on course"),
+    (84, "Good", "Close to course"),
+    (70, "Good", "Close to course"),
+    (69, "Fair", "Drifting a little"),
+    (60, "Fair", "Drifting a little"),
+    (59, "Pay attention", "Off course"),   # never "Poor"
     (0, "Pay attention", "Off course"),
     (None, "No data", "No bearings yet"),
 ])
 def test_score_words(score, label, headline):
     assert score_words(score) == (label, headline)
+
+
+@pytest.mark.parametrize("score, label, headline", [
+    (100, "Great", "Within your limit"),   # at or under the limit
+    (99, "Ok", "A little over"),
+    (85, "Ok", "A little over"),           # up to 15% over
+    (84, "Too much", "Well over your limit"),
+    (0, "Too much", "Well over your limit"),
+    (None, "No data", "No bearings yet"),
+])
+def test_limit_words(score, label, headline):
+    assert score_words(score, "limit") == (label, headline)
 
 
 # --- rest days ---

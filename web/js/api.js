@@ -45,6 +45,9 @@ export const getDashboard = (date) => request("GET", `/api/dashboard?date=${date
 export const getInsights = (date) => request("GET", `/api/insights?date=${date}`);
 export const getDay = (date) => request("GET", `/api/days/${date}`);
 export const putDay = (date, day) => request("PUT", `/api/days/${date}`, day);
+// session: { area, task, minutes, ended_at }; both answer with the whole day.
+export const postSession = (date, session) => request("POST", `/api/days/${date}/sessions`, session);
+export const deleteSession = (date, id) => request("DELETE", `/api/days/${date}/sessions/${encodeURIComponent(id)}`);
 export const exportData = () => request("GET", "/api/export");
 export const importData = (backup) => request("POST", "/api/import", backup);
 export const deleteAll = () => request("DELETE", "/api/data", undefined, { "X-Confirm": "delete-all" });

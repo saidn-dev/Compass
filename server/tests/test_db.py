@@ -231,7 +231,7 @@ def test_round_trip_keeps_a_study_goal_without_a_date(repo, tmp_path):
     backup = repo.export_all()
     fresh = Repository(str(tmp_path / "other.db"))
     fresh.import_all(backup)
-    assert fresh.export_all()["settings"]["study_goals"] == [{"name": "Read more", "date": None}]
+    assert fresh.export_all()["settings"]["study_goals"] == [{"name": "Read more", "date": None, "hours": None, "steps": []}]
 
 
 def test_old_backup_without_work_imports(repo):

@@ -2,8 +2,10 @@
 // Each function returns a string; app.js puts it into the page.
 // web/preview.html shows the HTML each one produces, and styles.css styles it.
 
+import { dateHint, parseDate } from "./dates.js";
+import { IDLE, LENGTHS, SESSIONS_A_ROUND, countdownText, isPaused, remainingMs, ringShare } from "./timer.js";
+
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const STATUS_KEYS = { "On track": "on_track", "Behind": "behind", "No data": "no_data" };
 const TREND_WORDS = { up: "Trending up", down: "Trending down", flat: "Steady", none: "Not enough data" };
 
 // Makes text safe to put inside HTML: "<b>" shows as the text <b>, not bold.
@@ -105,21 +107,40 @@ function gauge(score) {
     </svg>`;
 }
 
-// The big block at the top of a page: gauge, small label, big number, headline.
-// extra: more HTML under the headline (already escaped).
-function hero({ kicker, number, unit = "", headline, score, level, status = "", extra = "" }) {
-  const statusKey = status ? ` data-status="${STATUS_KEYS[status] || "no_data"}"` : "";
-  return `<section class="hero" data-level="${levelKey(level)}"${statusKey} aria-label="${escapeHtml(kicker)}">
+// The level word and, next to it, the top reason: "Fair · Mostly hours: 4 of 10 h this week".
+// The reason is the "why" behind the number, shown without a tap.
+function heroStatus(level, reason) {
+  if (!level || level === "No data") return "";
+  const why = reason ? `<span class="hero-reason">${escapeHtml(reason)}</span>` : "";
+  return `<p class="hero-status"><span class="status">${escapeHtml(level)}</span>${why}</p>`;
+}
+
+// The big block at the top of a page: gauge, small label, big number, headline,
+// then the level word with its reason.
+// extra: more HTML under that (already escaped).
+// label: what a screen reader calls the block; the kicker when not given.
+function hero({ kicker, label = kicker, number, unit = "", headline, score, level, reason = null, extra = "" }) {
+  return `<section class="hero" data-level="${levelKey(level)}" aria-label="${escapeHtml(label)}">
     ${gauge(score)}
     <p class="hero-kicker">${escapeHtml(kicker)}</p>
     <p class="hero-value"><span class="hero-number">${number}</span>${unit}</p>
     <h2 class="hero-headline">${escapeHtml(headline)}</h2>
+    ${heroStatus(level, reason)}
     ${extra}
   </section>`;
 }
 
-// Home's hero: the overall score. score: { value, label, headline } from the dashboard.
-export function renderToday(score) {
+// Under a hero: "Learning your rhythm · day 4 of 14" for the first two weeks, then the last
+// 14 days against your usual range. learning: text or null; usual: { place, text } or null.
+export function baselineLine(learning, usual) {
+  if (learning) return `<p class="hero-usual" data-place="learning">${escapeHtml(learning)}</p>`;
+  if (!usual) return "";
+  return `<p class="hero-usual" data-place="${escapeHtml(usual.place)}">${escapeHtml(usual.text)}</p>`;
+}
+
+// Home's hero: the overall score. score: { value, label, headline, reason } from the dashboard.
+// extra: more HTML under it (already escaped), such as the learning line.
+export function renderToday(score, extra = "") {
   const has = score.value !== null && score.value !== undefined;
   return hero({
     kicker: "Compass score",
@@ -127,6 +148,8 @@ export function renderToday(score) {
     headline: score.headline,
     score: score.value,
     level: score.label,
+    reason: score.reason,
+    extra,
   });
 }
 
@@ -135,7 +158,7 @@ export function renderScoreChip(area) {
   const has = area.score !== null && area.score !== undefined;
   const target = targetText(area.target, area.mode, area.unit);
   const label = has
-    ? `${area.label}: score ${area.score}, ${area.score_label}. ${withUnit(area.value, area.unit)}, ${target}, ${area.status}`
+    ? `${area.label}: score ${area.score}, ${area.score_label}. ${withUnit(area.value, area.unit)}, ${target}`
     : `${area.label}: no data, ${target}`;
   return `<a class="score-chip" href="#/${escapeHtml(area.id)}" data-level="${levelKey(area.score_label)}" aria-label="${escapeHtml(label)}">
     <span class="score-chip-ring">
@@ -353,17 +376,40 @@ export function renderSleepSuggestion(s) {
 
 const MAX_STUDY_GOALS = 5;
 
-// The Study page: one row per goal (name and optional date), "+ Add another" up to 5,
-// then hours a week for all study. No goals yet draws one empty row.
-// goals: [{ name, date }]; prefix keeps ids unique ("onb" now, the Study page later).
-export function renderStudyGoals(goals, hours, prefix) {
+const DATE_EXAMPLES = "Try “in 12 days”, “next Monday”, “5 Dec” or 2026-12-05.";
+const MAX_STEPS = 10;
+
+// The line under a goal's date box: the date it was read as, or how to write one.
+// "" while the box is blank or when today isn't known.
+export function studyDateHint(text, today) {
+  if (!today || String(text ?? "").trim() === "") return "";
+  const read = parseDate(text, today);
+  return read ? dateHint(read.date, today) : `Can't read that date. ${DATE_EXAMPLES}`;
+}
+
+// The Study form: one row per goal (name, date in words, hours it needs), "+ Add another"
+// up to 5, then hours a week for all study. No goals yet draws one empty row.
+// goals: saved goals or rows read back from the form ({ dateText, stepsText } keep what was typed);
+// prefix keeps ids unique ("onb" onboarding, "mod" the Study page); today: for the date hints;
+// withSteps: a Steps box per goal (the Study page only, onboarding stays short).
+export function renderStudyGoals(goals, hours, prefix, today = null, withSteps = false) {
   const rows = goals.length > 0 ? goals : [{ name: "", date: null }];
   const id = escapeHtml(prefix);
 
   const items = rows.map((g, i) => {
     const n = i + 1;
+    const dateText = g.dateText ?? g.date ?? "";
+    const hint = studyDateHint(dateText, today);
     const remove = rows.length > 1
       ? `<button type="button" class="btn btn-small" data-remove-study="${i}">Remove<span class="visually-hidden"> goal ${n}</span></button>`
+      : "";
+    const stepsText = g.stepsText ?? (g.steps || []).map((s) => s.text).join("\n");
+    const steps = withSteps
+      ? `<div class="field study-steps">
+        <label for="${id}-study-steps-${i}">Steps<span class="visually-hidden"> for goal ${n}</span>, one a line</label>
+        <textarea id="${id}-study-steps-${i}" name="study-steps" rows="2">${escapeHtml(stepsText)}</textarea>
+        <p class="hint">Up to ${MAX_STEPS}. Tick them off on the Study page.</p>
+      </div>`
       : "";
     return `<div class="study-goal-row" data-index="${i}">
       <div class="field">
@@ -372,9 +418,18 @@ export function renderStudyGoals(goals, hours, prefix) {
       </div>
       <div class="field">
         <label for="${id}-study-date-${i}">Date<span class="visually-hidden"> for goal ${n}</span></label>
-        <input id="${id}-study-date-${i}" name="study-date" type="date" value="${escapeHtml(g.date || "")}">
+        <input id="${id}-study-date-${i}" name="study-date" type="text" autocomplete="off" placeholder="in 12 days" aria-describedby="${id}-study-date-hint-${i}" value="${escapeHtml(dateText)}">
+        <p class="hint date-hint" id="${id}-study-date-hint-${i}" aria-live="polite">${escapeHtml(hint)}</p>
+      </div>
+      <div class="field field-narrow">
+        <label for="${id}-study-goal-hours-${i}">Hours it needs<span class="visually-hidden"> for goal ${n}</span></label>
+        <div class="input-unit">
+          <input id="${id}-study-goal-hours-${i}" name="study-goal-hours" type="number" inputmode="decimal" min="0" max="1000" step="any" value="${escapeHtml(g.hours ?? "")}">
+          <span class="unit">h</span>
+        </div>
       </div>
       ${remove}
+      ${steps}
     </div>`;
   }).join("");
 
@@ -386,7 +441,7 @@ export function renderStudyGoals(goals, hours, prefix) {
     <legend>What are you studying for?</legend>
     ${items}
     ${add}
-    <p class="hint">Leave the date blank if there isn't one.</p>
+    <p class="hint">Write the date the way you'd say it, or leave it blank if there isn't one. With a date and the hours it needs, the Study page shows your pace; pick the goal as the timer's task to count sessions toward it.</p>
   </fieldset>
   <div class="field study-hours">
     <label for="${id}-study-hours">Hours a week for all your studying</label>
@@ -395,6 +450,83 @@ export function renderStudyGoals(goals, hours, prefix) {
       <span class="unit">h</span>
     </div>
   </div>`;
+}
+
+// --- Onboarding: the starting point, its projection, and the first session ---
+
+const FOCUS_NOUNS = { study: "study", work: "work" };
+const START_QUESTIONS = {
+  study: "Honestly, how many hours do you study in a normal week right now?",
+  work: "Honestly, how many hours do you work in a normal week right now?",
+};
+
+// One honest estimate per focus module (Study, Work). start: the saved starting point or null.
+export function renderStartingPoint(modules, start) {
+  return modules.filter((id) => START_QUESTIONS[id]).map((id) => {
+    const value = start ? start[`${id}_hours`] : null;
+    return `<div class="field">
+      <label for="onb-start-${id}">${START_QUESTIONS[id]}</label>
+      <div class="input-unit">
+        <input id="onb-start-${id}" name="${id}_hours" type="number" inputmode="decimal" min="0" max="168" step="any" value="${escapeHtml(value ?? "")}">
+        <span class="unit">h</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// 7 h a week -> about 360 h a year (to the nearest 10).
+function yearly(hoursAWeek) {
+  return formatNumber(Math.round((hoursAWeek * 52) / 10) * 10);
+}
+
+// The projection: a week's estimate as a year, and what the target changes. Kind, not a doom number.
+// estimates: { study: 5, work: null }; targets: [{ area_id, target, mode }].
+export function renderProjection(estimates, targets) {
+  const lines = Object.entries(estimates).filter(([id, e]) => FOCUS_NOUNS[id] && e !== null && e !== undefined).map(([id, e]) => {
+    const t = targets.find((x) => x.area_id === id);
+    const noun = FOCUS_NOUNS[id];
+    let line = `At about ${formatNumber(e)} h a week, that's about ${yearly(e)} h of ${noun} a year.`;
+    if (t && t.mode === "limit") {
+      line += e > t.target
+        ? ` Keeping to your limit of ${formatNumber(t.target)} h a week gives back about ${yearly(e - t.target)} h a year.`
+        : ` Your limit is ${formatNumber(t.target)} h a week, and you're already within it.`;
+    } else if (t) {
+      const gap = t.target - e;
+      const weeks = Math.round((gap * 52) / 40);
+      line += gap <= 0
+        ? ` That already meets your target of ${formatNumber(t.target)} h a week; Compass will help you keep it steady.`
+        : ` Your target of ${formatNumber(t.target)} h a week adds about ${yearly(gap)} h a year`
+          + (weeks >= 1 ? `, the same as ${weeks} full 40-hour week${weeks === 1 ? "" : "s"}.` : ".");
+    }
+    return `<p>${escapeHtml(line)}</p>`;
+  });
+  if (lines.length === 0) return "";
+  return `<div class="projection">
+    <p class="projection-label">Estimate</p>
+    ${lines.join("")}
+    <p class="hint">Worked out from your own numbers, 52 weeks a year. Compass checks it against what you really log from here on.</p>
+  </div>`;
+}
+
+// The last onboarding step: which module and how long. modules: the focus modules picked.
+export function renderFirstSession(modules) {
+  const focus = modules.filter((id) => FOCUS_NOUNS[id]);
+  const areas = focus.map((id, i) => `<label class="mood-option">
+      <input type="radio" name="session-area" value="${id}"${i === 0 ? " checked" : ""}>
+      <span>${id === "study" ? "Study" : "Work"}</span>
+    </label>`).join("");
+  const lengths = [15, 25].map((n) => `<label class="mood-option">
+      <input type="radio" name="session-minutes" value="${n}"${n === 25 ? " checked" : ""}>
+      <span>${n}<span class="visually-hidden"> minutes</span></span>
+    </label>`).join("");
+  const which = focus.length > 1
+    ? `<fieldset class="mood"><legend>What for</legend><div class="mood-options">${areas}</div></fieldset>`
+    : `<input type="hidden" name="session-area" value="${escapeHtml(focus[0] || "study")}">`;
+  return `${which}
+    <fieldset class="mood">
+      <legend>Minutes</legend>
+      <div class="mood-options">${lengths}</div>
+    </fieldset>`;
 }
 
 // --- Work ---
@@ -551,9 +683,10 @@ function moduleLogFields(areaId, day, settings) {
 // Bars for a run of values. Each bar's height is its share of the biggest value (or of
 // the target, if that is bigger); a dashed line marks the target.
 // items: [{ value, label, said, today }]; said is what a screen reader hears.
-function barChart(items, target, { itemClass = "week-bar", listClass = "week-bars" } = {}) {
+// usual: { low, high } shades your usual range behind the bars (the 12-week chart only).
+function barChart(items, target, { itemClass = "week-bar", listClass = "week-bars", usual = null } = {}) {
   const logged = items.map((item) => item.value).filter((v) => v !== null && v !== undefined);
-  const top = Math.max(Number(target) || 0, ...logged, 0) || 1;
+  const top = Math.max(Number(target) || 0, ...logged, usual ? usual.high : 0, 0) || 1;
   const percent = (n) => `${Math.round((n / top) * 1000) / 10}%`;
 
   const bars = items.map((item) => {
@@ -566,8 +699,11 @@ function barChart(items, target, { itemClass = "week-bar", listClass = "week-bar
       </li>`;
   }).join("");
 
-  const line = target ? ` style="--target: ${percent(target)}"` : "";
-  return `<ol class="${listClass}"${line}>${bars}</ol>`;
+  const styles = [];
+  if (target) styles.push(`--target: ${percent(target)}`);
+  if (usual) styles.push(`--usual-low: ${percent(Math.min(usual.low, top))}`, `--usual-high: ${percent(Math.min(usual.high, top))}`);
+  const line = styles.length > 0 ? ` style="${styles.join("; ")}"` : "";
+  return `<ol class="${listClass}"${usual ? " data-usual" : ""}${line}>${bars}</ol>`;
 }
 
 // The last 7 days as bars, against one day's share of the target.
@@ -582,6 +718,13 @@ function weekBars(area, dates, today) {
   return barChart(items, area.daily_target);
 }
 
+// "6.5 to 7.4 h a night", "8 to 11 h a week".
+function usualSpan(area) {
+  const { low, high } = area.usual;
+  const span = low === high ? formatNumber(low) : `${formatNumber(low)} to ${formatNumber(high)}`;
+  return `${span} ${area.unit} ${area.period === "this week" ? "a week" : "a night"}`;
+}
+
 // The last 12 weeks as bars, against a full week's target. Only every fourth
 // week is named under its bar, so the names fit on a phone.
 function historyBars(area) {
@@ -591,7 +734,9 @@ function historyBars(area) {
     return { value: week.value, label: i % 4 === 0 || i === last ? week.label : "", today: i === last,
       said: `Week of ${week.label}: ${gap ? "not logged" : withUnit(week.value, area.unit)}` };
   });
-  return barChart(items, area.weekly_target, { itemClass: "week-bar history-bar", listClass: "week-bars week-bars-compact" });
+  // Your usual range is in the same units as a week's value: nightly for Sleep, a week's total otherwise.
+  return barChart(items, area.weekly_target,
+    { itemClass: "week-bar history-bar", listClass: "week-bars week-bars-compact", usual: area.usual });
 }
 
 // What went into this week's score, each with a small meter.
@@ -605,11 +750,171 @@ function contributorList(contributors) {
   return `<ul class="contributors">${items}</ul>`;
 }
 
+// --- Focus sessions and the timer ---
+
+const SESSION_AREAS = { study: "Study", work: "Work" };
+
+// 25 -> "25 min", 60 -> "1 h", 110 -> "1 h 50 min" (the same words as the server's).
+export function durationText(minutes) {
+  const total = Math.round(minutes);
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  if (!hours) return `${rest} min`;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+}
+
+const sessionsWord = (n) => `${n} session${n === 1 ? "" : "s"}`;
+const sessionsFor = (day, areaId) => (day.sessions || []).filter((s) => s.area === areaId);
+
+// Under a log form: today's typed-in hours and sessions added up, e.g.
+// "1 h logged + 2 sessions (50 min) = 1 h 50 min". "" when there are no sessions.
+export function focusBreakdown(day, areaId) {
+  const sessions = sessionsFor(day, areaId);
+  if (sessions.length === 0) return "";
+  const minutes = sessions.reduce((sum, s) => sum + s.minutes, 0);
+  const logged = day[`${areaId}_hours`];
+  if (logged === null || logged === undefined) return `${sessionsWord(sessions.length)} = ${durationText(minutes)}`;
+  return `${withUnit(logged, "h")} logged + ${sessionsWord(sessions.length)} (${durationText(minutes)}) = `
+    + durationText(Math.round(logged * 60) + minutes);
+}
+
+// Today's sessions for one module, newest last, each with a Remove button.
+export function renderSessionList(sessions, areaId) {
+  const mine = (sessions || []).filter((s) => s.area === areaId);
+  if (mine.length === 0) return `<p class="empty">No sessions yet today.</p>`;
+  const items = mine.map((s) => {
+    const length = durationText(s.minutes);
+    return `<li class="session">
+      <span class="session-time">${escapeHtml(s.ended_at)}</span>
+      <span class="session-length">${escapeHtml(length)}</span>
+      <span class="session-task">${escapeHtml(s.task || "No task")}</span>
+      <button type="button" class="btn btn-ghost btn-small" data-session-remove="${escapeHtml(s.id)}"
+        aria-label="${escapeHtml(`Remove the ${length} session that ended at ${s.ended_at}`)}">Remove</button>
+    </li>`;
+  }).join("");
+  return `<ul class="session-list">${items}</ul>`;
+}
+
+// One line about a timer running for a module, linking to its page; "" when none is.
+// Used on Home and on the other module's page.
+export function timerLine(timer, now) {
+  const label = SESSION_AREAS[timer.area];
+  if (!label) return "";
+  const link = (text) => `<a href="#/${escapeHtml(timer.area)}">${escapeHtml(text)}</a>`;
+  if (timer.phase === "away") return `<p class="focus-line">${link(`A ${label} session needs an answer`)}</p>`;
+  if (timer.phase !== "focus" && timer.phase !== "break") return "";
+  const what = timer.phase === "focus" ? `${label} session ${timer.round} of ${SESSIONS_A_ROUND}` : `${label} break`;
+  return `<p class="focus-line">${link(what)} · <span class="focus-time" data-timer-text role="timer">`
+    + `${countdownText(remainingMs(timer, now))}</span> left${isPaused(timer) ? " · paused" : ""}</p>`;
+}
+
+// The ring that counts down, with the time in the middle.
+function focusRing(timer, now) {
+  const share = Math.round(ringShare(timer, now) * 1000) / 10;
+  return `<div class="focus-ring" data-phase="${escapeHtml(timer.phase)}">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <circle class="focus-ring-track" cx="60" cy="60" r="54" pathLength="100"/>
+      <circle class="focus-ring-fill" data-timer-ring cx="60" cy="60" r="54" pathLength="100" stroke-dasharray="${share} 100"/>
+    </svg>
+    <p class="focus-clock"><span class="visually-hidden">Time left </span><span data-timer-text role="timer">${countdownText(remainingMs(timer, now))}</span></p>
+  </div>`;
+}
+
+// The start form: length, task and Start. tasks: today's focus tasks; done: the round just ended.
+// goals: study goal names, offered as tasks too, so a session counts toward that goal's pace.
+function focusStartForm(areaId, timer, tasks, goals = []) {
+  const done = timer.phase === "done" && timer.area === areaId;
+  const minutes = done ? timer.minutes : 25;
+  const lengths = LENGTHS.map((n) => `<label class="mood-option">
+      <input type="radio" name="focus-minutes" value="${n}"${n === minutes ? " checked" : ""}>
+      <span>${n}<span class="visually-hidden"> minutes</span></span>
+    </label>`).join("");
+  const open = tasks.filter((t) => !t.done).map((t) => t.text);
+  const option = (text) => {
+    const chosen = done && timer.task === text ? " selected" : "";
+    return `<option value="${escapeHtml(text)}"${chosen}>${escapeHtml(text)}</option>`;
+  };
+  const goalNames = goals.filter((name) => !open.includes(name));
+  const options = goalNames.length > 0
+    ? `${open.length > 0 ? `<optgroup label="Today's focus">${open.map(option).join("")}</optgroup>` : ""}`
+      + `<optgroup label="Study goals">${goalNames.map(option).join("")}</optgroup>`
+    : open.map(option).join("");
+  return `<form id="focus-form" class="focus-form" data-area="${escapeHtml(areaId)}" novalidate>
+    ${done ? `<p class="focus-note">Round done: ${SESSIONS_A_ROUND} sessions. Take a proper break.</p>` : ""}
+    <fieldset class="mood focus-lengths">
+      <legend>Minutes</legend>
+      <div class="mood-options">${lengths}</div>
+    </fieldset>
+    <div class="field">
+      <label for="focus-task">Task</label>
+      <select id="focus-task" name="task">
+        <option value="">No task</option>
+        ${options}
+      </select>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">${done ? "Start another round" : "Start"}</button>
+    </div>
+  </form>`;
+}
+
+// The timer part of a module's focus panel, for whatever the timer is doing now.
+// timer: the state from timer.js; tasks: today's focus tasks; message: a short note to show;
+// goals: study goal names for the task picker (Study only).
+export function renderFocusPanel(areaId, timer, tasks, now, message = "", goals = []) {
+  const note = message ? `<p class="focus-message">${escapeHtml(message)}</p>` : "";
+  const busy = ["focus", "break", "away"].includes(timer.phase);
+  if (busy && timer.area !== areaId) return `${timerLine(timer, now)}${note}`;
+
+  if (timer.phase === "away") {
+    const p = timer.pending;
+    return `<p class="focus-note">Your ${escapeHtml(durationText(p.minutes))} session ended at ${escapeHtml(p.ended_at)} while Compass wasn't open. Save it?</p>
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" data-focus="keep">Save session</button>
+      <button type="button" class="btn btn-ghost" data-focus="drop">Discard session</button>
+    </div>${note}`;
+  }
+  if (!busy) return `${focusStartForm(areaId, timer, tasks, areaId === "study" ? goals : [])}${note}`;
+
+  const paused = isPaused(timer);
+  const what = timer.phase === "focus"
+    ? `Session ${timer.round} of ${SESSIONS_A_ROUND}${timer.task ? ` · ${timer.task}` : ""}`
+    : timer.long ? "Long break · the round ends after it" : `Break · then session ${timer.round + 1} of ${SESSIONS_A_ROUND}`;
+  const toggle = paused
+    ? `<button type="button" class="btn btn-primary" data-focus="resume">Resume</button>`
+    : `<button type="button" class="btn btn-primary" data-focus="pause">Pause</button>`;
+  const more = timer.phase === "focus"
+    ? `<button type="button" class="btn" data-focus="finish">Finish early</button>
+      <button type="button" class="btn btn-ghost" data-focus="reset">Reset</button>`
+    : `<button type="button" class="btn" data-focus="skip">${timer.long ? "End round" : "Skip break"}</button>
+      <button type="button" class="btn btn-ghost" data-focus="stop">Stop</button>`;
+  return `<div class="focus-running" data-phase="${escapeHtml(timer.phase)}">
+    ${focusRing(timer, now)}
+    <p class="focus-what">${escapeHtml(what)}${paused ? " · paused" : ""}</p>
+    <div class="form-actions focus-actions">${toggle}${more}</div>
+  </div>${note}`;
+}
+
+// Home: today's focus sessions in one line, and the timer if one is running.
+// focus: the dashboard's { today: { count, minutes, study, work } }.
+export function renderFocusSummary(focus, timer = IDLE, now = 0) {
+  const today = focus.today;
+  let line = "No focus sessions yet today.";
+  if (today.count > 0) {
+    const parts = Object.entries(SESSION_AREAS).filter(([id]) => today[id] > 0)
+      .map(([id, label]) => `${label} ${durationText(today[id])}`);
+    line = `Focus sessions today: ${today.count}, ${durationText(today.minutes)}`
+      + (parts.length > 1 ? ` (${parts.join(", ")})` : "") + ".";
+  }
+  return `<p class="focus-summary-line">${escapeHtml(line)}</p>${timerLine(timer, now)}`;
+}
+
 // A module's page: the hero (this week), today's log, the last 7 days, the last 12 weeks,
-// contributors and details.
+// contributors and details. Study and Work also get the focus timer and today's sessions.
 // area: the module's entry from the dashboard; dates: the 7 days in area.series;
-// day: what is logged today; settings: for the sleep schedule and the work type.
-export function renderModulePage(area, dates, today, day, settings) {
+// day: what is logged today; settings: for the sleep schedule and the work type;
+// focusTimer: the timer's HTML from renderFocusPanel (a fresh start form when not given).
+export function renderModulePage(area, dates, today, day, settings, focusTimer = "") {
   const id = escapeHtml(area.id);
   const hasValue = area.value !== null && area.value !== undefined;
   const hasScore = area.score !== null && area.score !== undefined;
@@ -617,33 +922,50 @@ export function renderModulePage(area, dates, today, day, settings) {
   const trend = TREND_WORDS[area.trend]
     ? `<p class="trend" data-trend="${escapeHtml(area.trend)}">${TREND_WORDS[area.trend]}</p>`
     : "";
-  const lines = area.details.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  const goals = area.details.goals || [];
+  const lines = goals.length > 0
+    ? renderStudyGoalList(goals)
+    : area.details.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
   const history = area.history && area.history.length > 0
     ? `<section class="panel module-history" aria-labelledby="module-history-title">
     <h2 id="module-history-title">Last 12 weeks</h2>
     ${historyBars(area)}
+    ${area.usual ? `<p class="hint usual-key"><span class="usual-swatch" aria-hidden="true"></span>Shaded: your usual range, ${escapeHtml(usualSpan(area))}</p>` : ""}
   </section>`
     : "";
 
   const top = hero({
     kicker: area.period,
+    label: `${area.label} this week`,
     number: hasValue ? formatNumber(area.value) : "-",
     unit: hasValue ? `<span class="unit">${escapeHtml(area.unit)}</span>` : "",
     headline: area.headline,
     score: area.score,
     level: area.score_label,
-    status: area.status,
+    reason: area.reason,
     extra: `<p class="hero-meta">
-      <span class="status">${escapeHtml(area.status)}</span>
       <span>${escapeHtml(target)}</span>
       ${hasScore ? `<span>Score ${formatNumber(area.score)}</span>` : ""}
       ${area.rest_days ? `<span>${area.rest_days} rest day${area.rest_days === 1 ? "" : "s"}</span>` : ""}
     </p>
     ${trend}
+    ${baselineLine(area.learning, area.usual)}
     ${area.guidance ? `<p class="hero-note">${escapeHtml(area.guidance)}</p>` : ""}`,
   });
 
+  const timed = SESSION_AREAS[area.id] !== undefined;
+  const focus = timed
+    ? `<section class="panel module-focus" aria-labelledby="module-focus-title">
+    <h2 id="module-focus-title">Focus timer</h2>
+    <div id="focus-timer">${focusTimer || renderFocusPanel(area.id, IDLE, day.tasks || [], 0)}</div>
+    <h3 class="focus-list-title">Today's sessions</h3>
+    <div id="focus-sessions">${renderSessionList(day.sessions, area.id)}</div>
+  </section>`
+    : "";
+  const breakdown = timed ? focusBreakdown(day, area.id) : "";
+
   return `${top}
+  ${focus}
   <section class="panel module-log" aria-labelledby="module-log-title">
     <h2 id="module-log-title">${area.id === "sleep" ? "Log last night" : "Log today"}</h2>
     <form id="module-log-form" data-area="${id}" novalidate>
@@ -653,6 +975,7 @@ export function renderModulePage(area, dates, today, day, settings) {
         <p class="save-status" id="module-log-status" role="status" aria-live="polite"></p>
       </div>
     </form>
+    ${timed ? `<p class="hint focus-breakdown" id="focus-breakdown"${breakdown ? "" : " hidden"}>${escapeHtml(breakdown)}</p>` : ""}
   </section>
   <section class="panel module-days" aria-labelledby="module-days-title">
     <h2 id="module-days-title">Last 7 days</h2>
@@ -672,18 +995,45 @@ export function renderModulePage(area, dates, today, day, settings) {
   </section>`;
 }
 
+// The Study page's goals: name and countdown, the sessions put in, the pace line, and the
+// steps as checkboxes. goals: details.goals from the dashboard.
+export function renderStudyGoalList(goals) {
+  const items = goals.map((g) => {
+    const meta = [g.when, g.steps_text].filter(Boolean).map(escapeHtml).join(" · ");
+    const steps = g.steps.length > 0
+      ? `<ul class="task-list study-step-list" aria-label="Steps for ${escapeHtml(g.name)}">${g.steps.map((step, j) => `<li class="task${step.done ? " is-done" : ""}">
+        <label>
+          <input type="checkbox" id="study-step-${g.index}-${j}" data-goal="${g.index}" data-step="${j}"${step.done ? " checked" : ""}>
+          <span class="task-text">${escapeHtml(step.text)}</span>
+        </label>
+      </li>`).join("")}</ul>`
+      : "";
+    return `<li class="study-goal">
+      <h3 class="study-goal-name">${escapeHtml(g.name)}</h3>
+      ${meta ? `<p class="study-goal-meta">${meta}</p>` : ""}
+      <p class="study-goal-sessions">${escapeHtml(g.sessions)}</p>
+      ${g.pace ? `<p class="hint">${escapeHtml(g.pace)}</p>` : ""}
+      ${steps}
+    </li>`;
+  }).join("");
+  return `<ul class="study-goal-list">${items}</ul>`;
+}
+
 // The form that replaces a module's details when Edit is pressed.
 // hours: the saved Study or Work hours a week (not used for Sleep).
-export function renderModuleEdit(areaId, settings, hours) {
+// title: the panel's heading, drawn again above the form so the panel keeps its name.
+// today: for the Study goals' date hints.
+export function renderModuleEdit(areaId, settings, hours, title = "", today = null) {
   let fields;
   if (areaId === "sleep") {
     fields = renderSleepChoice(settings, "mod", false);
   } else if (areaId === "study") {
-    fields = `<div id="module-study">${renderStudyGoals(settings.study_goals, hours, "mod")}</div>`;
+    fields = `<div id="module-study">${renderStudyGoals(settings.study_goals, hours, "mod", today, true)}</div>`;
   } else {
     fields = WORK_QUESTIONS.map((_, i) => renderWorkQuestion(i, settings.work, hours, "mod")).join("");
   }
-  return `<form id="module-edit-form" data-area="${escapeHtml(areaId)}" novalidate>
+  const heading = title ? `<h2 id="module-details-title">${escapeHtml(title)}</h2>` : "";
+  return `${heading}<form id="module-edit-form" data-area="${escapeHtml(areaId)}" novalidate>
     ${fields}
     <p class="form-error" id="module-edit-error" role="alert" hidden></p>
     <div class="form-actions">
@@ -765,7 +1115,8 @@ export function renderInsights(data) {
       </li>`).join("")}</ul>`
     : `<p class="empty">No patterns yet. Compass needs at least 3 days on each side of a comparison, from the last 4 weeks.</p>`;
 
-  const streakItems = streaks.map((s) => `<li class="streak"${s.days > 0 ? " data-on" : ""}>
+  const streakItems = streaks.map((s) => `<li class="streak" data-state="${escapeHtml(s.state || "out")}">
+      <span class="streak-flame" aria-hidden="true"></span>
       <span class="streak-label">${escapeHtml(s.label)}</span>
       <span class="streak-days">${escapeHtml(s.text)}</span>
       <span class="streak-best">Best: ${formatNumber(s.best)}</span>
@@ -782,8 +1133,53 @@ export function renderInsights(data) {
     <h2 id="patterns-title">Patterns</h2>
     ${patternItems}
   </section>
+  ${renderFocusReport(data.focus_report)}
   <section class="panel" aria-labelledby="streaks-title">
     <h2 id="streaks-title">Streaks</h2>
+    <p class="hint">One missed day only fades a streak; do it the next day to revive it. Rest days don't count against you.</p>
     <ul class="streak-list">${streakItems}</ul>
+    ${renderShield(data.shield, data.date)}
   </section>`;
+}
+
+// The weekly Focus Report: locked for the first 7 days, then a few plain lines.
+// report: { locked, text } or { locked: false, lines }, or null without Study or Work.
+export function renderFocusReport(report) {
+  if (!report) return "";
+  const body = report.locked
+    ? `<p class="empty focus-report-locked">${escapeHtml(report.text)}</p>`
+    : `<ul class="focus-report">${report.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`;
+  return `<section class="panel" aria-labelledby="focus-report-title">
+    <h2 id="focus-report-title">Focus Report</h2>
+    ${body}
+  </section>`;
+}
+
+// Pausing streaks for a holiday or an exam period. shield: the active pause or null.
+export function renderShield(shield, today) {
+  if (shield) {
+    return `<div class="shield" data-active>
+      <p>${escapeHtml(shield.text)}</p>
+      <button type="button" class="btn btn-small" data-shield-end>End the pause now</button>
+    </div>`;
+  }
+  return `<form class="shield" id="shield-form" novalidate>
+    <h3>Pause streaks</h3>
+    <p class="hint">For a holiday or an exam period. Paused days neither count nor break a streak.</p>
+    <div class="field">
+      <label for="shield-reason">Reason</label>
+      <select id="shield-reason" name="reason">
+        <option value="holiday">Holiday</option>
+        <option value="exam">Exam period</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="shield-end">Until</label>
+      <input id="shield-end" name="end" type="date" min="${escapeHtml(today)}" required>
+    </div>
+    <p class="form-error" id="shield-error" role="alert" hidden></p>
+    <div class="form-actions">
+      <button type="submit" class="btn">Pause streaks</button>
+    </div>
+  </form>`;
 }

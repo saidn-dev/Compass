@@ -4,19 +4,20 @@ Thin glue only. It calls the rule files and the database and returns JSON.
 """
 import json
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, Depends, Header, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from app.areas import AREAS, last_n_dates
 from app.dashboard import build_dashboard
+from app.focus import add_session, remove_session, with_focus_hours
 from app.insights import HISTORY_WEEKS, build_insights
 from app.db import Repository
 from app.lists import check_tasks
-from app.models import Settings, check_date_key, merge_numbers
+from app.models import MAX_TASK_TEXT, SESSION_AREAS, SESSION_MINUTES, Settings, check_date_key, merge_numbers
 from app.settings_rules import apply_onboarding, check_settings
-from app.sleep import Age, HabitId, Role, suggest
+from app.sleep import Age, HabitId, Role, parse_time, suggest
 
 MAX_IMPORT_BYTES = 2 * 1024 * 1024
 CONFIRM_DELETE = "delete-all"
@@ -35,6 +36,22 @@ class Onboarding(BaseModel):
 
 class Bulk(BaseModel):
     days: list[Any]
+
+
+class NewSession(BaseModel):
+    """A focus session the timer just finished. The server makes its id."""
+    area: Literal[*SESSION_AREAS]
+    task: Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_TASK_TEXT)] | None = None
+    minutes: Annotated[int, Field(ge=SESSION_MINUTES[0], le=SESSION_MINUTES[1])]
+    ended_at: str
+
+    @field_validator("ended_at", mode="before")
+    @classmethod
+    def _time(cls, v: object) -> str:
+        time = parse_time(v)
+        if time is None:
+            raise ValueError("Times must look like HH:MM, e.g. 14:05.")
+        return time
 
 
 class SleepAnswers(BaseModel):
@@ -103,7 +120,27 @@ def read_day(date_key: str, repo: Repo) -> dict:
 def save_day(date_key: str, body: Annotated[dict, Body()], repo: Repo) -> dict:
     check_date_key(date_key)
     check_tasks(body)
-    repo.put_day({**body, "date": date_key})
+    # Sessions change only through their own URLs below, so a page holding an old
+    # copy of the day (sent back to save a note, say) can't wipe a new session.
+    stored = repo.get_day(date_key)
+    repo.put_day({**body, "date": date_key, "sessions": stored["sessions"]})
+    return repo.get_day(date_key)
+
+
+@router.post("/days/{date_key}/sessions")
+def save_focus_session(date_key: str, body: NewSession, repo: Repo) -> dict:
+    day = repo.get_day(check_date_key(date_key))
+    repo.put_day(add_session(day, body.model_dump()))
+    return repo.get_day(date_key)
+
+
+@router.delete("/days/{date_key}/sessions/{session_id}")
+def remove_focus_session(date_key: str, session_id: str, repo: Repo) -> dict:
+    day = repo.get_day(check_date_key(date_key))
+    try:
+        repo.put_day(remove_session(day, session_id))
+    except LookupError:
+        raise ApiError(404, "not_found", "There's no such focus session on that day.") from None
     return repo.get_day(date_key)
 
 
@@ -132,7 +169,8 @@ def dashboard(repo: Repo, date_key: Annotated[str | None, Query(alias="date")] =
     today = check_date_key(date_key) if date_key else date.today().isoformat()
     # 12 weeks: the last 7 days for the numbers, the rest for each area's history.
     first = last_n_dates(today, HISTORY_WEEKS * 7)[0]
-    return build_dashboard(repo.days_between(first, today), repo.get_settings(), today)
+    # Focus session minutes count as Study and Work hours from here on.
+    return build_dashboard(with_focus_hours(repo.days_between(first, today)), repo.get_settings(), today)
 
 
 # --- insights ---
@@ -141,7 +179,7 @@ def dashboard(repo: Repo, date_key: Annotated[str | None, Query(alias="date")] =
 def insights(repo: Repo, date_key: Annotated[str | None, Query(alias="date")] = None) -> dict:
     today = check_date_key(date_key) if date_key else date.today().isoformat()
     first = last_n_dates(today, HISTORY_WEEKS * 7)[0]
-    return build_insights(repo.days_between(first, today), repo.get_settings(), today)
+    return build_insights(with_focus_hours(repo.days_between(first, today)), repo.get_settings(), today)
 
 
 # --- backup and delete ---

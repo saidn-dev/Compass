@@ -2,7 +2,7 @@
 
 A local, single-user life dashboard. You log a few numbers a day (sleep, study, work) and Compass reads your last seven days and tells you what to focus on next. Everything runs on your own computer.
 
-> **Status: v1 done.** Every check in the [QA checklist](docs/qa-checklist.md) has passed except the Narrator checks, which still need a person.
+> **Status: v1 done, and v2 stage 1 (the focus timer) built.** Every check in the [QA checklist](docs/qa-checklist.md) has passed except a screen-reader listen-through and a week of real use, which need a person.
 
 ## Features
 
@@ -14,6 +14,7 @@ A local, single-user life dashboard. You log a few numbers a day (sleep, study, 
 | **Insights** | Weekly review against the week before, patterns from the last 4 weeks, and streaks |
 | **Check-in** | Mood (1-5), tags for the day and a rest-day box; rest days lower that week's Study and Work targets |
 | **Focus, habits, goals, notes** | Up to 3 tasks a day (yesterday's unfinished ones offered again), a 7-day habit grid, up to 3 goals, a daily note |
+| **Focus timer** | On the Study and Work pages: 15, 25 or 50 minutes on one of today's tasks, a pomodoro cycle with breaks, and a notification at each change. Session minutes add to that day's hours, and each session can be removed |
 | **Your data** | Export to one JSON file, import it back, or delete everything |
 
 Default targets: Sleep 7.5 h a night, Study 12 h a week, Work 16 h a week. **A blank is a gap, never zero:** a missing value never counts against you. Compass gives no medical or financial advice and makes no AI calls.
@@ -47,8 +48,8 @@ After the first run, this starts a second copy on port 8770 with 12 weeks of mad
 
 ```bash
 pip install -r server/requirements-dev.txt   # inside .venv
-python -m pytest server/tests                # 482 tests
-node --test "web/tests/*.test.js"            # 61 tests
+python -m pytest server/tests                # 589 tests
+node --test "web/tests/*.test.js"            # 103 tests
 ```
 
 While the server runs, `http://127.0.0.1:8765/docs` lists every API endpoint and lets you try them.
@@ -60,14 +61,14 @@ While the server runs, `http://127.0.0.1:8765/docs` lists every API endpoint and
 | `server/app/` | FastAPI server, all rules, SQLite and security (Python) |
 | `server/tests/` | pytest suite |
 | `web/` | The page: `index.html`, `styles.css`, `js/` (vanilla JS) |
-| `web/tests/` | `node:test` tests for the renderers and addresses |
+| `web/tests/` | `node:test` tests for the renderers, addresses and the focus timer |
 | `tools/demo.py` | Demo data server |
 | `tools/importer/` | Java CSV importer, parked until v2 |
 | `start.py` | One-command launcher |
 
 ## Roadmap
 
-- **v2:** TickTick and Google Calendar as data sources, an optional AI assistant, and Movement (steps read from another app, using the parked importer).
+- **v2:** the focus timer (done), then Study page depth (goal steps, plain-words dates) and reminders. After that: TickTick and Google Calendar as data sources, an optional AI assistant, and Movement (steps read from another app, using the parked importer).
 - **v3:** points, levels and avatars.
 
 ## License

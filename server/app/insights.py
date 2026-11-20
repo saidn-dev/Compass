@@ -7,9 +7,11 @@ from datetime import date, timedelta
 
 from app.areas import Area, area_score, area_value, effective_target, last_n_dates, score_words
 from app.brief import WEEKDAYS, _fmt, round_value
+from app.focus import focus_review_line
 from app.lists import habit_completion
 from app.models import MAX_TASKS, TAGS, Settings
 from app.pages import PERIODS
+from app.progress import focus_report
 from app.settings_rules import AREAS_BY_ID, target_for
 from app.sleep import LATE_GRACE_MINUTES, minutes_late, time_minus_hours
 from app.work import work_tip
@@ -98,45 +100,101 @@ def find_patterns(days: list[dict], settings: Settings, today: str) -> list[dict
 
 # --- streaks ---
 
-def _streak(label: str, flags: list[bool]) -> dict:
-    """flags: one per day, newest first. Today not done yet doesn't break a streak."""
-    counted = flags[1:] if flags and not flags[0] else flags
-    current = 0
-    for done in counted:
-        if not done:
-            break
-        current += 1
-    best = run = 0
-    for done in flags:
-        run = run + 1 if done else 0
+def _days(n: int) -> str:
+    return f"{n} day{'' if n == 1 else 's'}"
+
+
+def _streak(label: str, flags: list[bool], skipped: list[bool]) -> dict:
+    """A graded streak. flags: one per day, newest first (True = done); skipped: rest or pause days.
+
+    A skipped day that isn't done neither counts nor breaks the streak. One missed day makes the
+    streak fade; doing it the next day revives it. Two missed days in a row end it.
+    Today not done yet is never a miss. States: lit (done today), flicker (alive, today still to
+    do), fade (missed the last day, revive it today), out (no streak).
+    """
+    oldest_first = list(zip(reversed(flags), reversed(skipped)))
+    pending = bool(oldest_first) and not oldest_first[-1][0]
+    if pending:
+        oldest_first = oldest_first[:-1]
+
+    run = best = revived = misses = 0
+    for done, skip in oldest_first:
+        if done:
+            if misses == 1 and run > 0:
+                revived += 1
+            run, misses = run + 1, 0
+        elif not skip:
+            misses += 1
+            if misses >= 2:
+                run, revived = 0, 0
         best = max(best, run)
-    if current == 0:
-        text = "No streak yet"
+
+    if run == 0:
+        state = "out"
+    elif not pending:
+        state = "lit"
     else:
-        text = f"{current} day{'' if current == 1 else 's'} running"
-    return {"label": label, "days": current, "best": best, "text": text}
+        state = "flicker" if misses == 0 else "fade"
+
+    if state == "lit":
+        text = f"{_days(run)} · lit"
+    elif state == "flicker":
+        text = f"{_days(run)} · do it today to keep it lit"
+    elif state == "fade":
+        text = f"Fading · do it today to revive {_days(run)}"
+    else:
+        text = "Start again today" if best else "No streak yet"
+    if revived and state in ("lit", "flicker"):
+        text += f" · revived {revived} time{'' if revived == 1 else 's'}"
+    return {"label": label, "days": run, "best": best, "state": state, "revived": revived, "text": text}
+
+
+def shielded(date_key: str, settings: Settings) -> str | None:
+    """The reason ("holiday" or "exam") if a streak pause covers that date, else None."""
+    for shield in settings.shields:
+        if shield.start <= date_key <= shield.end:
+            return shield.reason
+    return None
+
+
+SHIELD_WORDS = {"holiday": "Holiday", "exam": "Exam period"}
+
+
+def active_shield(settings: Settings, today: str) -> dict | None:
+    """The pause covering today: {"reason", "end", "text"}, or None."""
+    for shield in settings.shields:
+        if shield.start <= today <= shield.end:
+            return {"reason": shield.reason, "start": shield.start, "end": shield.end,
+                    "text": f"{SHIELD_WORDS[shield.reason]}: streaks paused until {_short_date(shield.end)}."}
+    return None
 
 
 def find_streaks(days: list[dict], settings: Settings, today: str) -> list[dict]:
-    """Days in a row: logging any module, in bed on time (with a schedule), each habit."""
+    """Days in a row: logging any module, in bed on time (with a schedule), each habit.
+
+    Rest days and paused days (a holiday or exam shield) are skipped when nothing was done.
+    """
     by_date = {d["date"]: d for d in days}
     if by_date:
         span = (date.fromisoformat(today) - date.fromisoformat(min(by_date))).days + 1
     else:
         span = 1
-    newest_first = [by_date.get(k, {}) for k in reversed(last_n_dates(today, max(span, 1)))]
+    keys = list(reversed(last_n_dates(today, max(span, 1))))
+    newest_first = [by_date.get(k, {}) for k in keys]
+    skipped = [d.get("rest") is True or shielded(k, settings) is not None for k, d in zip(keys, newest_first)]
 
     fields = [AREAS_BY_ID[m].field for m in settings.modules]
-    streaks = [_streak("Logging", [any(d.get(f) is not None for f in fields) for d in newest_first])]
+    streaks = [_streak("Logging", [any(d.get(f) is not None for f in fields) for d in newest_first], skipped)]
 
     if settings.sleep_schedule is not None and "sleep" in settings.modules:
         planned = settings.sleep_schedule.bedtime
         on_time = [bool(d.get("bedtime")) and minutes_late(d["bedtime"], planned) <= LATE_GRACE_MINUTES
                    for d in newest_first]
-        streaks.append(_streak("Bedtime on time", on_time))
+        streaks.append(_streak("Bedtime on time", on_time, skipped))
 
     for habit in settings.habits:
-        streaks.append(_streak(habit.name, [d.get("habits", {}).get(habit.id) is True for d in newest_first]))
+        streaks.append(_streak(habit.name, [d.get("habits", {}).get(habit.id) is True for d in newest_first],
+                               skipped))
     return streaks
 
 
@@ -194,7 +252,7 @@ def build_review(days: list[dict], settings: Settings, today: str) -> dict:
             best = f"Best day: {weekday} ({_fmt(round_value(area, top))} {area.unit})."
 
         modules.append({"id": area.id, "label": area.label, "value_text": value_text, "change_text": change_text,
-                        "score": score, "score_label": score_words(score)[0],
+                        "score": score, "score_label": score_words(score, target_for(settings, area_id).mode)[0],
                         "previous_score": previous_score, "best": best})
 
     overall = _overall([m["score"] for m in modules])
@@ -218,6 +276,9 @@ def build_review(days: list[dict], settings: Settings, today: str) -> dict:
     tasks = [t for d in week for t in d.get("tasks", [])]
     if tasks:
         extras.append(f"Focus tasks: {sum(t['done'] for t in tasks)} of {len(tasks)} done.")
+    focus = focus_review_line(week, before)
+    if focus:
+        extras.append(focus)
     moods = [d["mood"] for d in week if d.get("mood") is not None]
     if moods:
         moods_before = [d["mood"] for d in before if d.get("mood") is not None]
@@ -254,6 +315,8 @@ def build_insights(days: list[dict], settings: Settings, today: str) -> dict:
         "review": build_review(days, settings, today),
         "patterns": find_patterns(days, settings, today),
         "streaks": find_streaks(days, settings, today),
+        "shield": active_shield(settings, today),
+        "focus_report": focus_report(days, settings, today),
     }
 
 

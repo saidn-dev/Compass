@@ -8,7 +8,8 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 |---|---|
 | browser script, curl, netstat, computed, screenshot, render tests, ran it | 2026-10-27 (first QA pass), 2026-10-29 (onboarding and Sleep lines), 2026-11-04 (Study lines) |
 | by hand | 2026-10-28 |
-| checked by Claude in the browser | the date on the line (2026-11-07 to 2026-11-10) |
+| checked by Claude in the browser | the date on the line (2026-11-07 to 2026-11-19) |
+| accessibility tree | 2026-11-17: what a screen reader is given (names, roles, states, where focus goes), read from Chrome's own accessibility tree. These replace the Narrator lines, since Compass now runs on Linux; the Orca line below is the listen-through |
 
 ## 1. Daily use
 
@@ -18,15 +19,15 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Onboarding goals: goals typed in are saved; blank rows are ignored; "Skip for now" finishes with no goals (browser script)
 - [x] Onboarding Back works on every step and keeps saved choices (browser script)
 - [x] Onboarding focus lands on each new step heading, and every field has a label (browser script)
-- [ ] Onboarding with Narrator: each step heading is read when it appears, the Sleep radio group, time inputs and suggestion are read sensibly
-- [ ] Narrator: Study step (row labels "Goal N" and "Date for goal N", Add and Remove, focus after each)
+- [x] Onboarding: focus lands on each step heading; the Sleep radio group is named by its question; the time inputs are labelled; the suggestion is a polite live region (accessibility tree, 2026-11-17)
+- [x] Study step: rows are "Goal N" and "Date for goal N"; Remove is "Remove goal N"; Add moves focus to the new row, Remove to "+ Add another" (accessibility tree, 2026-11-17)
 - [x] After onboarding, Settings > Modules still works and does not send you back to onboarding (browser script)
 - [x] Sleep page, goal: the hours are saved as the sleep target and shown on the card (browser script)
 - [x] Sleep page, schedule: the panel switches, "= 8 h a night" updates as you type, the schedule is saved and sets the target (browser script)
 - [x] Sleep page, "Let's work it out": all answered gives a schedule with a tip; all skipped gives an 8 h goal; a shift worker gets no times and a note; Next before a suggestion shows a message (browser script)
 - [x] Brief: with a schedule and 4+ logged bedtimes, "In bed after ... on X of Y nights" shows, with its numbers under "Numbers used" (browser script)
 - [x] Study page: "+ Add another" up to 5 rows, then "Up to 5 goals."; Remove works; focus moves to the new row or to Add; typed text is kept (browser script)
-- [x] Study page: the four messages (no goal named, a date with no name, a half-typed date, hours outside 0-168) (browser script)
+- [x] Study page: the four messages (no goal named, a date with no name, a date Compass can't read, hours outside 0-168) (browser script; date message reworded 2026-11-20)
 - [x] Study page: goals, blank dates (saved as no date) and hours are saved; a saved "Stay under" rule is kept; Back and resume redraw the saved goals (browser script)
 - [x] Brief: with Study furthest behind and a dated goal, "Exam is in 12 days." shows, with its date under "Numbers used" (browser script)
 - [x] Work screens: Work alone is "Step 3 of 5" with "Work · 1 of 6" to "Work · 6 of 6"; Sleep + Study + Work is "Step 3 of 7" to "Step 5 of 7" with no Targets step (checked by Claude in the browser, 2026-11-09)
@@ -36,7 +37,7 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Work target: employed + Mon-Fri 09:00-17:00 shows "Limit 40 h"; freelance shows "Target 40 h"; "It varies" with 25 saves 25 and clears the schedule (checked by Claude in the browser, 2026-11-09)
 - [x] Work onboarding and Settings: console shows only the favicon 404; every request goes to 127.0.0.1 (checked by Claude in the browser, 2026-11-09)
 - [x] Onboarding Work screens at 360 px: no sideways scrolling (checked by Claude in the browser, 2026-11-10)
-- [ ] Narrator: Work screens (headings, day buttons, It varies, focus)
+- [x] Work screens: focus lands on each question heading; the day buttons sit in a "Days" group and say pressed or not; "It varies" is a named checkbox (accessibility tree, 2026-11-17)
 - [x] Menu: Home, the modules that are on, Settings; turning a module on or off in Settings changes the menu at once; the page showing is marked as current (checked by Claude in the browser, 2026-11-12)
 - [x] Addresses: `#/sleep`, `#/work`, `#/settings` open their pages; reload stays on the page; Back and Forward work; `#/study` with Study off and `#/nonsense` go Home (checked by Claude in the browser, 2026-11-12)
 - [x] Menu hidden through onboarding (an address typed during onboarding changes nothing) and after Delete everything (checked by Claude in the browser, 2026-11-12)
@@ -57,23 +58,47 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Scores: a week at 92% of its target reads "Good · Close to course" beside "Behind"; only a met target reads "Right on course"; no data shows a dash and "No bearings yet" (server tests + checked by Claude in the browser, 2026-11-13)
 - [x] Module page (new look): gauge with the week's value, status, target, score and trend; 7 bars with a dashed daily-target line, empty days shown as a dash; contributors with meters (checked by Claude in the browser, 2026-11-13)
 - [x] New look at 360 px and 390 px: no sideways scrolling; the floating tab bar never covers the last panel (checked by Claude in the browser, 2026-11-13)
-- [ ] Narrator: a score chip is read as one sentence (name, score, level, value, target, status); the bars are read as "Fri 6: 7.5 h"
-- [ ] By eye: contrast of the muted text and the level colours on the darker background
+- [x] A score chip is one sentence ("Sleep: score 95, Good. 7.6 h, Target 8 h, Behind"); the bars are "Wed 11: 6.6 h" and "Week of 2 Sep: 7.5 h" (accessibility tree, 2026-11-17)
+- [x] Muted text, the level colours and the status colours are at least 4.5:1 on every surface and every page's glow (computed, 2026-11-17: lowest is 4.63:1, red text on the Insights glow)
 - [x] Check-in on Home: picking a mood, pressing a tag and ticking Rest day each save at once and keep focus on the control; Clear, a second press and unticking undo them (checked by Claude in the browser, 2026-11-13)
 - [x] Carry-over: yesterday's unfinished task is offered under Today's focus; one click adds it and the offer goes away; a finished task is not offered (checked by Claude in the browser, 2026-11-13)
 - [x] Rest day: a rest day in the week lowers the Study and Work targets ("Target 10.3 h", "1 rest day") and leaves Sleep alone (server tests + checked by Claude in the browser, 2026-11-13)
 - [x] Module page: "Last 12 weeks" shows 12 bars; the Sleep page shows "Tonight: aim to be in bed by ..." with a schedule (checked by Claude in the browser, 2026-11-13)
 - [x] Insights: opens from the menu, reload stays on it, focus lands on its heading; the weekly review lists each module with its change, extras and one thing to change; patterns and streaks show (checked by Claude in the browser, 2026-11-13)
 - [x] Six menu items at 360 px: all in one row, none cut off; no sideways scrolling on Home, Sleep, Insights or Settings (checked by Claude in the browser, 2026-11-13)
-- [ ] By hand: use the check-in for a week and read the Insights page; do the patterns and the review say things that are true?
-- [ ] Narrator: the mood buttons ("3 out of 5"), the tag buttons (pressed or not), the Insights page
-- [ ] Narrator: the menu (current page announced), a module page heading, the 7-day table, the Edit form and where focus goes after Save and Cancel
+- [x] Insights says things that are true: on the demo data (`tools/demo.py`) all five patterns and the weekly review match figures worked out straight from the database, counts included (checked by Claude, 2026-11-17)
+- [ ] By hand: use the check-in for a week of your own and read the Insights page; do the patterns and the review match how the week felt?
+- [x] Mood radios are "N out of 5"; tag buttons say pressed or not; Insights puts focus on its heading and every panel is named (accessibility tree, 2026-11-17)
+- [x] The menu marks the current page; a module page puts focus on its heading; the gauge is "Sleep this week"; the 7-day bars; the Edit form keeps the panel's heading; focus goes back to Edit after Save and Cancel (accessibility tree, 2026-11-17)
+- [ ] Orca (Linux): one listen-through of Home, a module page with its Edit form, the Study page's focus timer, and Insights, to hear that the lines above sound right
 - [x] A real `0` stays `0` (browser script: spending 0%)
 - [x] Focus tasks: blank rejected, 4th rejected, ticked task stays visible but muted (browser script)
 - [x] Habit grid: one click per cell, today and earlier days, weekly completion shown (browser script)
 - [x] Goals: add, edit percent, 4th rejected; shown on Home (browser script)
 - [x] Quick capture saves about 500 ms after typing stops and on leaving the box (browser script)
 - [x] Leave the page open across midnight (or change the clock), switch back to the tab: the date and dashboard move to the new day (by hand)
+
+### Focus timer (v2 stage 1)
+
+- [x] Study page: 15, 25 or 50 minutes and today's unfinished tasks (task text with HTML shows as text); Start puts focus on Pause; the time counts down in the ring and in the tab title (checked by Claude in the browser, 2026-11-19)
+- [x] A session's end saves it with its end time and task, shows a notification, reads the news out, and starts a 5-minute break on its own; Skip break starts the next session with the same task (checked by Claude in the browser, 2026-11-19)
+- [x] A full round: 4 sessions, a 15-minute break, then "Round done" and "Start another round" with the same length and task; nothing more runs on its own (checked by Claude in the browser, 2026-11-19)
+- [x] Finish early at 7.5 minutes saves 7 min; Reset saves nothing; under a minute nothing is saved (checked by Claude in the browser + timer tests, 2026-11-19)
+- [x] A reload during a break keeps the countdown; a 40-minute jump (laptop asleep) asks "Save it?" and saves nothing until Save session (checked by Claude in the browser, 2026-11-19)
+- [x] Session minutes count: the hero, the bars and Home's summary go up; the breakdown reads "1 h logged + 1 session (15 min) = 1 h 15 min"; Remove takes them out again and moves focus to the next Remove (checked by Claude in the browser, 2026-11-19)
+- [x] Work page while a Study break runs: one line, "Study break · 4:23 left", linking to Study, with no buttons; Home shows the same line under its summary (checked by Claude in the browser, 2026-11-19)
+- [x] The Insights weekly review shows "Focus sessions: 5 (1 h 7 min)." (checked by Claude in the browser, 2026-11-19)
+- [x] Saving the whole day from an old copy (a note autosave, say) keeps the sessions (server tests, 2026-11-19)
+- [x] 360 px with the timer running: no sideways scrolling on Study, Home or Work; console shows only the favicon 404; every request goes to 127.0.0.1; the tick runs in the `ticker.js` worker (checked by Claude in the browser, 2026-11-19)
+- [ ] By hand: one real round with Compass in a background tab. Do the notifications come on time, and does "Save it?" ever show when you didn't step away?
+
+### Study page depth (v2 stage 2)
+
+- [x] Goal dates in words: "next friday" reads "Fri 27 Nov 2026 · in 7 days" as you type; "soon" says how to write one and Save names the goal; "in 5 days" saves as a date (checked by Claude in the browser + date tests, 2026-11-20)
+- [x] Steps: one a line in the Edit form, blank lines dropped, up to 10; typed steps and dates are kept by Add and Remove; a step's tick survives editing the goal when its text is unchanged (checked by Claude in the browser, 2026-11-20)
+- [x] Ticking a step on the Study page saves it, "1 of 3 steps done" updates, and focus stays on the checkbox (checked by Claude in the browser, 2026-11-20)
+- [x] Session totals: a 50-minute Study session with the goal as its task shows "1 session · 50 min" under that goal; a Work session with the same name doesn't count (server tests + checked by Claude in the browser, 2026-11-20)
+- [x] 360 and 700 px: the Edit form's goal rows fit with no sideways scrolling; console shows only the favicon 404 (checked by Claude in the browser, 2026-11-20)
 
 ## 2. Settings and data
 

@@ -3,15 +3,22 @@
 
 import * as api from "./api.js";
 import {
-  renderBrief, renderScoreChip, renderToday, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
+  renderBrief, renderScoreChip, renderToday, baselineLine, renderOnboarding, renderHabitGrid, renderGoals, renderTasks,
   renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
-  renderStudyGoals,
+  renderStudyGoals, studyDateHint,
   renderWorkQuestion, WORK_QUESTIONS, weekHoursText,
   renderNav, renderModulePage, renderModuleEdit,
   renderCheckIn, renderCarryOver, renderInsights,
+  renderStartingPoint, renderProjection, renderFirstSession,
+  renderFocusPanel, renderFocusSummary, durationText,
 } from "./render.js";
 import { pageFromHash, hashFor } from "./route.js";
+import { parseDate } from "./dates.js";
+import {
+  IDLE, SESSIONS_A_ROUND, startSession, pause, resume, reset, finishEarly, skipBreak, stopCycle, tick,
+  keepAway, dropAway, fromSaved, isRunning, isPaused, countdownText, remainingMs, ringShare,
+} from "./timer.js";
 
 const MAX_TASKS = 3;
 const MAX_GOALS = 3;
@@ -26,6 +33,7 @@ let editingGoal = null; // index of the goal being edited in Settings, or null
 let modulePage = null; // the module whose page is showing ("sleep", "study", "work"), or null
 let pageShown = false; // false until the first page has been shown
 let carryOver = [];    // yesterday's unfinished tasks offered on Home
+let focusToday = null; // the dashboard's focus summary, for Home
 
 const $ = (id) => document.getElementById(id);
 
@@ -140,23 +148,31 @@ async function loadModulePage(id) {
   day = todayData;
   const area = dashboard.areas.find((a) => a.id === id);
   $("module-title").textContent = area.label;
-  $("module-body").innerHTML = renderModulePage(area, dashboard.dates, today, day, settings);
+  $("module-body").innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id));
 }
 
 // --- Onboarding ---
 
 // Every step, in order. Each is a <div id="onboarding-step-NAME"> in index.html.
-const ALL_STEPS = ["welcome", "modules", "sleep", "study", "work", "habits", "goals"];
+const ALL_STEPS = ["welcome", "modules", "sleep", "study", "work", "start", "habits", "goals", "session"];
 let onboardingStep = "welcome"; // the step showing right now
 
-// The steps this user goes through: Sleep, Study and Work only if they picked them.
+// Study and Work are the modules with focus time: the starting point and first session are for them.
+const focusModules = () => settings.modules.filter((id) => id === "study" || id === "work");
+
+// The steps this user goes through: Sleep, Study and Work only if they picked them; the
+// starting point and the first focus session only with Study or Work.
 function onboardingSteps() {
   const picked = settings.modules;
   const steps = ["welcome", "modules"];
   if (picked.includes("sleep")) steps.push("sleep");
   if (picked.includes("study")) steps.push("study");
   if (picked.includes("work")) steps.push("work");
-  return [...steps, "habits", "goals"];
+  const focus = focusModules().length > 0;
+  if (focus) steps.push("start");
+  steps.push("habits", "goals");
+  if (focus) steps.push("session");
+  return steps;
 }
 
 // Shows one step, hides the others, writes "Step X of N", and moves focus to its
@@ -197,7 +213,7 @@ function studyHours() {
 
 // Study: the saved goals (or one empty row) and the saved hours (or the default).
 function drawOnboardingStudy() {
-  $("onboarding-study").innerHTML = renderStudyGoals(settings.study_goals, studyHours(), "onb");
+  $("onboarding-study").innerHTML = renderStudyGoals(settings.study_goals, studyHours(), "onb", today);
   showFormError("onboarding-study-error", "");
 }
 
@@ -222,6 +238,24 @@ function drawOnboardingHabits() {
   $("onboarding-habits").innerHTML = renderHabitList(settings.habits);
 }
 
+// The starting point: the honest estimates, with the projection hidden until asked for.
+function drawOnboardingStart() {
+  $("onboarding-start-fields").innerHTML = renderStartingPoint(settings.modules, settings.starting_point);
+  $("onboarding-projection").innerHTML = "";
+  $("onboarding-start-submit").textContent = "Show my projection";
+  showFormError("onboarding-start-error", "");
+}
+
+function drawOnboardingSession() {
+  $("onboarding-session-fields").innerHTML = renderFirstSession(settings.modules);
+  showFormError("onboarding-session-error", "");
+}
+
+// Goals end onboarding unless the first focus session comes after them.
+function drawOnboardingGoals() {
+  $("onboarding-goals-submit").textContent = onboardingSteps().includes("session") ? "Next" : "Start";
+}
+
 // Draws a step (if it has anything to draw) and shows it.
 // For Work, screen says which of its six questions to show.
 function goToStep(step, screen = 0) {
@@ -233,6 +267,9 @@ function goToStep(step, screen = 0) {
     drawOnboardingWork();
   }
   if (step === "habits") drawOnboardingHabits();
+  if (step === "start") drawOnboardingStart();
+  if (step === "goals") drawOnboardingGoals();
+  if (step === "session") drawOnboardingSession();
   showOnboardingStep(step);
 }
 
@@ -257,11 +294,11 @@ function showOnboarding() {
 
 // The last step: marks onboarding as done (the server never does this by itself),
 // saving any goals at the same time, then opens the dashboard.
-async function finishOnboarding(goals = []) {
+async function finishOnboarding(goals = [], page = "home") {
   const finished = { ...settings, onboarded: true };
   if (goals.length > 0) finished.goals = goals;
   settings = await api.putSettings(finished);
-  history.replaceState(null, "", hashFor("home"));
+  history.replaceState(null, "", hashFor(page));
   pageShown = true;
   await showPage();
 }
@@ -324,7 +361,7 @@ function changeStudyRows(event, container, prefix) {
   if (add) rows.push({ name: "", date: null });
   if (remove) rows.splice(Number(remove.dataset.removeStudy), 1);
   const hours = container.querySelector('input[name="study-hours"]').value;
-  container.innerHTML = renderStudyGoals(rows, hours, prefix);
+  container.innerHTML = renderStudyGoals(rows, hours, prefix, today, prefix === "mod");
   if (add) {
     const names = container.querySelectorAll('input[name="study-name"]');
     names[names.length - 1].focus();
@@ -403,10 +440,48 @@ $("onboarding-habits").addEventListener("click", (event) => {
 });
 
 // Next and Skip both move on; habits already added stay saved either way.
-$("onboarding-habits-next").addEventListener("click", () => showOnboardingStep("goals"));
-$("onboarding-skip-habits").addEventListener("click", () => showOnboardingStep("goals"));
+$("onboarding-habits-next").addEventListener("click", () => goToStep("goals"));
+$("onboarding-skip-habits").addEventListener("click", () => goToStep("goals"));
 
-// Goals: save any goals that have a name and finish. Rows left blank are ignored.
+// Starting point: the first Submit saves the estimates and shows the projection;
+// the second goes on. Changing a number shows the projection button again.
+$("onboarding-start-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if ($("onboarding-projection").innerHTML.trim() !== "") return goToStep(nextStep());
+  const start = { date: today, study_hours: null, work_hours: null };
+  for (const input of event.target.querySelectorAll("input")) {
+    const text = input.value.trim();
+    if (text === "") continue;
+    const hours = Number(text);
+    if (!(hours >= 0 && hours <= 168)) return showFormError("onboarding-start-error", "Hours a week must be between 0 and 168.");
+    start[input.name] = hours;
+  }
+  try {
+    settings = await api.putSettings({ ...settings, starting_point: start });
+    showFormError("onboarding-start-error", "");
+    const estimates = { study: start.study_hours, work: start.work_hours };
+    const projection = renderProjection(estimates, settings.targets);
+    if (!projection) return goToStep(nextStep());  // nothing estimated: nothing to project
+    $("onboarding-projection").innerHTML = projection;
+    $("onboarding-start-submit").textContent = "Next";
+  } catch (error) {
+    showFormError("onboarding-start-error", error.message);
+  }
+});
+
+$("onboarding-start-form").addEventListener("input", () => {
+  $("onboarding-projection").innerHTML = "";
+  $("onboarding-start-submit").textContent = "Show my projection";
+});
+
+// Goals: save any goals that have a name, then finish (or go on to the first session).
+// Rows left blank are ignored.
+async function afterGoals(goals) {
+  if (!onboardingSteps().includes("session")) return finishOnboarding(goals);
+  if (goals.length > 0) settings = await api.putSettings({ ...settings, goals });
+  goToStep("session");
+}
+
 $("onboarding-goals-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const goals = [];
@@ -416,13 +491,32 @@ $("onboarding-goals-form").addEventListener("submit", async (event) => {
     if (name) goals.push({ name, percent: 0, detail });
   }
   try {
-    await finishOnboarding(goals);
+    await afterGoals(goals);
   } catch (error) {
     showFormError("onboarding-goals-error", error.message);
   }
 });
 
-$("onboarding-skip-goals").addEventListener("click", () => safely(finishOnboarding));
+$("onboarding-skip-goals").addEventListener("click", () => safely(() => afterGoals([])));
+
+// First focus session: finish onboarding and open the module's page with the timer running.
+$("onboarding-session-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const area = form.querySelector('input[name="session-area"]:checked, input[type="hidden"][name="session-area"]').value;
+  const minutes = Number(form.querySelector('input[name="session-minutes"]:checked').value);
+  try {
+    askForNotifications();
+    focusMessage = "";
+    setTimer(startSession({ area, task: null, minutes }, Date.now()));
+    await finishOnboarding([], area);
+    announce(`Your first session started: ${minutes} minutes.`);
+  } catch (error) {
+    showFormError("onboarding-session-error", error.message);
+  }
+});
+
+$("onboarding-skip-session").addEventListener("click", () => safely(() => finishOnboarding()));
 
 // Back buttons: go to the step before the one showing, redrawn from what is saved.
 $("onboarding-view").addEventListener("click", (event) => {
@@ -484,25 +578,54 @@ function withSleepChoice(current, choice) {
 
 // The goal rows as typed: [{ name, date, badDate }], names trimmed, a blank date as null.
 // badDate: a half-typed date (e.g. no year), which the browser reports as blank.
+// The Study form's rows as typed. dateText is what was written; date is what it was read as
+// (null when blank), badDate is true when it can't be read. stepsText is null without a Steps box.
 function readStudyRows(container) {
   return [...container.querySelectorAll(".study-goal-row")].map((row) => {
-    const date = row.querySelector('input[name="study-date"]');
+    const dateText = row.querySelector('input[name="study-date"]').value.trim();
+    const read = parseDate(dateText, today);
+    const hours = row.querySelector('input[name="study-goal-hours"]').value.trim();
+    const steps = row.querySelector('textarea[name="study-steps"]');
     return {
       name: row.querySelector('input[name="study-name"]').value.trim(),
-      date: date.value || null,
-      badDate: date.validity.badInput,
+      dateText,
+      date: read ? read.date : null,
+      badDate: read === null,
+      hours: hours === "" ? null : Number(hours),
+      stepsText: steps ? steps.value : null,
     };
   });
 }
 
+const MAX_STEPS = 10;
+const MAX_STEP_TEXT = 100;
+
+// A Steps box's lines, blank ones dropped.
+function stepLines(text) {
+  return text.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
 // Checks the Study page: { goals, hours, error }. Fully blank rows are dropped.
+// Each goal's steps are a list of texts, or null when the form had no Steps box.
 function checkStudy(rows, hoursText) {
-  const kept = rows.filter((g) => g.name || g.date || g.badDate);
+  const kept = rows.filter((g) => g.name || g.dateText || (g.stepsText && g.stepsText.trim()));
   if (!kept.some((g) => g.name)) return { error: "Tell Compass what you're studying for." };
   if (kept.some((g) => !g.name)) return { error: "Give each goal a name, or remove it." };
-  const half = kept.findIndex((g) => g.badDate);
-  if (half !== -1) return { error: `Finish the date for goal ${rows.indexOf(kept[half]) + 1}, or clear it.` };
-  const goals = kept.map(({ name, date }) => ({ name, date }));
+  const number = (g) => rows.indexOf(g) + 1;
+  const bad = kept.find((g) => g.badDate);
+  if (bad) return { error: `Can't read the date for goal ${number(bad)}. Try “in 12 days”, “next Monday” or “5 Dec”, or clear it.` };
+  const badHours = kept.find((g) => g.hours !== null && !(g.hours > 0 && g.hours <= 1000));
+  if (badHours) return { error: `Hours for goal ${number(badHours)} must be between 0 and 1000, or blank.` };
+  for (const g of kept) {
+    if (g.stepsText === null) continue;
+    const lines = stepLines(g.stepsText);
+    if (lines.length > MAX_STEPS) return { error: `Goal ${number(g)} has ${lines.length} steps. Keep it to ${MAX_STEPS}.` };
+    if (lines.some((line) => line.length > MAX_STEP_TEXT)) {
+      return { error: `Keep each step for goal ${number(g)} under ${MAX_STEP_TEXT} characters.` };
+    }
+  }
+  const goals = kept.map(({ name, date, hours, stepsText }) => (
+    { name, date, hours, steps: stepsText === null ? null : stepLines(stepsText) }));
   const hours = Number(hoursText);
   if (hoursText.trim() === "" || !(hours > 0 && hours <= 168)) {
     return { error: "Hours a week must be between 0 and 168." };
@@ -510,12 +633,29 @@ function checkStudy(rows, hoursText) {
   return { goals, hours };
 }
 
+// The goals to save, with steps. A goal keeps its saved steps when the form had none to show
+// (onboarding), and a step keeps its tick when its text is unchanged. The saved goal is found
+// by name, else by position, so renaming a goal keeps its ticks.
+function withSteps(oldGoals, goals) {
+  return goals.map((g, i) => {
+    const old = oldGoals.find((o) => o.name === g.name) || oldGoals[i];
+    const oldSteps = old ? old.steps || [] : [];
+    if (g.steps === null) return { ...g, steps: oldSteps };
+    const steps = g.steps.map((text) => ({ text, done: oldSteps.some((s) => s.text === text && s.done) }));
+    return { ...g, steps };
+  });
+}
+
 // Settings with new study goals and hours. Keeps a saved "Stay under" rule,
 // since the Study page has no choice for it.
 function withStudy(oldSettings, goals, hours) {
   const saved = oldSettings.targets.find((t) => t.area_id === "study");
   const target = { area_id: "study", target: hours, mode: saved ? saved.mode : "up" };
-  return { ...oldSettings, study_goals: goals, targets: mergeTargets(oldSettings.targets, [target]) };
+  return {
+    ...oldSettings,
+    study_goals: withSteps(oldSettings.study_goals, goals),
+    targets: mergeTargets(oldSettings.targets, [target]),
+  };
 }
 
 // --- Work answers ---
@@ -620,7 +760,7 @@ async function loadDashboard() {
 function drawDashboard(dashboard) {
   $("brief").innerHTML = renderBrief(dashboard.brief);
   $("score-chips").innerHTML = dashboard.areas.map(renderScoreChip).join("");
-  $("today-hero").innerHTML = renderToday(dashboard.score);
+  $("today-hero").innerHTML = renderToday(dashboard.score, baselineLine(dashboard.learning && dashboard.learning.text, null));
   $("check-in").innerHTML = renderCheckIn(day, dashboard.tags);
   carryOver = dashboard.carry_over;
   $("carry-over").innerHTML = renderCarryOver(carryOver);
@@ -630,6 +770,8 @@ function drawDashboard(dashboard) {
   $("habit-grid").innerHTML = renderHabitGrid(dashboard.habits.grid, settings.habits);
   $("goals").innerHTML = renderGoals(settings.goals);
   $("tasks").innerHTML = renderTasks(day.tasks);
+  focusToday = dashboard.focus;
+  $("focus-summary").innerHTML = renderFocusSummary(focusToday, timer, Date.now());
 
   // Don't overwrite the note while the user is typing in it.
   if (document.activeElement !== $("note")) $("note").value = day.note;
@@ -685,7 +827,8 @@ $("module-view").addEventListener("click", (event) => {
   if (event.target.closest("#module-edit")) {
     const hours = { study: studyHours, work: workHours }[modulePage];
     detailsBeforeEdit = $("module-details").innerHTML;
-    $("module-details").innerHTML = renderModuleEdit(modulePage, settings, hours ? hours() : null);
+    const title = $("module-details-title").textContent;
+    $("module-details").innerHTML = renderModuleEdit(modulePage, settings, hours ? hours() : null, title, today);
     $("module-edit-form").querySelector("input, select, button").focus();
   } else if (event.target.closest("#module-edit-cancel")) {
     $("module-details").innerHTML = detailsBeforeEdit;
@@ -693,6 +836,33 @@ $("module-view").addEventListener("click", (event) => {
   } else if (event.target.closest("#module-study")) {
     changeStudyRows(event, $("module-study"), "mod");
   }
+});
+
+// A goal's date box: say what the date was read as while it is typed.
+document.addEventListener("input", (event) => {
+  const input = event.target;
+  if (input.name !== "study-date") return;
+  const hint = document.getElementById(input.getAttribute("aria-describedby"));
+  if (hint) hint.textContent = studyDateHint(input.value, today);
+});
+
+// A step's checkbox on the Study page: save the tick, then redraw with focus kept on it.
+$("module-view").addEventListener("change", (event) => {
+  const box = event.target.closest("[data-step]");
+  if (!box) return;
+  const goalIndex = Number(box.dataset.goal);
+  const stepIndex = Number(box.dataset.step);
+  const boxId = box.id;
+  safely(async () => {
+    const goals = settings.study_goals.map((g, i) => (i !== goalIndex ? g : {
+      ...g,
+      steps: g.steps.map((step, j) => (j === stepIndex ? { ...step, done: box.checked } : step)),
+    }));
+    settings = await api.putSettings({ ...settings, study_goals: goals });
+    await loadModulePage(modulePage);
+    const again = $(boxId);
+    if (again) again.focus();
+  });
 });
 
 // The settings with the Edit form's answers in, or { error } with the message to show.
@@ -728,6 +898,314 @@ $("module-view").addEventListener("submit", async (event) => {
   } catch (error) {
     showFormError("module-edit-error", error.message);
   }
+});
+
+// --- Focus timer ---
+// The rules live in timer.js; this part keeps the state, ticks it, saves finished
+// sessions and draws the timer on the Study and Work pages and on Home.
+
+const TIMER_KEY = "compass.timer";
+const UNSAVED_KEY = "compass.unsaved-sessions";
+const BASE_TITLE = document.title;
+const RETRY_MS = 60_000;
+
+// Storage can be missing or blocked (private windows): then the timer still works until a reload.
+function readStored(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key));
+  } catch {
+    return null;
+  }
+}
+
+function store(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Nothing to do: the state still lives in this page.
+  }
+}
+
+let timer = fromSaved(readStored(TIMER_KEY));
+// Finished sessions not yet saved on the server, oldest first: { date, area, task, minutes, ended_at }.
+let unsaved = Array.isArray(readStored(UNSAVED_KEY)) ? readStored(UNSAVED_KEY) : [];
+let focusMessage = ""; // what just happened, shown under the timer
+let lastRetry = 0;
+
+// The timer's HTML for a module page ("" for Sleep, which has no timer).
+function focusPanel(areaId) {
+  if (areaId !== "study" && areaId !== "work") return "";
+  const goals = settings ? settings.study_goals.map((g) => g.name) : [];
+  return renderFocusPanel(areaId, timer, (day && day.tasks) || [], Date.now(), focusMessage, goals);
+}
+
+// Reads text out to screen readers, on whatever page is showing.
+function announce(text) {
+  $("focus-announce").textContent = text;
+}
+
+function askForNotifications() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Promise.resolve(Notification.requestPermission()).catch(() => {});
+  }
+}
+
+function notify(title, body) {
+  try {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body, tag: "compass-timer" });
+    }
+  } catch {
+    // Some browsers only allow notifications from a service worker; the page shows the words anyway.
+  }
+}
+
+// The time left, the ring and the tab title, without redrawing anything else.
+function updateClock(now) {
+  const left = countdownText(remainingMs(timer, now));
+  for (const text of document.querySelectorAll("[data-timer-text]")) text.textContent = left;
+  const share = Math.round(ringShare(timer, now) * 1000) / 10;
+  for (const ring of document.querySelectorAll("[data-timer-ring]")) ring.setAttribute("stroke-dasharray", `${share} 100`);
+  if (isRunning(timer)) document.title = `${left} · ${BASE_TITLE}`;
+  else if (isPaused(timer)) document.title = `Paused · ${BASE_TITLE}`;
+  else if (timer.phase === "away") document.title = `Save your session? · ${BASE_TITLE}`;
+  else document.title = BASE_TITLE;
+}
+
+// Draws the timer again wherever it shows. Keyboard focus that was on a timer
+// button goes to the new timer's first button, so it is never dropped.
+function redrawFocus(moveFocus = false) {
+  const now = Date.now();
+  const holder = modulePage ? $("focus-timer") : null;
+  if (holder) {
+    const hadFocus = holder.contains(document.activeElement);
+    holder.innerHTML = focusPanel(modulePage);
+    if (hadFocus || moveFocus) {
+      const target = holder.querySelector("[data-focus], button[type='submit'], a");
+      if (target) target.focus();
+    }
+  }
+  if (!$("dashboard-view").hidden && focusToday) {
+    $("focus-summary").innerHTML = renderFocusSummary(focusToday, timer, now);
+  }
+  updateClock(now);
+}
+
+function setTimer(next, moveFocus = false) {
+  timer = next;
+  store(TIMER_KEY, timer);
+  redrawFocus(moveFocus);
+}
+
+// After sessions change: the page's numbers again, without touching what is being typed.
+// On a module page every panel is swapped for a fresh one except the log form (only its
+// breakdown line changes) and an open Edit form.
+async function refreshAfterSessions() {
+  if (modulePage) {
+    const id = modulePage;
+    const [dashboard, todayData] = await Promise.all([api.getDashboard(today), api.getDay(today)]);
+    if (modulePage !== id) return;
+    day = todayData;
+    const area = dashboard.areas.find((a) => a.id === id);
+    const fresh = document.createElement("div");
+    fresh.innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id));
+    const panels = [...fresh.children];
+    const active = document.activeElement;
+    const activeId = active && active.id;
+    const inTimer = Boolean(active && active.closest(".module-focus"));
+    const editing = $("module-edit-form") !== null;
+    [...$("module-body").children].forEach((old, i) => {
+      const next = panels[i];
+      if (!next) return;
+      if (old.classList.contains("module-log")) {
+        const line = next.querySelector("#focus-breakdown");
+        const oldLine = old.querySelector("#focus-breakdown");
+        if (line && oldLine) {
+          oldLine.textContent = line.textContent;
+          oldLine.hidden = line.hidden;
+        }
+      } else if (!(old.classList.contains("module-details") && editing)) {
+        old.replaceWith(next);
+      }
+    });
+    if (document.activeElement === document.body || !document.activeElement) {
+      const target = (activeId && $(activeId)) || (inTimer && $("focus-timer").querySelector("[data-focus], button, input"));
+      if (target) target.focus();
+    }
+  } else if (!$("dashboard-view").hidden) {
+    drawDashboard(await api.getDashboard(today));
+  }
+  updateClock(Date.now());
+}
+
+// Saves finished sessions, oldest first. One the server can't take now (it isn't running)
+// stays in the list and is tried again later; one it refuses as wrong is let go.
+let flushing = false;
+async function flushSessions() {
+  if (flushing || unsaved.length === 0) return;
+  flushing = true;
+  let saved = false;
+  try {
+    while (unsaved.length > 0) {
+      const { date, ...session } = unsaved[0];
+      try {
+        const answer = await api.postSession(date, session);
+        if (date === today) day = answer;
+        saved = true;
+      } catch (error) {
+        if (error.code !== "invalid" && error.code !== "bad_request") {
+          showBanner(`Your ${durationText(session.minutes)} session isn't saved yet (${error.message}). Compass will try again.`);
+          return;
+        }
+        showBanner(`A focus session couldn't be saved: ${error.message}`);
+      }
+      unsaved = unsaved.slice(1);
+      store(UNSAVED_KEY, unsaved);
+    }
+  } finally {
+    flushing = false;
+  }
+  if (saved) await refreshAfterSessions();
+}
+
+function saveSession(session) {
+  unsaved = [...unsaved, session];
+  store(UNSAVED_KEY, unsaved);
+  safely(flushSessions);
+}
+
+// What each timer event means for the person: the words to show, read out and notify.
+function eventWords(events) {
+  const types = events.map((e) => e.type);
+  if (types.includes("break")) {
+    const long = events.find((e) => e.type === "break").long;
+    return { title: "Session done", text: long
+      ? `${SESSIONS_A_ROUND} sessions done. Take a 15-minute break.`
+      : "Session done. Take a 5-minute break." };
+  }
+  if (types.includes("focus")) {
+    const round = events.find((e) => e.type === "focus").round;
+    return { title: "Break over", text: `Session ${round} of ${SESSIONS_A_ROUND} started.` };
+  }
+  if (types.includes("roundDone")) {
+    // The start form already says "Round done" on the page, so this is only read out and notified.
+    return { title: "Round done", text: `Round done: ${SESSIONS_A_ROUND} sessions. Start another when you're ready.`, quiet: true };
+  }
+  if (types.includes("away")) {
+    return { text: "A session ended while Compass wasn't open. Save it or discard it." };
+  }
+  if (types.includes("breakAway")) {
+    return { text: "The break ended while Compass wasn't open, so the cycle stopped." };
+  }
+  return null;
+}
+
+function onTick() {
+  const now = Date.now();
+  const { state, events } = tick(timer, now);
+  if (state !== timer) {
+    timer = state;
+    store(TIMER_KEY, timer);
+  }
+  if (events.length > 0) {
+    for (const event of events) {
+      if (event.type === "session") saveSession(event.session);
+    }
+    const words = eventWords(events);
+    if (words) {
+      focusMessage = words.quiet ? "" : words.text;
+      announce(words.text);
+      if (words.title) notify(words.title, words.text);
+    }
+    redrawFocus();
+  } else {
+    updateClock(now);
+  }
+  if (unsaved.length > 0 && !flushing && now - lastRetry > RETRY_MS) {
+    lastRetry = now;
+    safely(flushSessions);
+  }
+}
+
+// One tick a second from a worker (it keeps time in a background tab); a plain
+// interval if workers aren't available.
+function startTicking() {
+  try {
+    const worker = new Worker("js/ticker.js");
+    worker.addEventListener("message", onTick);
+    worker.addEventListener("error", () => {
+      worker.terminate();
+      setInterval(onTick, 1000);
+    });
+  } catch {
+    setInterval(onTick, 1000);
+  }
+}
+
+// The timer's buttons: Pause, Resume, Finish early, Reset, Skip break, Stop, Save, Discard.
+function focusAction(action) {
+  const now = Date.now();
+  focusMessage = "";
+  if (action === "pause") setTimer(pause(timer, now), true);
+  else if (action === "resume") setTimer(resume(timer, now), true);
+  else if (action === "reset") {
+    focusMessage = "Session reset. Nothing was saved.";
+    setTimer(reset(), true);
+  } else if (action === "stop") {
+    focusMessage = "Stopped.";
+    setTimer(stopCycle(), true);
+  } else if (action === "skip") {
+    const next = skipBreak(timer, now);
+    focusMessage = next.phase === "done" ? `Round done: ${SESSIONS_A_ROUND} sessions.` : `Session ${next.round} of ${SESSIONS_A_ROUND} started.`;
+    setTimer(next, true);
+  } else if (action === "finish") {
+    const { state, session } = finishEarly(timer, now);
+    focusMessage = session ? `Saved ${durationText(session.minutes)}.` : "Under a minute, so nothing was saved.";
+    setTimer(state, true);
+    if (session) saveSession(session);
+  } else if (action === "keep") {
+    const { state, session } = keepAway(timer);
+    focusMessage = `Saved ${durationText(session.minutes)}.`;
+    setTimer(state, true);
+    saveSession(session);
+  } else if (action === "drop") {
+    focusMessage = "Discarded.";
+    setTimer(dropAway(), true);
+  }
+  if (focusMessage) announce(focusMessage);
+}
+
+$("module-view").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-focus]");
+  if (button) {
+    focusAction(button.dataset.focus);
+    return;
+  }
+  const remove = event.target.closest("[data-session-remove]");
+  if (remove) {
+    safely(async () => {
+      day = await api.deleteSession(today, remove.dataset.sessionRemove);
+      focusMessage = "Session removed.";
+      announce(focusMessage);
+      await refreshAfterSessions();
+      const next = $("focus-sessions").querySelector("[data-session-remove]") || $("focus-timer").querySelector("button");
+      if (next) next.focus();
+    });
+  }
+});
+
+// Start: session 1 of a round, with the length and task picked in the form.
+$("module-view").addEventListener("submit", (event) => {
+  if (event.target.id !== "focus-form") return;
+  event.preventDefault();
+  const form = event.target;
+  const picked = form.querySelector('input[name="focus-minutes"]:checked');
+  const minutes = picked ? Number(picked.value) : 25;
+  const task = form.querySelector("#focus-task").value || null;
+  askForNotifications();
+  focusMessage = "";
+  setTimer(startSession({ area: form.dataset.area, task, minutes }, Date.now()), true);
+  announce(`Session 1 of ${SESSIONS_A_ROUND} started: ${minutes} minutes.`);
 });
 
 // --- Error banner ---
@@ -843,12 +1321,53 @@ $("note").addEventListener("input", () => {
 });
 $("note").addEventListener("blur", saveNote);
 
+// --- Insights: pausing streaks ---
+
+// "2026-11-19" -> "2026-11-18".
+function dayBefore(dateKey) {
+  const d = new Date(dateKey + "T00:00");
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function redrawInsights() {
+  $("insights-body").innerHTML = renderInsights(await api.getInsights(today));
+}
+
+// Pause streaks from today until the chosen date.
+$("insights-view").addEventListener("submit", (event) => {
+  if (event.target.id !== "shield-form") return;
+  event.preventDefault();
+  const end = event.target.elements.end.value;
+  if (!end || end < today) return showFormError("shield-error", "Pick an end date from today on.");
+  const shield = { start: today, end, reason: event.target.elements.reason.value };
+  safely(async () => {
+    settings = await api.putSettings({ ...settings, shields: [...settings.shields, shield].slice(-20) });
+    await redrawInsights();
+    $("insights-view").querySelector("[data-shield-end]").focus();
+  });
+});
+
+// End the pause now: a pause that started today goes; an older one ends yesterday, so today counts.
+$("insights-view").addEventListener("click", (event) => {
+  if (!event.target.closest("[data-shield-end]")) return;
+  const shields = settings.shields
+    .map((s) => (s.start <= today && today <= s.end ? (s.start === today ? null : { ...s, end: dayBefore(today) }) : s))
+    .filter(Boolean);
+  safely(async () => {
+    settings = await api.putSettings({ ...settings, shields });
+    await redrawInsights();
+    $("shield-reason").focus();
+  });
+});
+
 // --- Settings ---
 
 function drawSettings() {
   $("settings-modules").innerHTML = renderOnboarding(areas, settings.modules);
   $("settings-habits").innerHTML = renderHabitList(settings.habits);
   $("settings-goals").innerHTML = renderGoalList(settings.goals);
+  for (const radio of $("tone-choice").querySelectorAll("input")) radio.checked = radio.value === settings.tone;
   for (const id of ["modules-error", "habit-error", "goal-error", "import-error"]) {
     showFormError(id, "");
   }
@@ -859,6 +1378,14 @@ async function saveSettings(newSettings) {
   settings = await api.putSettings(newSettings);
   drawSettings();
 }
+
+// Tone: saved as soon as one is picked.
+$("tone-choice").addEventListener("change", (event) => {
+  safely(async () => {
+    await saveSettings({ ...settings, tone: event.target.value });
+    $("tone-status").textContent = "Saved. The brief uses it from now on.";
+  });
+});
 
 // Modules: the same rules as onboarding (1 to 5, new ones get default targets).
 $("modules-form").addEventListener("submit", async (event) => {
@@ -990,6 +1517,10 @@ $("delete-dialog").addEventListener("close", () => {
   if ($("delete-dialog").returnValue !== "confirm") return;
   safely(async () => {
     await api.deleteAll();
+    // A timer still running would save a session into the emptied data.
+    setTimer(IDLE);
+    unsaved = [];
+    store(UNSAVED_KEY, unsaved);
     settings = await api.getSettings();
     showOnboarding();
   });
@@ -1023,4 +1554,6 @@ document.querySelector(".skip-link").addEventListener("click", (event) => {
   $("app").focus();
 });
 
+startTicking();
 safely(start);
+safely(flushSessions);

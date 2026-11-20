@@ -123,3 +123,9 @@ def test_goal_percent_is_clamped():
 def test_a_day_with_only_a_bedtime_counts_as_logged():
     from app.lists import is_logged
     assert is_logged(normalize_day({"bedtime": "23:00"}, "2026-10-20"))
+
+
+def test_a_day_with_only_a_focus_session_counts_as_logged():
+    from app.lists import is_logged
+    session = {"id": "s1", "area": "study", "task": None, "minutes": 25, "ended_at": "10:00"}
+    assert is_logged(normalize_day({"sessions": [session]}, "2026-10-20"))

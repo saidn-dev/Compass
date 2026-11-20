@@ -23,6 +23,7 @@ def is_logged(day: dict) -> bool:
         or bool(day.get("note"))
         or bool(day.get("tags"))
         or day.get("mood") is not None
+        or bool(day.get("sessions"))
     )
 
 

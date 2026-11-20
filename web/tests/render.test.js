@@ -2,21 +2,24 @@
 import test from "node:test";
 import assert from "node:assert";
 import {
-  escapeHtml, renderBrief, renderScoreChip, renderToday, renderOnboarding,
+  escapeHtml, renderBrief, renderScoreChip, renderToday, baselineLine, renderOnboarding,
   renderHabitGrid, renderGoals, renderTasks,
   renderHabitList, renderGoalList,
   gapText, renderSleepChoice, renderSleepSuggestion,
-  renderStudyGoals, WORK_QUESTIONS, renderWorkQuestion, weekHoursText,
+  renderStudyGoals, studyDateHint, renderStudyGoalList, WORK_QUESTIONS, renderWorkQuestion, weekHoursText,
   renderNav, dayLabel, renderModulePage, renderModuleEdit,
-  renderCheckIn, renderCarryOver, renderInsights,
+  renderCheckIn, renderCarryOver, renderInsights, renderFocusReport, renderShield,
+  renderStartingPoint, renderProjection, renderFirstSession,
+  durationText, focusBreakdown, renderSessionList, renderFocusPanel, renderFocusSummary, timerLine,
 } from "../js/render.js";
+import { IDLE, startSession, pause, tick } from "../js/timer.js";
 
 const EVIL = "<script>alert(1)</script>";
 const IMG = "<img src=x onerror=alert(1)>";
 
 const card = (over = {}) => ({
   id: "sleep", label: "Sleep", unit: "h", value: 6.4, target: 7.5, mode: "up",
-  status: "Behind", progress: 85.3, trend: "down", series: [], ...over,
+  progress: 85.3, trend: "down", series: [], ...over,
 });
 
 const AREAS = [
@@ -212,7 +215,7 @@ test("renderStudyGoals with no goals draws one empty row and the hours", () => {
   assert.ok(html.includes('for="onb-study-hours"'));
   assert.ok(html.includes('value="12"'));
   assert.ok(html.includes("What are you studying for?"));
-  assert.ok(html.includes("Leave the date blank if there isn't one."));
+  assert.ok(html.includes("leave it blank if there isn't one."));
 });
 
 test("renderStudyGoals with two goals gives each a Remove button", () => {
@@ -235,8 +238,8 @@ test("renderStudyGoals escapes names and keeps dates", () => {
 });
 
 test("renderStudyGoals gives every input a matching label", () => {
-  const html = renderStudyGoals([{ name: "A", date: null }, { name: "B", date: "2026-12-12" }], 12, "set");
-  const ids = [...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+  const html = renderStudyGoals([{ name: "A", date: null }, { name: "B", date: "2026-12-12" }], 12, "set", null, true);
+  const ids = [...html.matchAll(/<(?:input|textarea) id="([^"]+)"/g)].map((m) => m[1]);
   assert.ok(ids.length >= 5);
   for (const id of ids) assert.ok(html.includes(`for="${id}"`), `no label for ${id}`);
 });
@@ -346,7 +349,7 @@ const SETTINGS = {
   work: { kind: null, role: null, schedule: null, hours_vary: false, focus: null, goal: null, derailers: [] },
 };
 const entry = (over = {}) => ({
-  id: "sleep", label: "Sleep", unit: "h", value: 6.8, target: 7.5, mode: "up", status: "Behind",
+  id: "sleep", label: "Sleep", unit: "h", value: 6.8, target: 7.5, mode: "up", reason: "Mostly logging: 4 of 7 days",
   period: "average a night", series: [7.5, 8, null, 6, 6.5, 0, null],
   details: { title: "Your goal", lines: ["7.5 h a night"] },
   score: 91, score_label: "Optimal", headline: "Right on course", daily_target: 7.5,
@@ -414,13 +417,19 @@ test("renderModuleEdit uses each module's form with the mod prefix", () => {
   }
 });
 
+test("renderModuleEdit keeps the panel's heading, so the panel keeps its name", () => {
+  const html = renderModuleEdit("sleep", SETTINGS, null, "Your <schedule>");
+  assert.ok(html.startsWith('<h2 id="module-details-title">Your &lt;schedule&gt;</h2>'));
+  assert.ok(!renderModuleEdit("sleep", SETTINGS, null).includes("<h2"));
+});
+
 // --- scores: chips, the hero, bars ---
 
-test("module page hero: the week's value, headline, status and target", () => {
+test("module page hero: the week's value, headline, level with its reason, and target", () => {
   const html = renderModulePage(entry({ trend: "down" }), DATES, TODAY, DAY, SETTINGS);
   assert.ok(html.includes('<span class="hero-number">6.8</span>'));
   assert.ok(html.includes("Right on course"));
-  assert.ok(html.includes('<span class="status">Behind</span>'));
+  assert.ok(html.includes('<p class="hero-status"><span class="status">Optimal</span><span class="hero-reason">Mostly logging: 4 of 7 days</span></p>'));
   assert.ok(html.includes("average a night"));
   assert.ok(html.includes("Target 7.5 h"));
   assert.ok(html.includes("Score 91"));
@@ -428,12 +437,19 @@ test("module page hero: the week's value, headline, status and target", () => {
   assert.match(html, /stroke-dasharray="91 100"/);
 });
 
+test("module page hero: a screen reader hears the module's name, not just the period", () => {
+  const html = renderModulePage(entry({ label: "Sleep" }), DATES, TODAY, DAY, SETTINGS);
+  assert.match(html, /<section class="hero"[^>]* aria-label="Sleep this week">/);
+  assert.ok(html.includes('<p class="hero-kicker">average a night</p>'));
+});
+
 test("module page hero with no data: a dash, no score arc, never 0", () => {
-  const html = renderModulePage(entry({ value: null, status: "No data", score: null, score_label: "No data", headline: "No bearings yet" }),
+  const html = renderModulePage(entry({ value: null, reason: null, score: null, score_label: "No data", headline: "No bearings yet" }),
     DATES, TODAY, DAY, SETTINGS);
   assert.ok(html.includes('<span class="hero-number">-</span>'));
   assert.ok(html.includes("No bearings yet"));
-  assert.ok(html.includes("No data"));
+  assert.match(html, /<section class="hero" data-level="no_data"/);
+  assert.ok(!html.includes("hero-status"));
   assert.match(html, /stroke-dasharray="0 100"/);
   assert.ok(!html.includes("Score "));
 });
@@ -477,7 +493,7 @@ test("module page contributors: no score draws an empty meter and escapes text",
 test("score chip links to the module's page and reads as one sentence", () => {
   const html = renderScoreChip(entry());
   assert.match(html, /^<a class="score-chip" href="#\/sleep" data-level="optimal"/);
-  assert.ok(html.includes('aria-label="Sleep: score 91, Optimal. 6.8 h, Target 7.5 h, Behind"'));
+  assert.ok(html.includes('aria-label="Sleep: score 91, Optimal. 6.8 h, Target 7.5 h"'));
   assert.ok(html.includes('<span class="score-chip-number">91</span>'));
   assert.ok(html.includes('<span class="score-chip-label">Sleep</span>'));
   assert.match(html, /stroke-dasharray="91 100"/);
@@ -615,4 +631,264 @@ test("insights with nothing yet says what is needed", () => {
   assert.ok(html.includes('<span class="hero-number">-</span>'));
   assert.ok(html.includes("No patterns yet"));
   assert.ok(html.includes("3 days"));
+});
+
+// --- focus sessions and the timer ---
+
+const NOW = new Date(2026, 10, 19, 14, 0).getTime();
+const SESSIONS = [
+  { id: "a1", area: "study", task: EVIL, minutes: 25, ended_at: "10:25" },
+  { id: "b2", area: "study", task: null, minutes: 25, ended_at: "11:00" },
+  { id: "c3", area: "work", task: "Invoices", minutes: 50, ended_at: "12:00" },
+];
+const TASKS = [{ text: IMG, done: false }, { text: "Done already", done: true }];
+
+test("durationText", () => {
+  assert.strictEqual(durationText(25), "25 min");
+  assert.strictEqual(durationText(60), "1 h");
+  assert.strictEqual(durationText(110), "1 h 50 min");
+});
+
+test("focusBreakdown adds typed-in hours and sessions; nothing without sessions", () => {
+  assert.strictEqual(focusBreakdown({ study_hours: 1, sessions: SESSIONS }, "study"), "1 h logged + 2 sessions (50 min) = 1 h 50 min");
+  assert.strictEqual(focusBreakdown({ study_hours: null, sessions: SESSIONS }, "study"), "2 sessions = 50 min");
+  assert.strictEqual(focusBreakdown({ work_hours: 0.5, sessions: SESSIONS }, "work"), "0.5 h logged + 1 session (50 min) = 1 h 20 min");
+  assert.strictEqual(focusBreakdown({ study_hours: 2, sessions: [] }, "study"), "");
+});
+
+test("session list: this module's sessions, task text escaped, a named Remove button each", () => {
+  const html = renderSessionList(SESSIONS, "study");
+  assert.strictEqual((html.match(/data-session-remove=/g) || []).length, 2);
+  assert.ok(!html.includes("<script>"));
+  assert.ok(html.includes("No task"));
+  assert.ok(html.includes('aria-label="Remove the 25 min session that ended at 10:25"'));
+  assert.ok(renderSessionList([], "work").includes("No sessions yet today."));
+});
+
+test("focus panel when idle: lengths, today's unfinished tasks (escaped) and Start", () => {
+  const html = renderFocusPanel("study", IDLE, TASKS, NOW);
+  assert.match(html, /name="focus-minutes" value="25" checked/);
+  assert.ok(html.includes('<option value="">No task</option>'));
+  assert.ok(html.includes("&lt;img"));
+  assert.ok(!html.includes("<img"));
+  assert.ok(!html.includes("Done already"));
+  assert.ok(html.includes(">Start<"));
+});
+
+test("focus panel while a session runs: the ring, the time, Pause, Finish early and Reset", () => {
+  const running = startSession({ area: "study", task: "Essay", minutes: 25 }, NOW);
+  const html = renderFocusPanel("study", running, TASKS, NOW + 10 * 60_000);
+  assert.ok(html.includes('<span data-timer-text role="timer">15:00</span>'));
+  assert.ok(html.includes('stroke-dasharray="60 100"'));
+  assert.ok(html.includes("Session 1 of 4 · Essay"));
+  for (const action of ["pause", "finish", "reset"]) assert.ok(html.includes(`data-focus="${action}"`), action);
+  const paused = renderFocusPanel("study", pause(running, NOW + 60_000), TASKS, NOW + 120_000);
+  assert.ok(paused.includes('data-focus="resume"') && paused.includes("· paused"));
+});
+
+test("focus panel in a break offers Skip break and Stop", () => {
+  // A tick just before the end, as the page makes once a second, then the end itself.
+  const near = tick(startSession({ area: "work", task: null, minutes: 15 }, NOW), NOW + 15 * 60_000 - 1000).state;
+  const { state } = tick(near, NOW + 15 * 60_000);
+  const html = renderFocusPanel("work", state, [], NOW + 15 * 60_000);
+  assert.ok(html.includes("Break · then session 2 of 4"));
+  assert.ok(html.includes('data-focus="skip"') && html.includes('data-focus="stop"'));
+});
+
+test("focus panel after a round and after an away session", () => {
+  const done = { phase: "done", area: "study", task: IMG, minutes: 50 };
+  const html = renderFocusPanel("study", done, TASKS, NOW);
+  assert.ok(html.includes("Round done: 4 sessions."));
+  assert.match(html, /value="50" checked/);
+  assert.ok(html.includes("selected") && html.includes("Start another round"));
+  const away = { phase: "away", area: "study", task: null, minutes: 25,
+    pending: { date: "2026-11-19", area: "study", task: null, minutes: 25, ended_at: "14:25" } };
+  const asked = renderFocusPanel("study", away, TASKS, NOW);
+  assert.ok(asked.includes("Your 25 min session ended at 14:25 while Compass wasn't open. Save it?"));
+  assert.ok(asked.includes('data-focus="keep"') && asked.includes('data-focus="drop"'));
+});
+
+test("another module's running timer shows as one linked line, with no controls", () => {
+  const running = startSession({ area: "study", task: null, minutes: 25 }, NOW);
+  const html = renderFocusPanel("work", running, [], NOW + 60_000);
+  assert.ok(html.includes('<a href="#/study">Study session 1 of 4</a>'));
+  assert.ok(html.includes("24:00"));
+  assert.ok(!html.includes("data-focus="));
+  assert.strictEqual(timerLine(IDLE, NOW), "");
+});
+
+test("module page: Study gets the focus timer, its sessions and the breakdown; Sleep doesn't", () => {
+  const study = renderModulePage(entry({ id: "study", label: "Study", period: "this week" }), DATES, TODAY,
+    { ...DAY, study_hours: 1, sessions: SESSIONS, tasks: TASKS }, SETTINGS);
+  assert.ok(study.includes('id="focus-timer"') && study.includes('id="focus-form"'));
+  assert.ok(study.includes("1 h logged + 2 sessions (50 min) = 1 h 50 min"));
+  const sleep = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(!sleep.includes("focus-timer") && !sleep.includes("focus-breakdown"));
+});
+
+test("Home focus summary: today's sessions per module, and a running timer", () => {
+  const focus = { today: { count: 3, minutes: 100, study: 50, work: 50 }, week: { count: 3, minutes: 100 } };
+  assert.ok(renderFocusSummary(focus).includes("Focus sessions today: 3, 1 h 40 min (Study 50 min, Work 50 min)."));
+  const none = { today: { count: 0, minutes: 0, study: 0, work: 0 }, week: { count: 0, minutes: 0 } };
+  assert.ok(renderFocusSummary(none).includes("No focus sessions yet today."));
+  const running = startSession({ area: "work", task: null, minutes: 50 }, NOW);
+  assert.ok(renderFocusSummary(none, running, NOW).includes('<a href="#/work">Work session 1 of 4</a>'));
+});
+
+// --- progress words: levels, the top reason ---
+
+test("Home's hero shows the level and the top reason next to the gauge", () => {
+  const html = renderToday({ value: 64, label: "Fair", headline: "Drifting a little", reason: `Mostly Study: <4> of 10 h` });
+  assert.match(html, /^<section class="hero" data-level="fair"/);
+  assert.ok(html.includes('<span class="status">Fair</span><span class="hero-reason">Mostly Study: &lt;4&gt; of 10 h</span>'));
+});
+
+test("Home's hero with everything at the top shows the level without a reason", () => {
+  const html = renderToday({ value: 96, label: "Optimal", headline: "Right on course", reason: null });
+  assert.ok(html.includes('<p class="hero-status"><span class="status">Optimal</span></p>'));
+});
+
+test("the first two weeks read 'Learning your rhythm', then your usual range", () => {
+  assert.strictEqual(baselineLine("Learning your rhythm · day 4 of 14", null),
+    '<p class="hero-usual" data-place="learning">Learning your rhythm · day 4 of 14</p>');
+  const usual = { place: "below", low: 6.5, high: 7.4, text: "Last 14 days: 6 h a night · your usual 6.5 to 7.4 h · Below your usual ▼" };
+  assert.ok(baselineLine(null, usual).includes('data-place="below">Last 14 days: 6 h a night'));
+  assert.strictEqual(baselineLine(null, null), "");
+});
+
+test("module page shades your usual range on the 12-week chart", () => {
+  const history = Array.from({ length: 12 }, (_, i) => ({ label: `W${i}`, value: 7 }));
+  const usual = { place: "within", low: 6.5, high: 7.5, text: "Last 14 days: 7 h a night · your usual 6.5 to 7.5 h · Within your usual" };
+  const html = renderModulePage(entry({ history, weekly_target: 7.5, usual }), DATES, TODAY, DAY, SETTINGS);
+  assert.ok(html.includes("data-usual"));
+  assert.ok(html.includes("--usual-low: 86.7%; --usual-high: 100%"));
+  assert.ok(html.includes("Shaded: your usual range, 6.5 to 7.5 h a night"));
+  assert.ok(html.includes("Within your usual"));
+});
+
+test("the Focus Report is locked for a week, then reads as plain lines", () => {
+  assert.ok(renderFocusReport({ locked: true, text: "Your first Focus Report unlocks on Tue 24 Nov · day 3 of 7." })
+    .includes('<p class="empty focus-report-locked">Your first Focus Report unlocks on Tue 24 Nov · day 3 of 7.</p>'));
+  const html = renderFocusReport({ locked: false, lines: ["This week: 8 h of focus.", "Since you started: <5 h> reclaimed."] });
+  assert.ok(html.includes("<li>This week: 8 h of focus.</li><li>Since you started: &lt;5 h&gt; reclaimed.</li>"));
+  assert.strictEqual(renderFocusReport(null), "");
+});
+
+test("pausing streaks: a form, or the active pause with a way to end it", () => {
+  const form = renderShield(null, "2026-11-19");
+  assert.ok(form.includes('id="shield-form"') && form.includes('min="2026-11-19"'));
+  assert.ok(form.includes('<option value="exam">Exam period</option>'));
+  const active = renderShield({ text: "Holiday: streaks paused until 2 Dec." }, "2026-11-19");
+  assert.ok(active.includes("Holiday: streaks paused until 2 Dec.") && active.includes("data-shield-end"));
+});
+
+test("streaks show their state: lit, flicker, fade or out", () => {
+  const data = {
+    date: "2026-11-19", shield: null, focus_report: null, patterns: [],
+    review: { range: "", score: { value: null, label: "No data", headline: "", text: "" }, modules: [], extras: [], change: null },
+    streaks: [{ label: "Logging", days: 4, best: 6, state: "fade", text: "Fading · do it today to revive 4 days" }],
+  };
+  const html = renderInsights(data);
+  assert.ok(html.includes('<li class="streak" data-state="fade">'));
+  assert.ok(html.includes("Fading · do it today to revive 4 days"));
+  assert.ok(html.includes('id="shield-form"'));
+});
+
+test("the Study timer offers study goals as tasks", () => {
+  const html = renderFocusPanel("study", IDLE, [{ text: "Read notes", done: false }], 0, "", ["Revise <ch 5>"]);
+  assert.ok(html.includes('<optgroup label="Today\'s focus"><option value="Read notes">Read notes</option></optgroup>'));
+  assert.ok(html.includes('<optgroup label="Study goals"><option value="Revise &lt;ch 5&gt;">Revise &lt;ch 5&gt;</option></optgroup>'));
+  assert.ok(!renderFocusPanel("work", IDLE, [], 0, "", ["Revise"]).includes("optgroup"));
+});
+
+test("study goal rows have an optional hours field", () => {
+  const html = renderStudyGoals([{ name: "Exam", date: "2026-12-01", hours: 20 }], 12, "onb");
+  assert.ok(html.includes('id="onb-study-goal-hours-0" name="study-goal-hours"'));
+  assert.ok(html.includes('value="20"'));
+  assert.ok(renderStudyGoals([], 12, "onb").includes('name="study-goal-hours" type="number" inputmode="decimal" min="0" max="1000" step="any" value=""'));
+});
+
+test("starting point: one honest estimate per focus module", () => {
+  const html = renderStartingPoint(["sleep", "study", "work"], { study_hours: 5, work_hours: null });
+  assert.ok(html.includes("Honestly, how many hours do you study in a normal week right now?"));
+  assert.ok(html.includes('id="onb-start-study" name="study_hours"') && html.includes('value="5"'));
+  assert.ok(html.includes('id="onb-start-work" name="work_hours"'));
+  assert.ok(!html.includes("sleep"));
+});
+
+test("the projection is labelled as an estimate and stays kind", () => {
+  const targets = [{ area_id: "study", target: 12, mode: "up" }, { area_id: "work", target: 40, mode: "limit" }];
+  const html = renderProjection({ study: 5, work: 50 }, targets);
+  assert.ok(html.includes('<p class="projection-label">Estimate</p>'));
+  assert.ok(html.includes("At about 5 h a week, that&#39;s about 260 h of study a year. Your target of 12 h a week adds about 360 h a year, the same as 9 full 40-hour weeks."));
+  assert.ok(html.includes("Keeping to your limit of 40 h a week gives back about 520 h a year."));
+  assert.ok(renderProjection({ study: 14 }, targets).includes("That already meets your target of 12 h a week"));
+  assert.strictEqual(renderProjection({ study: null, work: null }, targets), "");
+});
+
+test("first session: pick the module only when there are two", () => {
+  const both = renderFirstSession(["study", "work"]);
+  assert.ok(both.includes('<legend>What for</legend>') && both.includes('value="work"'));
+  assert.ok(both.includes('name="session-minutes" value="25" checked'));
+  const one = renderFirstSession(["sleep", "work"]);
+  assert.ok(one.includes('<input type="hidden" name="session-area" value="work">'));
+  assert.ok(!one.includes("What for"));
+});
+
+test("a limit reads Great, Ok or Too much", () => {
+  const html = renderModulePage(entry({ id: "work", label: "Work", mode: "limit", score: 70, score_label: "Too much",
+    headline: "Well over your limit", reason: "Mostly hours: 52 of 40 h this week" }), DATES, TODAY, DAY, SETTINGS);
+  assert.match(html, /<section class="hero" data-level="too_much"/);
+  assert.ok(html.includes('<span class="status">Too much</span>'));
+  assert.ok(html.includes("Limit 7.5 h"));
+});
+
+
+// --- Study page depth: dates in words, steps, session totals ---
+
+test("renderStudyGoals shows the date as typed and what it was read as", () => {
+  const html = renderStudyGoals([{ name: "Exam", dateText: "next monday" }], 12, "mod", "2026-11-20");
+  assert.ok(html.includes('value="next monday"'));
+  assert.ok(html.includes('type="text"'));
+  assert.ok(html.includes("Mon 23 Nov 2026 · in 3 days"));
+  assert.ok(!html.includes('name="study-steps"'), "steps only when asked for");
+});
+
+test("studyDateHint explains an unreadable date and stays quiet when blank", () => {
+  assert.match(studyDateHint("soon", "2026-11-20"), /^Can't read that date/);
+  assert.strictEqual(studyDateHint("", "2026-11-20"), "");
+  assert.strictEqual(studyDateHint("5 dec", null), "");
+});
+
+test("renderStudyGoals draws a Steps box with saved steps, escaped", () => {
+  const goals = [{ name: "Exam", date: null, steps: [{ text: "Paper 1", done: true }, { text: EVIL, done: false }] }];
+  const html = renderStudyGoals(goals, 12, "mod", "2026-11-20", true);
+  assert.ok(html.includes('name="study-steps"'));
+  assert.ok(html.includes("Paper 1\n&lt;script&gt;"));
+  assert.ok(!html.includes(EVIL));
+});
+
+test("renderStudyGoalList shows sessions, pace and tickable steps", () => {
+  const html = renderStudyGoalList([{
+    index: 0, name: EVIL, when: "in 12 days", sessions: "2 sessions · 1 h 15 min of 40 h",
+    pace: "At this pace…", steps: [{ text: "Paper 1", done: true }, { text: "Paper 2", done: false }],
+    steps_text: "1 of 2 steps done",
+  }]);
+  assert.ok(!html.includes(EVIL));
+  assert.ok(html.includes("in 12 days · 1 of 2 steps done"));
+  assert.ok(html.includes("2 sessions · 1 h 15 min of 40 h"));
+  assert.ok(html.includes('id="study-step-0-0" data-goal="0" data-step="0" checked'));
+  assert.ok(html.includes('data-step="1">'));
+});
+
+test("renderModulePage uses the goal list when the details carry goals", () => {
+  const area = {
+    id: "study", label: "Study", unit: "h", value: null, score: null, target: 10, mode: "up", period: "this week",
+    series: [], history: [], contributors: [],
+    details: { title: "Your goals", lines: ["Essay"], goals: [{
+      index: 0, name: "Essay", when: null, sessions: "No sessions yet", pace: null, steps: [], steps_text: null }] },
+  };
+  const html = renderModulePage(area, [], "2026-11-20", { tasks: [], sessions: [] }, { study_goals: [] });
+  assert.ok(html.includes('class="study-goal-list"'));
+  assert.ok(html.includes("No sessions yet"));
 });

@@ -116,8 +116,8 @@ def test_put_settings_with_study_goals_round_trips(client):
     assert client.put("/api/settings", json=s, headers=HOST).status_code == 200
     saved = client.get("/api/settings", headers=HOST).json()
     assert saved["study_goals"] == [
-        {"name": "Data Structures exam", "date": "2026-12-12"},
-        {"name": "Linear Algebra", "date": None},
+        {"name": "Data Structures exam", "date": "2026-12-12", "hours": None, "steps": []},
+        {"name": "Linear Algebra", "date": None, "hours": None, "steps": []},
     ]
 
 
@@ -276,15 +276,16 @@ def test_dashboard_has_brief_and_one_card_per_enabled_area(client):
     assert body["brief"]["facts"]
     assert [a["id"] for a in body["areas"]] == ["sleep", "study", "work"]
     by_id = {a["id"]: a for a in body["areas"]}
-    assert by_id["sleep"]["status"] == "Behind"
+    assert by_id["sleep"]["score_label"] == "Optimal"  # 6.4 of 7.5 h scores 85
+    assert by_id["sleep"]["reason"] == "Mostly logging: 3 of 7 days"
     assert by_id["sleep"]["value"] == 6.4
     assert by_id["sleep"]["target"] == 7.5
     assert by_id["sleep"]["series"] == [None, None, None, None, 6, 6.5, 6.7]
     assert by_id["sleep"]["trend"] in ("up", "down", "flat", "none")
-    assert by_id["study"]["status"] == "No data"
+    assert by_id["study"]["score_label"] == "No data"
     assert by_id["study"]["value"] is None and by_id["study"]["progress"] is None
     for area in body["areas"]:
-        assert area["status"] in ("On track", "Behind", "No data")
+        assert "status" not in area
         assert {"label", "unit", "mode", "progress"} <= set(area)
 
 
@@ -578,18 +579,21 @@ def test_dashboard_scores(client):
     client.put("/api/days/2026-11-12", json={"sleep_hours": 6, "work_hours": 16}, headers=JSON)
     d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
     assert (area(d, "sleep")["score"], area(d, "sleep")["score_label"], area(d, "sleep")["headline"]) == (
-        80, "Fair", "Drifting a little")
+        80, "Good", "Learning your rhythm")  # day 1 of 14
+    assert d["learning"] == {"day": 1, "text": "Learning your rhythm · day 1 of 14"}
+    assert area(d, "sleep")["usual"] is None
     assert area(d, "work")["score"] == 100
     assert area(d, "study")["score"] is None and area(d, "study")["score_label"] == "No data"
     assert [c["label"] for c in area(d, "sleep")["contributors"]] == ["Hours", "Logging"]
     # The overall score is the average of the modules that have one: (80 + 100) / 2.
-    assert d["score"] == {"value": 90, "label": "Good", "headline": "Close to course"}
+    assert d["score"] == {"value": 90, "label": "Optimal", "headline": "Right on course",
+                          "reason": "Mostly Sleep: 6 of 7.5 h a night on average"}
 
 
 def test_dashboard_score_with_nothing_logged(client):
     onboard(client)
     d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
-    assert d["score"] == {"value": None, "label": "No data", "headline": "No bearings yet"}
+    assert d["score"] == {"value": None, "label": "No data", "headline": "No bearings yet", "reason": None}
 
 
 def test_dashboard_daily_target(client):
@@ -617,7 +621,8 @@ def test_rest_days_lower_the_weekly_target_and_are_reported(client):
     d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
     assert area(d, "study")["target"] == 8.6
     assert area(d, "study")["rest_days"] == 2
-    assert area(d, "study")["status"] == "On track"
+    assert area(d, "study")["score_label"] == "Optimal"
+    assert area(d, "study")["reason"] == "Mostly logging: 1 of 5 days"
     assert area(d, "sleep")["target"] == 7.5 and area(d, "sleep")["rest_days"] == 0
 
 
@@ -662,3 +667,96 @@ def test_insights_endpoint(client):
     assert body["patterns"] == []
     assert body["streaks"][0]["label"] == "Logging"
     assert_error(client.get("/api/insights?date=nope", headers=HOST), 422)
+
+
+# --- focus sessions ---
+
+NEW_SESSION = {"area": "study", "task": "Read chapter 4", "minutes": 25, "ended_at": "14:05"}
+DAY_URL = "/api/days/2026-11-13"
+
+
+def add(client, **change) -> dict:
+    r = client.post(f"{DAY_URL}/sessions", json={**NEW_SESSION, **change}, headers=HOST)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_save_a_focus_session(client):
+    day = add(client)
+    [saved] = day["sessions"]
+    assert {k: saved[k] for k in NEW_SESSION} == NEW_SESSION
+    assert isinstance(saved["id"], str) and saved["id"]
+    assert client.get(DAY_URL, headers=HOST).json()["sessions"] == [saved]
+    assert day["study_hours"] is None  # the typed-in hours stay as they were
+
+
+@pytest.mark.parametrize("change", [
+    {"area": "sleep"}, {"minutes": 0}, {"minutes": 181}, {"minutes": 2.5}, {"ended_at": "nope"}, {"task": "x" * 201},
+], ids=repr)
+def test_bad_focus_session_is_rejected(client, change):
+    assert_error(client.post(f"{DAY_URL}/sessions", json={**NEW_SESSION, **change}, headers=HOST), 422)
+    assert client.get(DAY_URL, headers=HOST).json()["sessions"] == []
+
+
+def test_focus_session_on_a_bad_date_is_rejected(client):
+    assert_error(client.post("/api/days/2026-13-01/sessions", json=NEW_SESSION, headers=HOST), 422)
+
+
+def test_the_49th_focus_session_is_rejected(client):
+    for _ in range(48):
+        add(client, minutes=1)
+    assert_error(client.post(f"{DAY_URL}/sessions", json=NEW_SESSION, headers=HOST), 422)
+
+
+def test_remove_a_focus_session(client):
+    first = add(client)["sessions"][0]["id"]
+    add(client, area="work")
+    r = client.delete(f"{DAY_URL}/sessions/{first}", headers=HOST)
+    assert r.status_code == 200, r.text
+    assert [s["area"] for s in r.json()["sessions"]] == ["work"]
+    assert_error(client.delete(f"{DAY_URL}/sessions/{first}", headers=HOST), 404)
+
+
+def test_saving_a_whole_day_keeps_the_stored_sessions(client):
+    # A page that loaded the day before a session ended sends an old copy back.
+    stale = client.get(DAY_URL, headers=HOST).json()
+    add(client)
+    r = client.put(DAY_URL, json={**stale, "note": "typed later", "sessions": []}, headers=HOST)
+    assert r.status_code == 200, r.text
+    assert r.json()["note"] == "typed later"
+    assert len(r.json()["sessions"]) == 1
+
+
+def test_a_whole_day_save_cannot_add_sessions(client):
+    r = client.put(DAY_URL, json={"sessions": [{"id": "x", **NEW_SESSION}]}, headers=HOST)
+    assert r.json()["sessions"] == []
+
+
+def test_session_minutes_count_on_the_dashboard_and_insights(client):
+    onboard(client)
+    client.put(DAY_URL, json={"study_hours": 1}, headers=HOST)
+    add(client, minutes=30)
+    add(client, area="work", minutes=60)
+    d = client.get("/api/dashboard?date=2026-11-13", headers=HOST).json()
+    assert area(d, "study")["value"] == 1.5
+    assert area(d, "study")["series"][-1] == 1.5
+    assert area(d, "work")["value"] == 1
+    assert d["focus"]["today"] == {"count": 2, "minutes": 90, "study": 30, "work": 60}
+    review = client.get("/api/insights?date=2026-11-13", headers=HOST).json()["review"]
+    assert "Focus sessions: 2 (1 h 30 min)." in review["extras"]
+    # The day itself still holds only the typed-in hour.
+    assert client.get(DAY_URL, headers=HOST).json()["study_hours"] == 1
+
+
+def test_sessions_survive_export_and_import(client, tmp_path):
+    add(client)
+    backup = client.get("/api/export", headers=HOST).json()
+    other = TestClient(create_app(str(tmp_path / "other.db")), base_url="http://127.0.0.1:8765")
+    assert other.post("/api/import", content=json.dumps(backup), headers=JSON).status_code == 200
+    assert other.get(DAY_URL, headers=HOST).json()["sessions"] == backup["days"][0]["sessions"]
+
+
+def test_bulk_import_keeps_sessions(client):
+    add(client)
+    client.post("/api/days/bulk", json={"days": [{"date": "2026-11-13", "work_hours": 2}]}, headers=HOST)
+    assert len(client.get(DAY_URL, headers=HOST).json()["sessions"]) == 1

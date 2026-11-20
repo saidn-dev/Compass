@@ -1,7 +1,8 @@
 """The daily brief: 3-4 plain sentences built from your last 7 days.
 
-Furthest-behind area with its number, one pattern, one action of 30 minutes or
-less. Also returns the numbers it used. With a sleep schedule, one more line says
+The area furthest from its target with its number, one pattern, one action of 30 minutes or
+less. The tone setting decides the wording: "supportive" says what happened, offers the
+action and adds a gentle limit; "direct" says the same facts shorter. Neither shames. Also returns the numbers it used. With a sleep schedule, one more line says
 how often you got to bed on time. With dated study goals, one more line says how
 far away the nearest one is.
 """
@@ -42,6 +43,41 @@ def _amount(area: Area, value: float) -> str:
 def _describe(area: Area, value: float, target: float) -> str:
     period = "average" if area.aggregate == "avg" else "this week"
     return f"{_amount(area, value)} {period} against {_amount(area, target)}"
+
+
+# The gentle limit after a supportive offer: how much is enough.
+GENTLE_LIMITS = {
+    "sleep": "even 15 minutes earlier helps",
+    "up": "there's no need to make up the whole week today",
+    "limit": "stopping on time matters more than finishing the list",
+}
+
+
+def offer(tip: str, area_id: str, mode: str, tone: str) -> str:
+    """The tip as an offer with a gentle limit (supportive), or as it is (direct).
+
+    "Do one 30-minute study block." -> "If it feels right, do one 30-minute study block,
+    but there's no need to make up the whole week today."
+    """
+    if tone == "direct":
+        return tip
+    limit = GENTLE_LIMITS["sleep" if area_id == "sleep" else mode]
+    return f"If it feels right, {tip[0].lower()}{tip[1:].rstrip('.')}, but {limit}."
+
+
+def first_sentence(area: Area, value: float, target: float, mode: str, tone: str) -> str:
+    """What happened: the area furthest from its target, with its numbers. Never "behind"."""
+    gap = round(abs(target - value), 1)
+    if _behind_by(value, target, mode) <= 0:
+        if tone == "direct":
+            return f"Everything is on course. Closest to its target: {area.label}, {_describe(area, value, target)}."
+        return (f"Everything is on course; {area.label} is closest to its target "
+                f"at {_describe(area, value, target)}.")
+    if tone == "direct":
+        word = "short" if mode == "up" else "over"
+        return f"{area.label}: {_describe(area, value, target)}, {_amount(area, gap)} {word}."
+    where = "furthest from its target" if mode == "up" else "furthest over its limit"
+    return f"{area.label} is {where}: {_describe(area, value, target)}."
 
 
 def _behind_by(value: float, target: float, mode: str) -> float:
@@ -85,11 +121,7 @@ def build_brief(days: list[dict], settings: Settings, today: str) -> dict:
     facts = [{"area_id": a.id, "value": v, "target": t, "mode": m} for a, v, t, m in rows]
     area, value, target, mode = max(rows, key=lambda r: _behind_by(r[1], r[2], r[3]))
 
-    if _behind_by(value, target, mode) > 0:
-        first = f"{area.label} is furthest behind: {_describe(area, value, target)}."
-    else:
-        first = (f"Everything is on track; {area.label} is closest to its target "
-                 f"at {_describe(area, value, target)}.")
+    first = first_sentence(area, value, target, mode, settings.tone)
 
     bedtime = None
     if settings.sleep_schedule is not None and "sleep" in settings.modules:
@@ -119,7 +151,7 @@ def build_brief(days: list[dict], settings: Settings, today: str) -> dict:
         second = f"Log {area.label} on more days to see a pattern."
 
     tip = work_tip(settings.work, mode) if area.id == "work" else area.suggestion
-    sentences = [first, second, tip]
+    sentences = [first, second, offer(tip, area.id, mode, settings.tone)]
     sleep = next((r for r in rows if r[0].id == "sleep"), None)
     low_sleep = sleep is not None and sleep[1] < LOW_SLEEP_HOURS
 

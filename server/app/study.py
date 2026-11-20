@@ -59,3 +59,10 @@ def study_line(goals: list[StudyGoal], today: str) -> tuple[str, dict, bool] | N
     text = f"{goal.name} is {when_text(d)}." if upcoming else f"The date for {goal.name} has passed."
     fact = {"area_id": "study", "kind": "deadline", "name": goal.name, "date": goal.date, "days_left": d}
     return text, fact, upcoming
+
+
+def goal_sessions(name: str, days: list[dict]) -> tuple[int, int]:
+    """(minutes, count) of the Study focus sessions whose task is this goal's name."""
+    minutes = [s["minutes"] for d in days for s in d.get("sessions", [])
+               if s.get("area") == "study" and s.get("task") == name]
+    return sum(minutes), len(minutes)

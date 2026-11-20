@@ -89,7 +89,7 @@
       <section class="panel panel-brief" aria-labelledby="brief-title">
         <h2 id="brief-title">Today's brief</h2>
         <div class="brief">
-          <p class="brief-text">Sleep is furthest behind: 6.4 h average against 7.5 h.</p>
+          <p class="brief-text">Sleep is furthest from its target: 6.4 h average against 7.5 h.</p>
           <p class="brief-text">Lowest was Thursday (5.5 h).</p>
           <p class="brief-text">Set a wind-down alarm 30 minutes before bed tonight.</p>
           <details class="brief-facts">
@@ -184,20 +184,49 @@
       <div class="view view-module">
         <h1>Sleep</h1>
         <div class="module-grid">
-          <section class="hero" data-level="good" data-status="behind" aria-label="average a night">
+          <section class="hero" data-level="optimal" aria-label="average a night">
             <svg class="gauge" aria-hidden="true" viewBox="0 0 200 112">
             <path class="gauge-track" d="M 16 104 A 84 84 0 0 1 184 104" pathLength="100"/>
             <path class="gauge-fill" d="M 16 104 A 84 84 0 0 1 184 104" pathLength="100" stroke-dasharray="91 100"/>
           </svg>
             <p class="hero-kicker">average a night</p>
             <p class="hero-value"><span class="hero-number">6.8</span><span class="unit">h</span></p>
-            <h2 class="hero-headline">Close to course</h2>
+            <h2 class="hero-headline">Right on course</h2>
+            <p class="hero-status"><span class="status">Optimal</span><span class="hero-reason">Mostly bedtime: 3 of 5 nights on time</span></p>
             <p class="hero-meta">
-              <span class="status">Behind</span>
               <span>Target 7.5 h</span>
               <span>Score 91</span>
             </p>
             <p class="trend" data-trend="down">Trending down</p>
+            <p class="hero-usual" data-place="below">Last 14 days: 6.6 h a night · your usual 6.8 to 7.4 h · Below your usual ▼</p>
+          </section>
+          <!-- ---- Focus timer, Study and Work only (renderFocusPanel, renderSessionList) ---- -->
+          <section class="panel module-focus" aria-labelledby="p-focus-title">
+            <h2 id="p-focus-title">Focus timer</h2>
+            <div class="focus-running" data-phase="focus">
+              <div class="focus-ring" data-phase="focus">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="focus-ring-track" cx="60" cy="60" r="54" pathLength="100"/>
+                  <circle class="focus-ring-fill" cx="60" cy="60" r="54" pathLength="100" stroke-dasharray="60 100"/>
+                </svg>
+                <p class="focus-clock"><span class="visually-hidden">Time left </span><span role="timer">15:00</span></p>
+              </div>
+              <p class="focus-what">Session 1 of 4 · Read chapter 4</p>
+              <div class="form-actions focus-actions">
+                <button type="button" class="btn btn-primary">Pause</button>
+                <button type="button" class="btn">Finish early</button>
+                <button type="button" class="btn btn-ghost">Reset</button>
+              </div>
+            </div>
+            <h3 class="focus-list-title">Today's sessions</h3>
+            <ul class="session-list">
+              <li class="session">
+                <span class="session-time">10:25</span>
+                <span class="session-length">25 min</span>
+                <span class="session-task">Read chapter 4</span>
+                <button type="button" class="btn btn-ghost btn-small" aria-label="Remove the 25 min session that ended at 10:25">Remove</button>
+              </li>
+            </ul>
           </section>
           <section class="panel module-log" aria-labelledby="p-mlog-title">
             <h2 id="p-mlog-title">Log last night</h2>

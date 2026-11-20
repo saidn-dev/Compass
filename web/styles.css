@@ -21,6 +21,9 @@
   --level-good: #9fd8c2;
   --level-fair: #e8c98a;
   --level-attention: #f2a65e;
+  --level-great: #74d095;
+  --level-ok: #e8c98a;
+  --level-too-much: #f08a8a;
   --glow: #2b3c4f;        /* the soft colour at the top of a page; each page sets its own */
 
   --radius: 16px;
@@ -620,6 +623,28 @@ main h1[tabindex="-1"]:focus {
   }
 }
 
+.projection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+}
+
+.projection p {
+  margin: 0;
+}
+
+.projection-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
 .sleep-suggestion {
   display: flex;
   flex-direction: column;
@@ -673,14 +698,68 @@ main h1[tabindex="-1"]:focus {
 
 .study-goal-row {
   display: grid;
-  grid-template-columns: 1fr 11rem auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) 11rem 8rem auto;
+  align-items: start;
   gap: 8px 12px;
   width: 100%;
 }
 
 .study-goal-row .field {
   margin: 0;
+}
+
+.study-goal-row > .btn {
+  margin-top: 1.6rem;
+}
+
+.study-goal-row .study-steps {
+  grid-column: 1 / -1;
+}
+
+.study-goal-row + .study-goal-row {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.date-hint {
+  margin: 4px 0 0;
+  min-height: 1.2em;
+  font-size: 0.8rem;
+}
+
+.study-goal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.study-goal + .study-goal {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.study-goal-name {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.study-goal-meta,
+.study-goal-sessions {
+  margin: 4px 0 0;
+}
+
+.study-goal-meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.study-goal-sessions {
+  font-variant-numeric: tabular-nums;
+}
+
+.study-step-list {
+  margin-top: 8px;
 }
 
 .study-hours .input-unit {
@@ -692,8 +771,9 @@ main h1[tabindex="-1"]:focus {
     grid-template-columns: 1fr;
   }
 
-  .study-goal-row .btn {
+  .study-goal-row > .btn {
     justify-self: start;
+    margin-top: 0;
   }
 }
 
@@ -1080,6 +1160,18 @@ input[type="radio"] {
   --level: var(--level-attention);
 }
 
+[data-level="great"] {
+  --level: var(--level-great);
+}
+
+[data-level="ok"] {
+  --level: var(--level-ok);
+}
+
+[data-level="too_much"] {
+  --level: var(--level-too-much);
+}
+
 [data-level="no_data"] {
   --level: var(--text-muted);
 }
@@ -1364,17 +1456,96 @@ input[type="radio"] {
   font-variant-numeric: tabular-nums;
 }
 
-.streak[data-on] .streak-days {
-  color: var(--level-good);
+/* A streak's flame: lit (done today), flicker (alive, today still to do), fade (one day missed,
+   revive it today), out. The words say the same, so colour and motion are never the only signal. */
+.streak {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.streak-flame {
+  grid-row: span 2;
+  width: 14px;
+  height: 14px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  border: 2px dashed var(--text-muted);
+}
+
+.streak[data-state="lit"] .streak-flame {
+  border: 0;
+  background: var(--level-great);
+  box-shadow: 0 0 10px rgb(116 208 149 / 0.6);
+}
+
+.streak[data-state="flicker"] .streak-flame {
+  border: 0;
+  background: var(--level-great);
+  animation: flicker 1.6s ease-in-out infinite;
+}
+
+.streak[data-state="fade"] .streak-flame {
+  border: 0;
+  background: var(--level-ok);
+  opacity: 0.45;
+}
+
+@keyframes flicker {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak[data-state="flicker"] .streak-flame {
+    animation: none;
+  }
+}
+
+.streak[data-state="lit"] .streak-days,
+.streak[data-state="flicker"] .streak-days {
+  color: var(--level-great);
+}
+
+.streak[data-state="fade"] .streak-days {
+  color: var(--level-ok);
 }
 
 .streak-best {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
   font-size: 0.85rem;
   color: var(--text-muted);
 }
 
-/* Status: always words, with a shape too, so colour is never the only signal. */
+.shield {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.shield h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.shield[data-active] p {
+  color: var(--accent);
+}
+
+.focus-report {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.focus-report li:first-child {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The level word ("Fair", "Too much"), with a shape too, so colour is never the only signal:
+   a dot for the top levels, a diamond for the lowest, a dashed ring for no data. */
 .status {
   display: inline-flex;
   align-items: center;
@@ -1385,7 +1556,7 @@ input[type="radio"] {
   font-weight: 700;
   white-space: nowrap;
   background: var(--surface-2);
-  color: var(--text-muted);
+  color: var(--level);
 }
 
 .status::before {
@@ -1397,28 +1568,29 @@ input[type="radio"] {
   border-radius: 50%;
 }
 
-[data-status="on_track"] .status {
-  background: var(--good-soft);
-  color: var(--good);
-}
-
-[data-status="on_track"] .status::before {
+:is([data-level="optimal"], [data-level="great"]) .status::before {
   background: currentColor;
 }
 
-[data-status="behind"] .status {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-
-[data-status="behind"] .status::before {
+:is([data-level="pay_attention"], [data-level="too_much"]) .status::before {
   border-radius: 1px;
   transform: rotate(45deg);
   background: currentColor;
 }
 
-[data-status="no_data"] .status::before {
+[data-level="no_data"] .status::before {
   border-style: dashed;
+}
+
+.hero-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 [data-level="no_data"] .hero-number {
@@ -1441,14 +1613,6 @@ input[type="radio"] {
   width: min(var(--progress), 100%);
   background: var(--accent);
   border-radius: inherit;
-}
-
-[data-status="on_track"] .progress-bar {
-  background: var(--good);
-}
-
-[data-status="behind"] .progress-bar {
-  background: var(--warn);
 }
 
 .trend::before {
@@ -1784,6 +1948,42 @@ input[type="radio"] {
   right: -2px;
 }
 
+/* Your usual range, shaded behind the 12-week bars. */
+.week-bars[data-usual] .week-bar-track::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  bottom: var(--usual-low);
+  height: calc(var(--usual-high) - var(--usual-low));
+  min-height: 2px;
+  background: rgb(143 196 238 / 0.12);
+}
+
+.usual-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.usual-swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  background: rgb(143 196 238 / 0.25);
+}
+
+.hero-usual {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.hero-usual[data-place="learning"] {
+  color: var(--accent);
+}
+
 .week-bar[data-today] .week-bar-day {
   color: var(--text);
   font-weight: 600;
@@ -1847,6 +2047,138 @@ input[type="radio"] {
 
 .module-details > p {
   overflow-wrap: anywhere;
+}
+
+/* Focus timer on the Study and Work pages; the ring starts at the top and empties clockwise. */
+.focus-form {
+  display: grid;
+  gap: 16px;
+}
+
+.focus-running {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.focus-ring {
+  position: relative;
+  width: min(220px, 72%);
+  aspect-ratio: 1;
+}
+
+.focus-ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.focus-ring-track,
+.focus-ring-fill {
+  fill: none;
+  stroke-width: 6;
+}
+
+.focus-ring-track {
+  stroke: rgb(255 255 255 / 0.14);
+}
+
+.focus-ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+.focus-ring[data-phase="break"] .focus-ring-fill {
+  stroke: var(--good);
+}
+
+.focus-clock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: clamp(2rem, 10vw, 2.75rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-what {
+  margin: 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.focus-actions {
+  justify-content: center;
+}
+
+.focus-note {
+  margin: 0 0 12px;
+}
+
+.focus-message {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.focus-list-title {
+  margin: 24px 0 4px;
+  font-size: 1rem;
+}
+
+.session-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.session:first-child {
+  border-top: 0;
+}
+
+.session-time,
+.session-length {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-task {
+  overflow-wrap: anywhere;
+}
+
+.focus-breakdown {
+  margin: 12px 0 0;
+}
+
+.focus-summary {
+  margin-top: 12px;
+}
+
+.focus-summary-line,
+.focus-line {
+  margin: 0;
+}
+
+.focus-line {
+  margin-top: 4px;
+}
+
+.focus-time {
+  font-variant-numeric: tabular-nums;
 }
 
 .module-details fieldset + fieldset,

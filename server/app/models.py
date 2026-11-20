@@ -1,4 +1,4 @@
-"""Data shapes (Day, Target, Goal, StudyGoal, Settings) and input cleaning.
+"""Data shapes (Day, focus sessions, Target, Goal, StudyGoal, Settings) and input cleaning.
 
 normalize_day turns messy input into a clean Day: blank or junk numbers become
 gaps (None), never 0; a real 0 is kept.
@@ -35,6 +35,14 @@ MAX_TASKS = 3
 MAX_TASK_TEXT = 200
 MAX_NOTE = 5000
 MAX_STUDY_GOALS = 5
+MAX_STEPS = 10
+MAX_STEP_TEXT = 100
+
+# Focus sessions: time spent with the timer on the Study and Work pages.
+SESSION_AREAS = ("study", "work")
+SESSION_MINUTES = (1, 180)
+MAX_SESSIONS = 48
+MAX_SESSION_ID = 32
 
 
 def _number(value: object, low: float, high: float) -> float | None:
@@ -87,6 +95,36 @@ def _mood(raw: object) -> int | None:
     return int(number) if number is not None and number == int(number) else None
 
 
+def clean_session(raw: object) -> dict | None:
+    """One clean focus session, or None if any part of it is wrong."""
+    if not isinstance(raw, dict):
+        return None
+    session_id, area, task = raw.get("id"), raw.get("area"), raw.get("task")
+    minutes = _number(raw.get("minutes"), *SESSION_MINUTES)
+    ended_at = parse_time(raw.get("ended_at"))
+    if not isinstance(session_id, str) or not 0 < len(session_id) <= MAX_SESSION_ID:
+        return None
+    if area not in SESSION_AREAS or minutes is None or ended_at is None:
+        return None
+    if task is not None and not isinstance(task, str):
+        return None
+    task = (task or "").strip()[:MAX_TASK_TEXT] or None
+    return {"id": session_id, "area": area, "task": task, "minutes": round(minutes), "ended_at": ended_at}
+
+
+def _sessions(raw: object) -> list[dict]:
+    """Good sessions only, each id once, at most MAX_SESSIONS."""
+    if not isinstance(raw, list):
+        return []
+    sessions, seen = [], set()
+    for item in raw:
+        session = clean_session(item)
+        if session and session["id"] not in seen:
+            seen.add(session["id"])
+            sessions.append(session)
+    return sessions[:MAX_SESSIONS]
+
+
 def check_date_key(date_key: str) -> str:
     """Return date_key if it is a real YYYY-MM-DD date, else raise ValueError."""
     try:
@@ -129,6 +167,9 @@ def normalize_day(raw: dict, date_key: str) -> dict:
     day["tags"] = _tags(raw.get("tags"))
     day["mood"] = _mood(raw.get("mood"))
     day["rest"] = raw.get("rest") is True
+    # Focus sessions. Their minutes are added to the hours only when days are read
+    # (app/focus.py), so the hours typed in above stay as they were.
+    day["sessions"] = _sessions(raw.get("sessions"))
     return day
 
 
@@ -177,10 +218,19 @@ class SleepSchedule(BaseModel):
         return self
 
 
+class StudyStep(BaseModel):
+    """One step towards a study goal, e.g. "Past paper 2023", ticked when done."""
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_STEP_TEXT)]
+    done: bool = False
+
+
 class StudyGoal(BaseModel):
-    """Something the user is studying for, e.g. "Data Structures exam", with an optional date."""
+    """Something the user is studying for, e.g. "Data Structures exam", with an optional date,
+    optionally how many hours it needs (for the pace line), and up to 10 steps."""
     name: Name
     date: str | None = None
+    hours: Annotated[float, Field(gt=0, le=1000, allow_inf_nan=False)] | None = None
+    steps: Annotated[list[StudyStep], Field(max_length=MAX_STEPS)] = []
 
     @field_validator("date", mode="before")
     @classmethod
@@ -260,6 +310,48 @@ class WorkProfile(BaseModel):
         return self
 
 
+MAX_SHIELDS = 20
+
+
+class Shield(BaseModel):
+    """Days that pause streaks (a holiday or an exam period): they neither count nor break one."""
+    start: str
+    end: str
+    reason: Literal["holiday", "exam"]
+
+    @field_validator("start", "end", mode="before")
+    @classmethod
+    def _date(cls, v: object) -> str:
+        if not isinstance(v, str):
+            raise ValueError("Dates must look like YYYY-MM-DD.")
+        return check_date_key(v.strip())
+
+    @model_validator(mode="after")
+    def _order(self) -> "Shield":
+        if self.end < self.start:
+            raise ValueError("A pause can't end before it starts.")
+        return self
+
+
+Hours = Annotated[float, Field(ge=0, le=168, allow_inf_nan=False)]
+
+
+class StartingPoint(BaseModel):
+    """Where the user started: the date and their honest weekly estimates from onboarding."""
+    date: str | None = None
+    study_hours: Hours | None = None
+    work_hours: Hours | None = None
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def _date(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            raise ValueError("Dates must look like YYYY-MM-DD.")
+        return check_date_key(v.strip())
+
+
 class Settings(BaseModel):
     onboarded: bool = False
     modules: Annotated[list[str], Field(max_length=3)] = []
@@ -270,3 +362,7 @@ class Settings(BaseModel):
     sleep_schedule: SleepSchedule | None = None
     study_goals: Annotated[list[StudyGoal], Field(max_length=MAX_STUDY_GOALS)] = []
     work: WorkProfile = WorkProfile()
+    # How the brief talks: "supportive" offers the next step with a gentle limit, "direct" just says it.
+    tone: Literal["supportive", "direct"] = "supportive"
+    shields: Annotated[list[Shield], Field(max_length=MAX_SHIELDS)] = []
+    starting_point: StartingPoint | None = None

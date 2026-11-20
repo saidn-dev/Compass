@@ -31,6 +31,8 @@
 
   <main id="app" tabindex="-1">
     <p class="loading" id="loading">Loading...</p>
+    <!-- The focus timer's news ("Session done. Take a 5-minute break."), read out on any page. -->
+    <p class="visually-hidden" id="focus-announce" role="status" aria-live="polite"></p>
 
     <section class="view view-onboarding" id="onboarding-view" aria-labelledby="onboarding-title" hidden>
       <h1 id="onboarding-title">Welcome to Compass</h1>
@@ -150,6 +152,21 @@
         </form>
       </div>
 
+      <div id="onboarding-step-start" hidden>
+        <p class="step-label">Step 5 of 8</p>
+        <h2 id="onb-heading-start" tabindex="-1">Your starting point</h2>
+        <p class="lead">Be honest: this is only for you. An estimate is fine, and nobody else sees it.</p>
+        <form id="onboarding-start-form" class="panel" novalidate>
+          <div id="onboarding-start-fields"></div>
+          <div id="onboarding-projection" aria-live="polite"></div>
+          <p class="form-error" id="onboarding-start-error" role="alert" hidden></p>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
+            <button type="submit" class="btn btn-primary" id="onboarding-start-submit">Show my projection</button>
+          </div>
+        </form>
+      </div>
+
       <div id="onboarding-step-habits" hidden>
         <p class="step-label">Step 4 of 5</p>
         <h2 id="onb-heading-habits" tabindex="-1">Your habits</h2>
@@ -211,8 +228,23 @@
           <p class="form-error" id="onboarding-goals-error" role="alert" hidden></p>
           <div class="form-actions">
             <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
-            <button type="submit" class="btn btn-primary">Start</button>
+            <button type="submit" class="btn btn-primary" id="onboarding-goals-submit">Start</button>
             <button type="button" class="btn btn-ghost" id="onboarding-skip-goals">Skip for now</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="onboarding-step-session" hidden>
+        <p class="step-label">Step 8 of 8</p>
+        <h2 id="onb-heading-session" tabindex="-1">Your first focus session</h2>
+        <p class="lead">Start one now and Compass opens with the timer running. It counts toward this week.</p>
+        <form id="onboarding-session-form" class="panel" novalidate>
+          <div id="onboarding-session-fields"></div>
+          <p class="form-error" id="onboarding-session-error" role="alert" hidden></p>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost btn-back" data-back>Back</button>
+            <button type="submit" class="btn btn-primary">Start my first session</button>
+            <button type="button" class="btn btn-ghost" id="onboarding-skip-session">Skip for now</button>
           </div>
         </form>
       </div>
@@ -246,6 +278,7 @@
           </form>
           <p class="form-error" id="task-error" role="alert" hidden></p>
           <div class="carry-over" id="carry-over"></div>
+          <div class="focus-summary" id="focus-summary"></div>
         </section>
 
         <section class="panel panel-goals" aria-labelledby="goals-title">
@@ -296,6 +329,16 @@
               <button type="submit" class="btn btn-primary">Save modules</button>
             </div>
           </form>
+        </section>
+
+        <section class="panel" aria-labelledby="set-tone-title">
+          <h2 id="set-tone-title">Tone</h2>
+          <fieldset class="tone-choice" id="tone-choice">
+            <legend>How the brief talks to you</legend>
+            <label class="check-option"><input type="radio" name="tone" value="supportive"> Supportive: offers the next step and says how much is enough</label>
+            <label class="check-option"><input type="radio" name="tone" value="direct"> Direct: the numbers and the next step, nothing more</label>
+          </fieldset>
+          <p class="save-status" id="tone-status" role="status" aria-live="polite"></p>
         </section>
 
         <section class="panel" aria-labelledby="set-habits-title">

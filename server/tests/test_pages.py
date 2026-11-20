@@ -1,7 +1,7 @@
 import pytest
 
 from app.models import Settings, SleepSchedule, StudyGoal, Target, WorkProfile, WorkSchedule
-from app.pages import module_details, work_days_text
+from app.pages import module_details, top_reason, work_days_text
 
 TODAY = "2026-11-12"
 STOP = "This week's tip: Pick a time to stop work today and keep to it."
@@ -42,13 +42,43 @@ def test_study_goals_in_saved_order():
     s = Settings(modules=["study"], study_goals=[
         StudyGoal(name="Exam", date="2026-11-24"), StudyGoal(name="Essay", date="2026-10-01"),
         StudyGoal(name="Thesis"), StudyGoal(name="Quiz", date="2026-11-12")])
-    assert module_details("study", s, [], TODAY) == {"title": "Your goals", "lines": [
-        "Exam · in 12 days", "Essay · date passed", "Thesis", "Quiz · today"]}
+    assert module_details("study", s, [], TODAY)["lines"] == [
+        "Exam · in 12 days", "Essay · date passed", "Thesis", "Quiz · today"]
+
+
+def session(date, task, minutes, area="study"):
+    return {"date": date, "sessions": [{"id": "s", "area": area, "task": task, "minutes": minutes,
+                                        "ended_at": f"{date}T10:00:00"}]}
+
+
+def test_study_goal_sessions_steps_and_countdown():
+    s = Settings(modules=["study"], study_goals=[
+        StudyGoal(name="Exam", date="2026-11-24", hours=40,
+                  steps=[{"text": "Chapter 1", "done": True}, {"text": "Past paper"}]),
+        StudyGoal(name="Essay")])
+    days = [session("2026-11-10", "Exam", 50), session("2026-11-11", "Exam", 25),
+            session("2026-11-11", "Essay", 25, area="work"), session("2026-11-12", "Other", 25)]
+    exam, essay = module_details("study", s, [], TODAY, days)["goals"]
+    assert exam["index"] == 0 and exam["when"] == "in 12 days"
+    assert exam["sessions"] == "2 sessions · 1 h 15 min of 40 h"
+    assert exam["steps"] == [{"text": "Chapter 1", "done": True}, {"text": "Past paper", "done": False}]
+    assert exam["steps_text"] == "1 of 2 steps done"
+    assert exam["pace"]
+    # A Work session with the same task name never counts toward a study goal.
+    assert essay == {"index": 1, "name": "Essay", "when": None, "sessions": "No sessions yet",
+                     "pace": None, "steps": [], "steps_text": None}
+
+
+def test_study_one_session_without_hours():
+    s = Settings(modules=["study"], study_goals=[StudyGoal(name="Essay")])
+    goal = module_details("study", s, [], TODAY, [session("2026-11-12", "Essay", 25)])["goals"][0]
+    assert goal["sessions"] == "1 session · 25 min"
 
 
 def test_study_without_goals():
     d = module_details("study", Settings(modules=["study"]), [], TODAY)
     assert d["lines"] == ["No study goals yet."]
+    assert d["goals"] == []
 
 
 def test_work_full_profile():
@@ -101,7 +131,7 @@ def test_contributors_hours_and_logging():
     s = Settings(modules=["study"], targets=[Target(area_id="study", target=12, mode="up")])
     got = module_contributors("study", s, days("study_hours", [2, None, 3, None, None, 1, None]))
     assert got == [
-        {"label": "Hours", "text": "6 h this week", "score": 50, "level": "Pay attention"},
+        {"label": "Hours", "text": "6 of 12 h this week", "score": 50, "level": "Pay attention"},
         {"label": "Logging", "text": "3 of 7 days", "score": 43, "level": "Pay attention"},
     ]
 
@@ -118,8 +148,40 @@ def test_sleep_contributors_average_and_bedtime():
         (7.5, "22:00"), (7.5, "22:15"), (7.5, "23:30"), (7.5, "23:45"), (None, None), (None, None), (None, None)]]
     got = module_contributors("sleep", with_schedule(), window)
     assert [c["label"] for c in got] == ["Hours", "Bedtime", "Logging"]
-    assert got[0]["text"] == "7.5 h average a night"
-    assert got[1] == {"label": "Bedtime", "text": "2 of 4 nights on time", "score": 50, "level": "Pay attention"}
+    assert got[0]["text"] == "7.5 of 7.5 h a night on average"
+    # Bedtime is a limit: 2 late nights is Ok.
+    assert got[1] == {"label": "Bedtime", "text": "2 of 4 nights on time", "score": 85, "level": "Ok"}
+
+
+@pytest.mark.parametrize("late, level", [(0, "Great"), (1, "Ok"), (2, "Ok"), (3, "Too much")])
+def test_bedtime_contributor_uses_limit_words(late, level):
+    bedtimes = ["23:45"] * late + ["22:00"] * (5 - late)
+    window = [{"sleep_hours": 7.5, "bedtime": b} for b in bedtimes] + [{}, {}]
+    assert module_contributors("sleep", with_schedule(), window)[1]["level"] == level
+
+
+def test_hours_over_a_limit_use_limit_words():
+    s = Settings(modules=["work"], targets=[Target(area_id="work", target=40, mode="limit")])
+    assert module_contributors("work", s, days("work_hours", [7] * 7))[0]["level"] == "Too much"
+    assert module_contributors("work", s, days("work_hours", [6, 6, 6, 6, 6, 6, 5]))[0]["level"] == "Ok"
+    assert module_contributors("work", s, days("work_hours", [5] * 7))[0]["level"] == "Great"
+
+
+def test_top_reason_names_the_weakest_contributor_below_the_top():
+    rows = [
+        {"label": "Hours", "text": "4 of 10 h this week", "score": 40, "level": "Pay attention"},
+        {"label": "Logging", "text": "5 of 7 days", "score": 71, "level": "Good"},
+    ]
+    assert top_reason(rows) == "Mostly hours: 4 of 10 h this week"
+
+
+def test_no_top_reason_when_everything_is_at_the_top():
+    rows = [
+        {"label": "Hours", "text": "12 of 12 h this week", "score": 100, "level": "Optimal"},
+        {"label": "Bedtime", "text": "5 of 5 nights on time", "score": 100, "level": "Great"},
+        {"label": "Logging", "text": "Not logged", "score": None, "level": "No data"},
+    ]
+    assert top_reason(rows) is None
 
 
 def test_sleep_goal_has_no_bedtime_contributor():

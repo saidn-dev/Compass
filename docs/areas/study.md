@@ -2,7 +2,7 @@
 
 How Compass handles it now:
 
-- Field: `study_hours` (hours), added up over 7 days
+- Field: `study_hours` (hours), added up over 7 days. Focus sessions on the Study page add their minutes on top when days are read (`server/app/focus.py`, `with_focus_hours`); the stored field keeps only the hours typed in.
 - Default target: 12 h a week, mode `up` (higher is better)
 - Tip when behind: "Do one 30-minute study block on your nearest deadline."
 - Study goals: 1 to 5 set on the onboarding Study page, each a name and an optional date (`Settings.study_goals`); changed later on the Study page with its Edit button

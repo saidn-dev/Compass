@@ -1,7 +1,7 @@
 import re
 
 from app.areas import AREAS, last_n_dates
-from app.brief import LOW_SLEEP_LINE, build_brief
+from app.brief import LOW_SLEEP_LINE, build_brief, offer
 from app.models import Settings, SleepSchedule, StudyGoal, WorkProfile, normalize_day
 from app.settings_rules import apply_onboarding, check_settings
 from app.work import ALL_WORK_TIPS, STOP_TIP
@@ -38,7 +38,7 @@ def numbers_in(text: str) -> list[float]:
 
 def measured_sentences(brief: dict) -> list[str]:
     """Every sentence except the action, whose duration is not a measurement."""
-    return [s for s in brief["sentences"] if s not in SUGGESTIONS]
+    return [s for s in brief["sentences"] if s not in SUGGESTIONS and not s.startswith("If it feels right, ")]
 
 
 # (a) furthest-behind area is named with its number
@@ -73,7 +73,7 @@ def test_going_over_a_limit_is_behind():
 def test_nothing_behind_says_what_is_going_well():
     days = week(sleep_hours=[8] * 7)
     brief = build_brief(days, settings("sleep"), TODAY)
-    assert "on track" in brief["sentences"][0].lower()
+    assert "on course" in brief["sentences"][0].lower()
     assert "behind" not in brief["sentences"][0].lower()
 
 
@@ -181,7 +181,7 @@ def test_fewer_than_four_points_has_no_weakest_day():
 def test_action_is_the_areas_short_suggestion():
     days = week(sleep_hours=[6] * 7)
     brief = build_brief(days, settings("sleep"), TODAY)
-    assert brief["sentences"][2] == AREAS[0].suggestion
+    assert brief["sentences"][2] == offer(AREAS[0].suggestion, "sleep", "up", "supportive")
 
 
 # (g) every number shown is in facts
@@ -224,7 +224,7 @@ def test_custom_targets_are_used():
     s = settings("sleep").model_copy()
     s.targets[0].target = 6
     brief = build_brief(week(sleep_hours=[6.5] * 7), s, TODAY)
-    assert "on track" in brief["sentences"][0].lower()
+    assert "on course" in brief["sentences"][0].lower()
 
 
 # (h) plain hyphens only
@@ -394,19 +394,19 @@ def test_brief_never_over_four_sentences_with_study():
 def test_work_tip_replaces_the_fixed_suggestion():
     s = settings("work").model_copy(update={"work": WorkProfile(derailers=["procrastination"], focus="morning")})
     brief = build_brief(week(work_hours=[3] * 7), s, TODAY)
-    assert brief["sentences"][2] == "Spend 10 minutes in the morning on the task you've been putting off."
+    assert brief["sentences"][2] == offer("Spend 10 minutes in the morning on the task you've been putting off.", "work", "up", "supportive")
 
 
 def test_work_focus_with_empty_profile_gives_the_general_tip():
     brief = build_brief(week(work_hours=[1] * 7), settings("work"), TODAY)
     assert brief["sentences"][0].startswith("Work")
-    assert brief["sentences"][2] == "Block 30 minutes today for your most urgent task."
+    assert brief["sentences"][2] == offer("Block 30 minutes today for your most urgent task.", "work", "up", "supportive")
 
 
 def test_work_limit_gives_the_stop_tip():
     brief = build_brief(week(work_hours=[10] * 7), work_limit(40), TODAY)
     assert brief["sentences"][0].startswith("Work")
-    assert brief["sentences"][2] == STOP_TIP
+    assert brief["sentences"][2] == offer(STOP_TIP, "work", "limit", "supportive")
 
 
 def test_work_tip_only_when_work_is_the_focus():
@@ -414,3 +414,37 @@ def test_work_tip_only_when_work_is_the_focus():
     brief = build_brief(week(sleep_hours=[4] * 7, work_hours=[8] * 7), s, TODAY)
     assert brief["sentences"][0].startswith("Sleep")
     assert not any(t in brief["sentences"] for t in ALL_WORK_TIPS)
+
+
+# --- tone: what happened, an offer, a gentle limit; never "behind" ---
+
+def test_supportive_brief_offers_with_a_gentle_limit():
+    brief = build_brief(week(study_hours=[1] * 7), settings("study"), TODAY)
+    assert brief["sentences"][0] == "Study is furthest from its target: 7 h this week against 12 h."
+    assert brief["sentences"][2] == ("If it feels right, do one 30-minute study block on your nearest deadline, "
+                                     "but there's no need to make up the whole week today.")
+
+
+def test_direct_brief_says_the_gap_and_the_tip_plainly():
+    direct = settings("study").model_copy(update={"tone": "direct"})
+    brief = build_brief(week(study_hours=[1] * 7), direct, TODAY)
+    assert brief["sentences"][0] == "Study: 7 h this week against 12 h, 5 h short."
+    assert brief["sentences"][2] == AREAS[1].suggestion
+
+
+def test_a_limit_is_over_not_behind():
+    days = week(work_hours=[8] * 7)
+    supportive = build_brief(days, work_limit(40), TODAY)["sentences"]
+    direct = build_brief(days, work_limit(40).model_copy(update={"tone": "direct"}), TODAY)["sentences"]
+    assert supportive[0] == "Work is furthest over its limit: 56 h this week against 40 h."
+    assert supportive[2].endswith("but stopping on time matters more than finishing the list.")
+    assert direct[0] == "Work: 56 h this week against 40 h, 16 h over."
+
+
+def test_no_tone_says_behind():
+    cases = [week(sleep_hours=[5] * 7, study_hours=[0.5] * 7), week(work_hours=[9] * 7)]
+    for days in cases:
+        for tone in ("supportive", "direct"):
+            for s in (settings("sleep", "study"), work_limit(40)):
+                text = " ".join(build_brief(days, s.model_copy(update={"tone": tone}), TODAY)["sentences"])
+                assert "behind" not in text.lower()

@@ -2,7 +2,7 @@
 
 How Compass handles it now:
 
-- Field: `work_hours` (hours), added up over 7 days. For someone looking for work it holds hours spent searching, and the log field is labelled "Job search" instead of "Paid work".
+- Field: `work_hours` (hours), added up over 7 days. For someone looking for work it holds hours spent searching, and the log field is labelled "Job search" instead of "Paid work". Focus sessions on the Work page add their minutes on top when days are read (`server/app/focus.py`, `with_focus_hours`); the stored field keeps only the hours typed in.
 - Default target: 16 h a week, mode `up` (higher is better)
 - Target from the profile: a work type sets the mode ("Employed" is `limit`, "Stay under"; every other type is `up`). A schedule (days, start, end) sets the target to days times the hours between start and end, up to 168 h. "It varies" saves the typed hours a week and clears the schedule. Skipping every question keeps 16 h, `up`; an employed user with no schedule and no "It varies" hours gets 40 h (`limit`) unless they saved a different target.
 - Tips (the brief's third sentence when Work is the area it is about):

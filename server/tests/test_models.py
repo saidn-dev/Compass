@@ -102,7 +102,7 @@ def test_note_keeps_html_as_plain_text():
 def test_unknown_keys_dropped_and_shape_complete():
     day = normalize_day({"evil": 1, "date": "1999-01-01"}, DATE)
     assert set(day) == {"date", "habits", "tasks", "note", "bedtime", "wake_time", "tags", "mood", "rest",
-                        *NUMERIC_FIELDS}
+                        "sessions", *NUMERIC_FIELDS}
     assert day["date"] == DATE
 
 
@@ -293,3 +293,71 @@ def test_day_rest_is_only_true_for_true():
     assert normalize_day({"rest": True}, "2026-11-13")["rest"] is True
     assert normalize_day({"rest": "yes"}, "2026-11-13")["rest"] is False
     assert normalize_day({}, "2026-11-13") | {} == normalize_day({"tags": [], "mood": None, "rest": False}, "2026-11-13")
+
+
+# --- focus sessions on a day ---
+
+SESSION = {"id": "a1b2c3d4", "area": "study", "task": "Read chapter 4", "minutes": 25, "ended_at": "14:05"}
+
+
+def test_day_without_sessions_has_none():
+    assert normalize_day({}, DATE)["sessions"] == []
+
+
+def test_good_session_is_kept():
+    assert normalize_day({"sessions": [SESSION]}, DATE)["sessions"] == [SESSION]
+
+
+def test_session_task_is_trimmed_and_blank_task_is_none():
+    day = normalize_day({"sessions": [{**SESSION, "task": "  Essay  "}, {**SESSION, "id": "x2", "task": "   "},
+                                      {**SESSION, "id": "x3", "task": None}]}, DATE)
+    assert [s["task"] for s in day["sessions"]] == ["Essay", None, None]
+
+
+def test_session_minutes_become_whole_numbers():
+    assert normalize_day({"sessions": [{**SESSION, "minutes": 24.6}]}, DATE)["sessions"][0]["minutes"] == 25
+
+
+@pytest.mark.parametrize("change", [
+    {"area": "sleep"}, {"area": None}, {"minutes": 0}, {"minutes": 181}, {"minutes": "abc"}, {"minutes": True},
+    {"ended_at": "25:00"}, {"ended_at": None}, {"id": ""}, {"id": 7}, {"id": "x" * 33}, {"task": 5},
+], ids=repr)
+def test_bad_session_is_dropped(change):
+    assert normalize_day({"sessions": [{**SESSION, **change}]}, DATE)["sessions"] == []
+
+
+@pytest.mark.parametrize("junk", JUNK, ids=repr)
+def test_junk_sessions_become_none(junk):
+    assert normalize_day({"sessions": junk}, DATE)["sessions"] == []
+
+
+def test_session_ids_are_kept_once_and_at_most_48_sessions():
+    many = [{**SESSION, "id": f"s{i}"} for i in range(60)]
+    day = normalize_day({"sessions": [SESSION, SESSION, *many]}, DATE)
+    assert len(day["sessions"]) == 48
+    assert [s["id"] for s in day["sessions"][:2]] == ["a1b2c3d4", "s0"]
+
+
+def test_long_session_task_is_cut_to_200_characters():
+    assert len(normalize_day({"sessions": [{**SESSION, "task": "x" * 300}]}, DATE)["sessions"][0]["task"]) == 200
+
+
+def test_sessions_never_touch_logged_hours():
+    assert normalize_day({"study_hours": 1, "sessions": [SESSION]}, DATE)["study_hours"] == 1
+
+
+# --- study goal steps ---
+
+def test_study_goal_steps_default_empty_and_clean():
+    from app.models import StudyGoal
+    assert StudyGoal(name="Exam").steps == []
+    goal = StudyGoal(name="Exam", steps=[{"text": "  Past paper  "}])
+    assert goal.steps[0].text == "Past paper" and goal.steps[0].done is False
+
+
+@pytest.mark.parametrize("steps", [
+    [{"text": ""}], [{"text": "x" * 101}], [{"text": f"Step {i}"} for i in range(11)]])
+def test_study_goal_steps_rejected(steps):
+    from app.models import StudyGoal
+    with pytest.raises(ValidationError):
+        StudyGoal(name="Exam", steps=steps)

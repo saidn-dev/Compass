@@ -3,9 +3,10 @@ from datetime import date, timedelta
 import pytest
 
 from app.insights import (
-    bedtime_guidance, build_history, build_insights, build_review, carry_over, find_patterns, find_streaks,
+    active_shield, bedtime_guidance, build_history, build_insights, build_review, carry_over, find_patterns,
+    find_streaks,
 )
-from app.models import Habit, Settings, SleepSchedule, Target, normalize_day
+from app.models import Habit, Settings, Shield, SleepSchedule, Target, normalize_day
 
 TODAY = "2026-11-13"  # a Friday
 
@@ -83,21 +84,59 @@ def test_patterns_biggest_difference_first_and_at_most_five():
 
 # --- streaks ---
 
-def test_logging_streak_counts_back_from_yesterday_when_today_is_empty():
-    d = days({1: {"sleep_hours": 7}, 2: {"study_hours": 1}, 3: {"sleep_hours": 7}, 5: {"sleep_hours": 7}})
+def test_a_streak_still_alive_flickers_until_today_is_done():
+    d = days({1: {"sleep_hours": 7}, 2: {"study_hours": 1}, 3: {"sleep_hours": 7}})
     got = find_streaks(d, settings("sleep", "study"), TODAY)
-    assert got[0] == {"label": "Logging", "days": 3, "best": 3, "text": "3 days running"}
+    assert got[0] == {"label": "Logging", "days": 3, "best": 3, "state": "flicker", "revived": 0,
+                      "text": "3 days · do it today to keep it lit"}
 
 
-def test_logging_streak_includes_today_and_remembers_the_best_run():
+def test_one_missed_day_fades_and_doing_it_the_next_day_revives_it():
+    # Done 5, missed 4, done 3, 2, 1: the miss didn't end the streak, and it was revived.
+    d = days({1: {"sleep_hours": 7}, 2: {"study_hours": 1}, 3: {"sleep_hours": 7}, 5: {"sleep_hours": 7}})
+    got = find_streaks(d, settings("sleep", "study"), TODAY)[0]
+    assert (got["days"], got["state"], got["revived"]) == (4, "flicker", 1)
+    assert got["text"] == "4 days · do it today to keep it lit · revived 1 time"
+
+
+def test_a_streak_fades_after_one_missed_day():
+    d = days({2: {"sleep_hours": 7}, 3: {"sleep_hours": 7}})
+    got = find_streaks(d, settings("sleep"), TODAY)[0]
+    assert (got["days"], got["state"], got["text"]) == (2, "fade", "Fading · do it today to revive 2 days")
+
+
+def test_two_missed_days_end_a_streak_and_today_lights_a_new_one():
     entries = {b: {"sleep_hours": 7} for b in (0, 1, 4, 5, 6, 7, 8)}
-    got = find_streaks(days(entries), settings("sleep"), TODAY)
-    assert (got[0]["days"], got[0]["best"], got[0]["text"]) == (2, 5, "2 days running")
+    got = find_streaks(days(entries), settings("sleep"), TODAY)[0]
+    assert (got["days"], got["best"], got["state"], got["text"]) == (2, 5, "lit", "2 days · lit")
+
+
+def test_after_two_misses_it_says_start_again():
+    got = find_streaks(days({3: {"sleep_hours": 7}, 4: {"sleep_hours": 7}}), settings("sleep"), TODAY)[0]
+    assert (got["days"], got["state"], got["text"]) == (0, "out", "Start again today")
+
+
+def test_rest_days_and_pauses_neither_count_nor_break_a_streak():
+    d = days({1: {"sleep_hours": 7}, 2: {"rest": True}, 3: {"rest": True}, 4: {"sleep_hours": 7},
+              6: {"sleep_hours": 7}})
+    paused = settings("sleep", shields=[Shield(start=key(6), end=key(5), reason="holiday")])
+    got = find_streaks(d, paused, TODAY)[0]
+    # Day 5 is paused and days 2-3 are rest days: 6, 4 and 1 make 3 days with no miss.
+    assert (got["days"], got["state"], got["revived"]) == (3, "flicker", 0)
+    without = find_streaks(d, settings("sleep"), TODAY)[0]
+    assert without["revived"] == 1  # day 5 counts as a miss without the pause
 
 
 def test_no_streak_yet():
     got = find_streaks([], settings("sleep"), TODAY)
-    assert got[0] == {"label": "Logging", "days": 0, "best": 0, "text": "No streak yet"}
+    assert got[0] == {"label": "Logging", "days": 0, "best": 0, "state": "out", "revived": 0,
+                      "text": "No streak yet"}
+
+
+def test_active_shield_and_its_words():
+    s = settings("sleep", shields=[Shield(start=key(2), end="2026-11-20", reason="exam")])
+    assert active_shield(s, TODAY)["text"] == "Exam period: streaks paused until 20 Nov."
+    assert active_shield(settings("sleep"), TODAY) is None
 
 
 def test_habit_and_bedtime_streaks():
@@ -107,8 +146,9 @@ def test_habit_and_bedtime_streaks():
               1: {"habits": {"h1": True}, "bedtime": "23:50", "wake_time": "06:30"},
               2: {"habits": {"h1": False}, "bedtime": "22:00", "wake_time": "06:30"}})
     got = {x["label"]: x for x in find_streaks(d, s, TODAY)}
-    assert got["Morning walk"]["text"] == "2 days running"
-    assert got["Bedtime on time"]["text"] == "1 day running"
+    assert got["Morning walk"]["text"] == "2 days · lit"
+    # On time, late, on time: the late night faded the streak and tonight revived it.
+    assert got["Bedtime on time"]["text"] == "2 days · lit · revived 1 time"
     assert list(got) == ["Logging", "Bedtime on time", "Morning walk"]
 
 
@@ -161,6 +201,15 @@ def test_review_extras_habits_tasks_and_mood():
         "Focus tasks: 4 of 8 done.",
         "Mood: 4 out of 5 on average, up from 2.",
     ]
+
+
+def test_review_extras_focus_sessions_after_focus_tasks():
+    s = settings("study")
+    sessions = [{"id": f"s{i}", "area": "study", "task": None, "minutes": 50, "ended_at": "10:00"} for i in range(3)]
+    entries = {0: {"tasks": [{"text": "a", "done": True}], "sessions": sessions},
+               8: {"sessions": sessions[:1]}}
+    r = build_review(days(entries), s, TODAY)
+    assert r["extras"] == ["Focus tasks: 1 of 1 done.", "Focus sessions: 3 (2 h 30 min), up from 50 min."]
 
 
 # --- history, carry-over, bedtime guidance ---
@@ -218,4 +267,4 @@ def test_bedtime_guidance_needs_a_schedule():
 
 def test_build_insights_has_every_part():
     got = build_insights([], settings("sleep"), TODAY)
-    assert set(got) == {"date", "review", "patterns", "streaks"}
+    assert set(got) == {"date", "review", "patterns", "streaks", "shield", "focus_report"}

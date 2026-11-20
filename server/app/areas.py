@@ -1,7 +1,8 @@
 """Life areas (sleep, study, work) and their rules.
 
-Date helpers, 7-day averages/sums, "On track / Behind / No data" status,
-progress percent and trend direction. A gap (None) is never treated as 0.
+Date helpers, 7-day averages/sums, scores and their words (bands for targets,
+Great / Ok / Too much for limits), progress percent and trend direction.
+A gap (None) is never treated as 0.
 """
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -9,7 +10,6 @@ from typing import Literal
 
 Aggregate = Literal["avg", "sum"]
 Mode = Literal["up", "limit"]
-Status = Literal["on_track", "behind", "no_data"]
 Trend = Literal["up", "down", "flat", "none"]
 
 TREND_THRESHOLD = 0.05
@@ -59,15 +59,6 @@ def area_value(area: Area, days: list[dict]) -> float | None:
     return sum(present)
 
 
-def area_status(value: float | None, target: float, mode: str) -> Status:
-    if mode not in ("up", "limit"):
-        raise ValueError(f"unknown mode: {mode}")
-    if value is None:
-        return "no_data"
-    on_track = value >= target if mode == "up" else value <= target
-    return "on_track" if on_track else "behind"
-
-
 def area_progress(value: float | None, target: float, mode: str) -> float | None:
     """Percent of target (for "limit", percent of the limit used), clamped 0-200."""
     if value is None or target <= 0:
@@ -108,15 +99,21 @@ def effective_target(area: Area, target: float, days: list[dict]) -> float:
 
 
 # A score's words: the label shown beside it and the headline over it.
-# The first row whose minimum the score reaches is used. Only 100 (the target is met)
-# is "on course", so the words never disagree with "On track" / "Behind".
+# The first row whose minimum the score reaches is used.
 SCORE_BANDS = [
-    (100, "Optimal", "Right on course"),
-    (85, "Good", "Close to course"),
-    (70, "Fair", "Drifting a little"),
+    (85, "Optimal", "Right on course"),
+    (70, "Good", "Close to course"),
+    (60, "Fair", "Drifting a little"),
     (0, "Pay attention", "Off course"),
 ]
+# A limit (stay under it) has its own words: at or under is Great, up to 15% over is Ok.
+LIMIT_BANDS = [
+    (100, "Great", "Within your limit"),
+    (85, "Ok", "A little over"),
+    (0, "Too much", "Well over your limit"),
+]
 NO_SCORE_WORDS = ("No data", "No bearings yet")
+TOP_LEVELS = (SCORE_BANDS[0][1], LIMIT_BANDS[0][1])
 
 
 def area_score(value: float | None, target: float, mode: str) -> int | None:
@@ -133,11 +130,12 @@ def area_score(value: float | None, target: float, mode: str) -> int | None:
     return round(max(0.0, min(100.0, 100 - over)))
 
 
-def score_words(score: int | None) -> tuple[str, str]:
-    """(label, headline) for a score, e.g. (\"Good\", \"Close to course\")."""
+def score_words(score: int | None, mode: str = "up") -> tuple[str, str]:
+    """(label, headline) for a score, e.g. ("Good", "Close to course"); a limit gets ("Ok", "A little over")."""
     if score is None:
         return NO_SCORE_WORDS
-    for minimum, label, headline in SCORE_BANDS:
+    bands = LIMIT_BANDS if mode == "limit" else SCORE_BANDS
+    for minimum, label, headline in bands:
         if score >= minimum:
             return label, headline
-    return SCORE_BANDS[-1][1:]
+    return bands[-1][1:]
