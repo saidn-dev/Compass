@@ -68,6 +68,12 @@ class Repository:
                 (clean["date"], json.dumps(clean)),
             )
 
+    def earliest_date(self) -> str | None:
+        """The first date anything was saved on, or None before the first save."""
+        with self._lock:
+            row = self._conn.execute("SELECT MIN(date) FROM days").fetchone()
+        return row[0] if row else None
+
     def days_between(self, start: str, end: str) -> list[dict]:
         """One Day per date from start to end inclusive, oldest first; unlogged dates are empty."""
         with self._lock:

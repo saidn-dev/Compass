@@ -108,7 +108,7 @@
             </fieldset>
             <div class="field field-narrow">
               <label for="onb-sleep-earliest">Earliest weekday wake time</label>
-              <input id="onb-sleep-earliest" name="wake_time" type="time">
+              <input id="onb-sleep-earliest" name="wake_time" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="--:--" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" data-time>
             </div>
             <div class="form-actions">
               <button type="button" class="btn" id="onboarding-sleep-suggest">Show my suggestion</button>
@@ -262,52 +262,67 @@
         <div id="brief"></div>
       </section>
 
-      <section class="panel panel-checkin" aria-labelledby="checkin-title">
-        <h2 id="checkin-title">Check-in</h2>
-        <div class="check-in" id="check-in"></div>
-      </section>
-
-      <div class="dashboard-grid">
-        <section class="panel panel-focus" aria-labelledby="focus-title">
-          <h2 id="focus-title">Today's focus</h2>
-          <div id="tasks"></div>
-          <form id="task-form" class="inline-form" novalidate>
-            <label for="task-text" class="visually-hidden">New focus task</label>
-            <input id="task-text" name="text" type="text" maxlength="200" placeholder="Add a task (up to 3)" autocomplete="off">
-            <button type="submit" class="btn">Add</button>
-          </form>
-          <p class="form-error" id="task-error" role="alert" hidden></p>
-          <div class="carry-over" id="carry-over"></div>
-          <div class="focus-summary" id="focus-summary"></div>
-        </section>
-
-        <section class="panel panel-goals" aria-labelledby="goals-title">
-          <h2 id="goals-title">Goals</h2>
-          <div id="goals"></div>
-        </section>
-
-        <section class="panel panel-capture" aria-labelledby="capture-title">
-          <div class="panel-head">
-            <h2 id="capture-title">Quick capture</h2>
-            <p class="save-status" id="note-status" role="status" aria-live="polite"></p>
-          </div>
-          <label for="note" class="visually-hidden">Notes for today</label>
-          <textarea id="note" name="note" rows="6" maxlength="5000" placeholder="Anything on your mind. Saves automatically."></textarea>
-        </section>
-
-        <section class="panel panel-habits" aria-labelledby="habits-title">
-          <div class="panel-head">
-            <h2 id="habits-title">Habits</h2>
-            <p class="stat" id="habit-completion"></p>
-          </div>
-          <div class="habit-scroll" id="habit-grid"></div>
-        </section>
+      <!-- Wide: side column (focus, capture), main column (check-in, goals, habits).
+           Phones follow data-order. -->
+      <div class="page-layout">
+        <div class="page-side">
+          <section data-order="3" class="panel panel-focus" aria-labelledby="focus-title">
+            <h2 id="focus-title">Today's focus</h2>
+            <div id="tasks"></div>
+            <form id="task-form" class="inline-form" novalidate>
+              <label for="task-text" class="visually-hidden">New focus task</label>
+              <input id="task-text" name="text" type="text" maxlength="200" placeholder="Add a task (up to 3)" autocomplete="off">
+              <button type="submit" class="btn">Add</button>
+            </form>
+            <p class="form-error" id="task-error" role="alert" hidden></p>
+            <div class="carry-over" id="carry-over"></div>
+            <div class="focus-summary" id="focus-summary"></div>
+          </section>
+          <section data-order="5" class="panel panel-capture" aria-labelledby="capture-title">
+            <div class="panel-head">
+              <h2 id="capture-title">Quick capture</h2>
+              <p class="save-status" id="note-status" role="status" aria-live="polite"></p>
+            </div>
+            <label for="note" class="visually-hidden">Notes for today</label>
+            <textarea id="note" name="note" rows="6" maxlength="5000" placeholder="Anything on your mind. Saves automatically."></textarea>
+          </section>
+        </div>
+        <div class="page-main">
+          <section data-order="2" class="panel panel-checkin" aria-labelledby="checkin-title">
+            <h2 id="checkin-title">Check-in</h2>
+            <div class="check-in" id="check-in"></div>
+          </section>
+          <section data-order="4" class="panel panel-goals" aria-labelledby="goals-title">
+            <h2 id="goals-title">Goals</h2>
+            <div id="goals"></div>
+          </section>
+          <section data-order="6" class="panel panel-habits" aria-labelledby="habits-title">
+            <div class="panel-head">
+              <h2 id="habits-title">Habits</h2>
+              <p class="stat" id="habit-completion"></p>
+            </div>
+            <div class="habit-scroll" id="habit-grid"></div>
+          </section>
+        </div>
       </div>
     </div>
 
     <div class="view view-module" id="module-view" hidden>
       <h1 id="module-title" tabindex="-1"></h1>
       <div class="module-grid" id="module-body"></div>
+    </div>
+
+    <div class="view view-focus" id="focus-view" hidden>
+      <h1 tabindex="-1" class="visually-hidden">Focus</h1>
+      <div id="focus-body"></div>
+    </div>
+
+    <div class="view view-focus-stats" id="focus-stats-view" hidden>
+      <div class="focus-page-head stats-head">
+        <a class="focus-icon-btn" href="#/focus" aria-label="Back to Focus" title="Back to Focus"><svg class="focus-icon-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></a>
+        <h1 class="focus-page-title" tabindex="-1">Focus stats</h1>
+      </div>
+      <div id="focus-stats-body"></div>
     </div>
 
     <div class="view view-insights" id="insights-view" hidden>
@@ -339,6 +354,52 @@
             <label class="check-option"><input type="radio" name="tone" value="direct"> Direct: the numbers and the next step, nothing more</label>
           </fieldset>
           <p class="save-status" id="tone-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel settings-focus" id="settings-focus" aria-labelledby="set-focus-title">
+          <h2 id="set-focus-title">Focus</h2>
+          <form id="focus-prefs-form" class="stack-form" novalidate>
+            <div class="field field-narrow">
+              <label for="focus-goal">Daily focus goal</label>
+              <div class="input-unit">
+                <input id="focus-goal" name="daily_goal" type="number" inputmode="numeric" min="0" max="720" step="5" aria-describedby="focus-goal-hint">
+                <span class="unit">min</span>
+              </div>
+              <p class="hint" id="focus-goal-hint">0 for no goal. With a goal, streaks count the days you reach it.</p>
+            </div>
+            <div class="focus-prefs-row">
+              <div class="field">
+                <label for="focus-short">Short break</label>
+                <div class="input-unit">
+                  <input id="focus-short" name="short_break" type="number" inputmode="numeric" min="1" max="30" step="1">
+                  <span class="unit">min</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="focus-long">Long break</label>
+                <div class="input-unit">
+                  <input id="focus-long" name="long_break" type="number" inputmode="numeric" min="1" max="60" step="1">
+                  <span class="unit">min</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="focus-every">Long break after</label>
+                <div class="input-unit">
+                  <input id="focus-every" name="long_break_every" type="number" inputmode="numeric" min="2" max="8" step="1">
+                  <span class="unit">sessions</span>
+                </div>
+              </div>
+            </div>
+            <label class="check-option"><input type="checkbox" name="auto_break"> Start breaks by themselves</label>
+            <label class="check-option"><input type="checkbox" name="auto_focus"> Start the next session after a break by itself</label>
+            <label class="check-option"><input type="checkbox" name="strict"> Strict mode: no Pause, Finish early or Reset while a session runs</label>
+            <p class="hint">Changes apply from the next round you start.</p>
+            <p class="form-error" id="focus-prefs-error" role="alert" hidden></p>
+            <p class="save-status" id="focus-prefs-status" role="status" aria-live="polite"></p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save focus settings</button>
+            </div>
+          </form>
         </section>
 
         <section class="panel" aria-labelledby="set-habits-title">

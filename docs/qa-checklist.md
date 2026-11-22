@@ -100,6 +100,26 @@ Manual checks to run before calling v1 done. Start the app with `python start.py
 - [x] Session totals: a 50-minute Study session with the goal as its task shows "1 session · 50 min" under that goal; a Work session with the same name doesn't count (server tests + checked by Claude in the browser, 2026-11-20)
 - [x] 360 and 700 px: the Edit form's goal rows fit with no sideways scrolling; console shows only the favicon 404 (checked by Claude in the browser, 2026-11-20)
 
+### Focus page (v2 stage 2b)
+
+- [x] `#/focus` opens when Study or Work is on and goes Home when neither is; the nav has a Focus link after the modules; reloading stays on the page (route tests + checked by Claude in the browser, 2026-11-22)
+- [x] The Focus timer is the same shared timer: a Work session started on Focus reads "Work session 1 of 4" there and "Session 1 of 4" on the Work page; Home's summary links to `#/focus` (checked by Claude in the browser, 2026-11-22)
+- [x] The Focus page's Study/Work switch offers only enabled modules; picking Work drops Study goals from the task picker, remembers the choice, and a running session chooses its own area (checked by Claude in the browser, 2026-11-22)
+- [x] Finish early on Focus saves the minutes done, clears the timer, and updates today's total and the log; Remove on a 2-days-ago session deletes only that session and keeps focus on the next control (checked by Claude in the browser, 2026-11-22)
+- [x] The Focus rail shows totals split by area and sessions grouped by day with an escaped task name; Focus stats ranks tasks with a Study goal badge and "No task" and stacks Study and Work in one bar (render tests + checked by Claude in the browser, 2026-11-22)
+- [x] 1280 px and 360 px: no sideways scrolling; all 7 nav links fit in one row at 360 px; console shows only the favicon 404; every request goes to 127.0.0.1 (screenshots + checked by Claude in the browser, 2026-11-22)
+- [x] `GET /api/focus?date=2026-11-22` returns the page payload and a bad date returns 422; `focus_page` has payload tests (curl + server tests, 2026-11-22)
+- [x] + (header) and "+ Add" open the Add record dialog; 07:30-08:15 "Morning reading" saves 45 min to today and shows in the record; Edit opens it filled in, a bad end time shows an error, 08:30 saves 60 min (checked by Claude in the browser, 2026-11-22)
+- [x] While running, + / − change the time by 5 min, stop at 1 min, and keep keyboard focus on the button pressed (checked by Claude in the browser, 2026-11-22)
+- [x] `#/focus/stats` opens from the bar-chart icon beside ⋯ (sliding in from the right), keeps Focus lit in the nav, and the Focus icon at its top left goes back (Focus slides in from the left); it shows the totals, the year grid with months, the 14-day timeline, the busiest hour, the bars and time by task; at 360 px nothing scrolls sideways except the year grid, which opens at the latest weeks; the record dialog fits (screenshots + checked by Claude in the browser, 2026-11-22)
+- [x] Home's Focus button opens Focus with that task picked; leaving and coming back resets it to No task (checked by Claude in the browser, 2026-11-22)
+- [x] Focus stats' Day / Week / Month switch and ‹ › arrows: Month then ‹ shows "October 2026", › is off on the current period, keyboard focus stays on the arrow, and the choice survives a reload (`compass.focus.statsPeriod`); a month's bars sit in one row, and no stacked bar runs past the chart (render tests + checked by Claude in the browser, 2026-11-22)
+- [x] Focus stats shows the Focus split ring with the task ranking, the goal tiles ("Goal met 3 of 7"), the longest goal streak, and Level with badges (screenshots + checked by Claude in the browser, 2026-11-22)
+- [x] With a daily goal of 1 h 30 min the Focus rail shows the goal bar and "Goal reached for today."; picking a task with a plan shows "N of M pomos done" with − / +, and the task popover shows done/planned (checked by Claude in the browser, 2026-11-22)
+- [x] After a timed session saves, the Focus record offers "Add a note"; the note saves, shows under the session, and the prompt goes (checked by Claude in the browser, 2026-11-22)
+- [x] Settings → Focus saves the daily goal, break lengths, long break after N, auto-start and strict mode; strict mode hides Pause, Finish and Reset while a session runs (timer tests + server tests, 2026-11-22)
+- [ ] By hand: add a record for an earlier day with Work picked and check that day's Work hours on the Work page go up
+
 ## 2. Settings and data
 
 - [x] Export returns all days and settings (browser script)

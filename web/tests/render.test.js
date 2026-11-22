@@ -362,7 +362,7 @@ const entry = (over = {}) => ({
 test("renderNav lists Home, the modules that are on, then Settings", () => {
   const html = renderNav(NAV_AREAS, ["work", "sleep"], "sleep");
   const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
-  assert.deepStrictEqual(hrefs, ["#/", "#/sleep", "#/work", "#/insights", "#/settings"]);
+  assert.deepStrictEqual(hrefs, ["#/", "#/sleep", "#/work", "#/focus", "#/insights", "#/settings"]);
   assert.ok(!html.includes("Study"));
   assert.strictEqual(html.match(/aria-current="page"/g).length, 1);
   assert.match(html, /href="#\/sleep"[^>]*aria-current="page"/);
@@ -429,11 +429,13 @@ test("module page hero: the week's value, headline, level with its reason, and t
   const html = renderModulePage(entry({ trend: "down" }), DATES, TODAY, DAY, SETTINGS);
   assert.ok(html.includes('<span class="hero-number">6.8</span>'));
   assert.ok(html.includes("Right on course"));
-  assert.ok(html.includes('<p class="hero-status"><span class="status">Optimal</span><span class="hero-reason">Mostly logging: 4 of 7 days</span></p>'));
+  assert.ok(html.includes('<p class="hero-status"><span class="status">Optimal</span>'));
+  assert.ok(!html.includes("hero-reason"));
   assert.ok(html.includes("average a night"));
   assert.ok(html.includes("Target 7.5 h"));
   assert.ok(html.includes("Score 91"));
-  assert.match(html, /<p class="trend" data-trend="down">Trending down<\/p>/);
+  assert.match(html, /<span class="trend" data-trend="down">Trending down<\/span><\/p>/);
+  assert.ok(html.includes('class="ring-pills"'));
   assert.match(html, /stroke-dasharray="91 100"/);
 });
 
@@ -529,7 +531,7 @@ test("renderToday with nothing logged shows a dash", () => {
 
 test("renderNav gives every link an icon hidden from screen readers", () => {
   const html = renderNav(NAV_AREAS, ["sleep", "study", "work"], "home");
-  assert.strictEqual(html.match(/<svg class="nav-icon" aria-hidden="true"/g).length, 6);
+  assert.strictEqual(html.match(/<svg class="nav-icon" aria-hidden="true"/g).length, 7);
 });
 
 // --- check-in, carry-over, history, insights ---
@@ -568,7 +570,7 @@ test("module page: tonight's bedtime, rest days and 12 weeks of history", () => 
     DATES, TODAY, DAY, SETTINGS);
   assert.ok(html.includes("Tonight: aim to be in bed by 22:30."));
   assert.ok(html.includes("2 rest days"));
-  assert.ok(html.includes("Last 12 weeks"));
+  assert.ok(html.includes('role="tablist"') && html.includes("Last </span>12 weeks</button>"));
   assert.strictEqual(html.match(/class="week-bar history-bar"/g).length, 12);
   assert.ok(html.includes("Week of 1 Sep: not logged"));
   assert.ok(html.includes("Week of 12 Sep: 11 h"));
@@ -577,10 +579,10 @@ test("module page: tonight's bedtime, rest days and 12 weeks of history", () => 
 
 test("module page without the extras shows none of them", () => {
   const html = renderModulePage(entry(), DATES, TODAY, DAY, SETTINGS);
-  assert.ok(!html.includes("Last 12 weeks"));
+  assert.ok(!html.includes("12 weeks"));
   assert.ok(!html.includes("rest day"));
   assert.ok(!html.includes("hero-note"));
-  assert.ok(renderModulePage(entry({ rest_days: 1 }), DATES, TODAY, DAY, SETTINGS).includes("1 rest day<"));
+  assert.ok(renderModulePage(entry({ rest_days: 1 }), DATES, TODAY, DAY, SETTINGS).includes("1 rest day this week<"));
 });
 
 const INSIGHTS = {
@@ -665,6 +667,11 @@ test("session list: this module's sessions, task text escaped, a named Remove bu
   assert.ok(renderSessionList([], "work").includes("No sessions yet today."));
 });
 
+test("module pages keep the LCD focus panel", () => {
+  const running = startSession({ area: "study", task: null, minutes: 25 }, NOW);
+  assert.ok(renderFocusPanel("study", running, [], NOW).includes("focus-lcd"));
+});
+
 test("focus panel when idle: lengths, today's unfinished tasks (escaped) and Start", () => {
   const html = renderFocusPanel("study", IDLE, TASKS, NOW);
   assert.match(html, /name="focus-minutes" value="25" checked/);
@@ -678,7 +685,7 @@ test("focus panel when idle: lengths, today's unfinished tasks (escaped) and Sta
 test("focus panel while a session runs: the ring, the time, Pause, Finish early and Reset", () => {
   const running = startSession({ area: "study", task: "Essay", minutes: 25 }, NOW);
   const html = renderFocusPanel("study", running, TASKS, NOW + 10 * 60_000);
-  assert.ok(html.includes('<span data-timer-text role="timer">15:00</span>'));
+  assert.ok(html.includes('<span class="lcd-digits" data-timer-text role="timer">15:00</span>'));
   assert.ok(html.includes('stroke-dasharray="60 100"'));
   assert.ok(html.includes("Session 1 of 4 · Essay"));
   for (const action of ["pause", "finish", "reset"]) assert.ok(html.includes(`data-focus="${action}"`), action);
@@ -732,7 +739,7 @@ test("Home focus summary: today's sessions per module, and a running timer", () 
   const none = { today: { count: 0, minutes: 0, study: 0, work: 0 }, week: { count: 0, minutes: 0 } };
   assert.ok(renderFocusSummary(none).includes("No focus sessions yet today."));
   const running = startSession({ area: "work", task: null, minutes: 50 }, NOW);
-  assert.ok(renderFocusSummary(none, running, NOW).includes('<a href="#/work">Work session 1 of 4</a>'));
+  assert.ok(renderFocusSummary(none, running, NOW).includes('<a href="#/focus">Work session 1 of 4</a>'));
 });
 
 // --- progress words: levels, the top reason ---
@@ -763,7 +770,8 @@ test("module page shades your usual range on the 12-week chart", () => {
   assert.ok(html.includes("data-usual"));
   assert.ok(html.includes("--usual-low: 86.7%; --usual-high: 100%"));
   assert.ok(html.includes("Shaded: your usual range, 6.5 to 7.5 h a night"));
-  assert.ok(html.includes("Within your usual"));
+  // The chart line keeps the numbers; the hero gives the one judgement.
+  assert.ok(html.includes("Last 14 days: 7 h a night · your usual 6.5 to 7.5 h<") && !html.includes("Within your usual"));
 });
 
 test("the Focus Report is locked for a week, then reads as plain lines", () => {

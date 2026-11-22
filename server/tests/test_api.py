@@ -717,6 +717,19 @@ def test_remove_a_focus_session(client):
     assert_error(client.delete(f"{DAY_URL}/sessions/{first}", headers=HOST), 404)
 
 
+def test_change_a_focus_session(client):
+    sid = add(client)["sessions"][0]["id"]
+    r = client.patch(f"{DAY_URL}/sessions/{sid}", json={"minutes": 40, "ended_at": "15:00"}, headers=HOST)
+    assert r.status_code == 200, r.text
+    [changed] = r.json()["sessions"]
+    assert changed == {**NEW_SESSION, "id": sid, "minutes": 40, "ended_at": "15:00", "note": None}
+    r = client.patch(f"{DAY_URL}/sessions/{sid}", json={"task": ""}, headers=HOST)
+    assert r.json()["sessions"][0]["task"] is None and r.json()["sessions"][0]["minutes"] == 40
+    assert_error(client.patch(f"{DAY_URL}/sessions/{sid}", json={"minutes": 181}, headers=HOST), 422)
+    assert_error(client.patch(f"{DAY_URL}/sessions/{sid}", json={"ended_at": "nope"}, headers=HOST), 422)
+    assert_error(client.patch(f"{DAY_URL}/sessions/nope", json={"minutes": 5}, headers=HOST), 404)
+
+
 def test_saving_a_whole_day_keeps_the_stored_sessions(client):
     # A page that loaded the day before a session ended sends an old copy back.
     stale = client.get(DAY_URL, headers=HOST).json()
@@ -760,3 +773,53 @@ def test_bulk_import_keeps_sessions(client):
     add(client)
     client.post("/api/days/bulk", json={"days": [{"date": "2026-11-13", "work_hours": 2}]}, headers=HOST)
     assert len(client.get(DAY_URL, headers=HOST).json()["sessions"]) == 1
+
+
+def test_focus_endpoint_returns_the_page_payload(client):
+    onboard(client)
+    add(client, minutes=25)
+    r = client.get("/api/focus?date=2026-11-13", headers=HOST)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert set(data) == {"summary", "log", "tasks", "days", "weeks", "year", "hours", "sessions", "achievements"}
+    assert data["summary"]["week"] == {"count": 1, "minutes": 25, "study": 25, "work": 0}
+    assert data["log"][0]["sessions"][0]["task"] == "Read chapter 4"
+    assert data["tasks"]["7d"] == [
+        {"area": "study", "task": "Read chapter 4", "minutes": 25, "count": 1, "goal": False}
+    ]
+    assert len(data["days"]) == 7 and len(data["weeks"]) == 12
+
+
+def test_focus_endpoint_rejects_a_bad_date(client):
+    onboard(client)
+    assert_error(client.get("/api/focus?date=nope", headers=HOST), 422)
+
+
+def test_a_session_note_is_saved_changed_and_cleared(client):
+    sid = add(client, note="  Outline done ")["sessions"][0]["id"]
+    assert client.get(DAY_URL, headers=HOST).json()["sessions"][0]["note"] == "Outline done"
+    r = client.patch(f"{DAY_URL}/sessions/{sid}", json={"note": "Outline and intro"}, headers=HOST)
+    assert r.json()["sessions"][0]["note"] == "Outline and intro"
+    r = client.patch(f"{DAY_URL}/sessions/{sid}", json={"note": ""}, headers=HOST)
+    assert r.json()["sessions"][0]["note"] is None
+    assert_error(client.post(f"{DAY_URL}/sessions", json={**NEW_SESSION, "note": "x" * 501}, headers=HOST), 422)
+
+
+def test_focus_prefs_round_trip_through_settings(client):
+    s = client.get("/api/settings", headers=HOST).json()
+    assert s["focus"]["daily_goal"] == 0
+    s["focus"] = {**s["focus"], "daily_goal": 120, "auto_break": False, "strict": True, "estimates": {"Essay": 3}}
+    r = client.put("/api/settings", json=s, headers=HOST)
+    assert r.status_code == 200, r.text
+    assert r.json()["focus"]["daily_goal"] == 120 and r.json()["focus"]["estimates"] == {"Essay": 3}
+    assert_error(client.put("/api/settings", json={**s, "focus": {**s["focus"], "short_break": 0}}, headers=HOST), 422)
+
+
+def test_focus_endpoint_counts_achievements_from_every_saved_day(client):
+    onboard(client)
+    client.post("/api/days/2024-01-05/sessions", json=NEW_SESSION, headers=HOST)  # well over a year back
+    add(client, minutes=25)
+    data = client.get("/api/focus?date=2026-11-13", headers=HOST).json()
+    assert data["achievements"]["sessions"] == 2
+    assert len(data["sessions"]) == 1  # the stats page's periods only reach 53 weeks
+    assert len(data["year"]) == 53 * 7

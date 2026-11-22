@@ -1,35 +1,76 @@
+@font-face {
+  font-family: "DSEG7 Classic";
+  src: url("fonts/DSEG7Classic-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
-  --bg: #101214;
-  --surface: #1b1e21;
-  --surface-2: #272b2f;
+  /* Opal-style night: true black, surfaces made from small steps of grey, no borders. */
+  --bg: #000;
+  --surface: #161616;
+  --surface-2: #1f1f1f;
+  --surface-3: #2c2d2c;
+  --glass: rgb(255 255 255 / 0.05);
+  --glass-strong: rgb(28 28 28 / 0.72);
   --text: #f4f2ee;
-  --text-muted: #a3a8ad;
-  --border: #2a2e33;
-  --accent: #8fc4ee;
-  --accent-text: #0c1a26;
-  --accent-soft: #1b2a38;
+  --text-muted: #a3a6a8;
+  --text-hover: #cfd0d0;   /* hover is a step brighter than muted, never full white */
+  --border: rgb(255 255 255 / 0.08);
+  --field: rgb(255 255 255 / 0.07);       /* inputs and choice tiles */
+  --field-hover: rgb(255 255 255 / 0.1);
+  --border-hover: rgb(255 255 255 / 0.22);
+  --track: rgb(255 255 255 / 0.06);        /* tab tracks */
+  --meter-track: rgb(255 255 255 / 0.1);
+  --pill-track: rgb(255 255 255 / 0.18);
+  --bracket: rgb(255 255 255 / 0.26);
+  --gap-mark: rgb(255 255 255 / 0.14);     /* an unlogged day's stub */
+  --course-line: rgb(255 255 255 / 0.35);  /* the target line through a chart */
+  --edge: rgb(255 255 255 / 0.04);         /* a pane's faint top edge */
+  --edge-strong: rgb(255 255 255 / 0.08);
+  --btn-hover: #383938;
+  --nav-bg: #0a0a0a;
+  --white: #fbfaf7;
+  --danger-text: #ffd9df;
+  --drop-shadow: rgb(0 0 0 / 0.55);
+  --scrim: rgb(0 0 0 / 0.45);
+  --wash-warm: #e6d29a;    /* the main pill's wash leans warm on the left, cool on the right */
+  --wash-cool: #6fd0d8;
+  --wash-base: #0e0e0e;
+  --lcd-face: #070807;
+  --lcd-face-top: #121312;
+  --lcd-unlit: rgb(255 255 255 / 0.07);
+  --accent: #f4f2ee;      /* the UI stays white and grey; colour belongs to levels and the module's hue */
+  --accent-text: #000;
+  --accent-soft: rgb(255 255 255 / 0.1);
   --good: #74d095;
   --good-soft: #17301f;
   --warn: #f2a65e;
   --warn-soft: #3a2615;
-  --danger: #f08a8a;
-  --danger-soft: #3a1b1c;
-  --focus: #8fc4ee;
+  --danger: #f9607f;
+  --danger-soft: #2a1015;
+  --rose: #6b2229;
   --shadow: none;
 
   --level-optimal: #8fc4ee;
   --level-good: #9fd8c2;
   --level-fair: #e8c98a;
-  --level-attention: #f2a65e;
+  --level-attention: #f9607f;
   --level-great: #74d095;
   --level-ok: #e8c98a;
   --level-too-much: #f08a8a;
   --glow: #2b3c4f;        /* the soft colour at the top of a page; each page sets its own */
+  --hue: #9fb8d4;         /* the same colour, light: chart bars and the main button's wash */
+  --focus-study: #b7a3d6; /* the two focus series, kept distinct in the stacked bars */
+  --focus-work: #d6b08c;
 
-  --radius: 16px;
-  --radius-small: 10px;
-  --gap: 16px;
+  --radius: 20px;
+  --radius-small: 12px;
+  --gap: 12px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --lcd: "DSEG7 Classic", ui-monospace, monospace;
+  --mono: ui-monospace, "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
 
   color-scheme: dark;     /* makes scrollbars and form controls dark too */
@@ -43,38 +84,41 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
   margin: 0;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: 0.9375rem;
+  line-height: 1.45;
 }
 
 h1,
 h2,
 h3 {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   line-height: 1.25;
 }
 
 h1 {
   font-family: var(--serif);
-  font-size: 1.9rem;
+  font-size: 1.6rem;
   font-weight: 400;
   letter-spacing: -0.01em;
 }
 
 h2 {
-  font-size: 1.1rem;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 h3 {
-  font-size: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 p {
@@ -85,9 +129,9 @@ p {
   display: none !important;
 }
 
+/* No white focus rings anywhere: controls show focus by their own fill or caret. */
 :focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
+  outline: none;
 }
 
 .visually-hidden {
@@ -123,7 +167,7 @@ p {
 }
 
 .hint {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .lead {
@@ -138,7 +182,7 @@ p {
 }
 
 .site-header {
-  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  border-bottom: 1px solid var(--track);
 }
 
 .site-header-inner {
@@ -196,31 +240,43 @@ p {
   flex: 1;
   min-width: 0;
   min-height: 100vh;
-  background: radial-gradient(120% 420px at 50% -80px, var(--glow) 0%, transparent 70%) no-repeat;
+  background:
+    radial-gradient(90% 46vh at 50% -6vh, var(--glow) 0%, transparent 100%) no-repeat,
+    linear-gradient(180deg, color-mix(in srgb, var(--glow) 55%, transparent) 0, transparent 34vh) no-repeat;
 }
 
 body[data-page="sleep"] {
   --glow: #1f4038;
+  --hue: #8ec4ad;
 }
 
 body[data-page="study"] {
   --glow: #3a2c4f;
+  --hue: #b7a3d6;
 }
 
 body[data-page="work"] {
   --glow: #4a3526;
+  --hue: #d6b08c;
+}
+
+body[data-page="focus"] {
+  --glow: #3f3040;
+  --hue: #c6a3bd;
 }
 
 body[data-page="insights"] {
-  --glow: #24403f;
+  --glow: #38331a;
+  --hue: #d4b648;
 }
 
 body[data-page="settings"] {
   --glow: #2c3035;
+  --hue: #b4b9bf;
 }
 
 .side-nav {
-  background: var(--surface);
+  background: var(--nav-bg);
 }
 
 .nav-links {
@@ -245,11 +301,11 @@ body[data-page="settings"] {
 }
 
 .nav-link:hover {
-  color: var(--text);
+  color: var(--text-hover);
 }
 
 .nav-link[aria-current="page"] {
-  background: rgb(255 255 255 / 0.08);
+  background: var(--surface-3);
   color: var(--text);
   font-weight: 600;
 }
@@ -271,10 +327,11 @@ body[data-page="settings"] {
     bottom: 12px;
     z-index: 5;
     padding: 6px;
-    border: 1px solid rgb(255 255 255 / 0.06);
     border-radius: 999px;
-    background: rgb(30 33 36 / 0.94);
-    backdrop-filter: blur(12px);
+    background: var(--glass-strong);
+    box-shadow: inset 0 1px 0 var(--edge-strong), 0 12px 32px var(--drop-shadow);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    backdrop-filter: blur(20px) saturate(1.3);
   }
 
   .side-nav .brand,
@@ -289,7 +346,16 @@ body[data-page="settings"] {
     gap: 2px;
     min-height: 52px;
     padding: 6px 2px;
-    font-size: 0.7rem;
+    font-size: clamp(0.6rem, 2.6vw, 0.7rem);
+    letter-spacing: -0.02em;
+  }
+
+  /* Seven links (Home, up to three modules, Focus, Insights, Settings) still fit. */
+  @media (max-width: 400px) {
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+    }
   }
 
   .side-nav:not([hidden]) + .shell-main main {
@@ -306,7 +372,6 @@ body[data-page="settings"] {
     position: sticky;
     top: 0;
     padding: 16px 10px;
-    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
   }
@@ -359,16 +424,136 @@ main h1[tabindex="-1"]:focus {
   gap: var(--gap);
 }
 
+/* Module pages get the wide two-column layout, so their column (and the date above it) is wider. */
+body:not([data-page="onboarding"]) :is(main, .site-header-inner) {
+  max-width: 1120px;
+}
+
+/* Home, Insights: the same split as a module page. A side column and a main column from
+   1100 px; below that one column, in each part's data-order where it has one. */
+.page-layout,
+.page-side,
+.page-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .page-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 5fr) minmax(0, 7fr);
+    gap: 20px;
+  }
+
+  /* The shorter column's last panel stretches so both columns end together. */
+  .page-side > :last-child,
+  .page-main > :last-child {
+    flex-grow: 1;
+  }
+
+  .page-side > .panel-capture {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-side > .panel-capture textarea {
+    flex-grow: 1;
+  }
+}
+
+@media (max-width: 1099px) {
+  .page-layout:has([data-order]) :is(.page-side, .page-main) {
+    display: contents;
+  }
+
+  .page-layout [data-order="1"] { order: 1; }
+  .page-layout [data-order="2"] { order: 2; }
+  .page-layout [data-order="3"] { order: 3; }
+  .page-layout [data-order="4"] { order: 4; }
+  .page-layout [data-order="5"] { order: 5; }
+  .page-layout [data-order="6"] { order: 6; }
+}
+
+/* Settings: three columns of about equal height (modules and tone, goals, habits and data). */
+@media (min-width: 1100px) {
+  .view-settings .settings-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto auto 1fr;
+    align-items: start;
+  }
+
+  .settings-grid > :nth-child(1) { grid-column: 1; grid-row: 1 / 3; }
+  .settings-grid > :nth-child(2) { grid-column: 1; grid-row: 3 / 5; }
+  .settings-grid > :nth-child(3) { grid-column: 3; grid-row: 1; }
+  .settings-grid > :nth-child(4) { grid-column: 2; grid-row: 1 / 5; }
+  .settings-grid > :nth-child(5) { grid-column: 3; grid-row: 2 / 5; }
+}
+
+.tone-choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tone-choice legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.edit-list .button-row {
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+/* Streaks sit two to a row when there is room: flame, then name, count and best stacked. */
+.page-main .streak-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  column-gap: 28px;
+}
+
+.page-main .streak {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.page-main .streak-flame {
+  grid-row: span 3;
+  margin-top: 4px;
+}
+
+.page-main :is(.streak-days, .streak-best) {
+  grid-column: 2;
+}
+
+.page-main .streak-days {
+  font-size: 0.85rem;
+}
+
+.page-main .streak:nth-child(2) {
+  padding-top: 0;
+}
+
+.panel-capture textarea {
+  min-height: 96px;
+}
+
 .loading {
   color: var(--text-muted);
 }
 
+/* A panel is a soft pane of frosted glass: a lighter tone, no border, a faint top edge. */
 .panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--glass);
   border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  box-shadow: inset 0 1px 0 var(--edge);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   min-width: 0;
 }
 
@@ -476,7 +661,7 @@ main h1[tabindex="-1"]:focus {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background: var(--bg);
+  background: var(--field);
 }
 
 .sleep-option label {
@@ -541,7 +726,7 @@ main h1[tabindex="-1"]:focus {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background: var(--bg);
+  background: var(--field);
 }
 
 .work-option label {
@@ -579,7 +764,7 @@ main h1[tabindex="-1"]:focus {
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background: var(--bg);
+  background: var(--field);
   color: var(--text);
   font: inherit;
   cursor: pointer;
@@ -653,7 +838,7 @@ main h1[tabindex="-1"]:focus {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background: var(--bg);
+  background: var(--field);
 }
 
 .sleep-suggestion h3,
@@ -741,7 +926,8 @@ main h1[tabindex="-1"]:focus {
 
 .study-goal-name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .study-goal-meta,
@@ -800,7 +986,7 @@ main h1[tabindex="-1"]:focus {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background: var(--bg);
+  background: var(--field);
 }
 
 @media (min-width: 520px) {
@@ -815,10 +1001,10 @@ main h1[tabindex="-1"]:focus {
   justify-content: center;
   gap: 6px;
   min-height: 40px;
-  padding: 8px 16px;
-  border: 1px solid var(--border);
+  padding: 8px 18px;
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--surface);
+  background: var(--surface-3);
   color: var(--text);
   font: inherit;
   font-weight: 600;
@@ -828,7 +1014,11 @@ main h1[tabindex="-1"]:focus {
 }
 
 .btn:hover {
-  background: var(--surface-2);
+  background: var(--btn-hover);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn:disabled {
@@ -836,26 +1026,43 @@ main h1[tabindex="-1"]:focus {
   cursor: not-allowed;
 }
 
+/* Plain confirms: a solid white pill. */
 .btn-primary {
   background: var(--accent);
-  border-color: var(--accent);
   color: var(--accent-text);
 }
 
 .btn-primary:hover {
-  background: var(--accent);
-  filter: brightness(1.08);
+  background: var(--white);
+}
+
+/* The page's one main action: a dark pill washed with soft light in the module's own hue. */
+.btn-main {
+  min-height: 46px;
+  padding: 10px 28px;
+  min-width: 132px;
+  color: var(--white);
+  background:
+    radial-gradient(60% 140% at 50% 120%, color-mix(in oklab, var(--hue) 30%, transparent), transparent 70%),
+    linear-gradient(90deg,
+      color-mix(in oklab, color-mix(in oklab, var(--hue) 70%, var(--wash-warm)) 26%, var(--wash-base)) 0%,
+      color-mix(in oklab, var(--hue) 44%, var(--wash-base)) 50%,
+      color-mix(in oklab, color-mix(in oklab, var(--hue) 70%, var(--wash-cool)) 26%, var(--wash-base)) 100%);
+  box-shadow: inset 0 1px 0 var(--gap-mark), 0 0 24px color-mix(in oklab, var(--hue) 14%, transparent);
+}
+
+.btn-main:hover {
+  background-color: transparent;
+  filter: brightness(1.12);
 }
 
 .btn-danger {
-  background: var(--danger-soft);
-  border-color: var(--danger);
-  color: var(--danger);
+  background: linear-gradient(180deg, var(--rose), var(--danger-soft));
+  color: var(--danger-text);
 }
 
 .btn-danger:hover {
-  background: var(--danger);
-  color: var(--surface);
+  background: var(--rose);
 }
 
 .btn-ghost {
@@ -875,12 +1082,6 @@ main h1[tabindex="-1"]:focus {
   gap: 8px;
 }
 
-/* The import <label class="btn"> needs to show focus from its hidden input. */
-.button-row:has(#import-file:focus-visible) label[for="import-file"] {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-
 input[type="text"],
 input[type="number"],
 input[type="time"],
@@ -889,12 +1090,128 @@ select,
 textarea {
   width: 100%;
   min-height: 40px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border: 1px solid transparent;
   border-radius: var(--radius-small);
-  background: var(--bg);
+  background: var(--field);
   color: var(--text);
   font: inherit;
+}
+
+/* Time boxes take 24-hour text: a short, centred field with tabular figures. */
+input[data-time] {
+  max-width: 9ch;
+  font-variant-numeric: tabular-nums;
+}
+
+input[aria-invalid="true"] {
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  background-color: var(--field-hover);
+}
+
+/* Typing fields show focus by a lighter fill and the caret. */
+input:not([type="radio"], [type="checkbox"], [type="range"], [type="file"]):focus-visible,
+textarea:focus-visible {
+  outline: none;
+  background-color: var(--field-hover);
+}
+
+/* Every input arrow: silver chevrons on a transparent background, a step brighter on hover.
+   SVG data URLs can't read tokens, so the colours are --text-muted and --text-hover. */
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  margin-left: 8px;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18' fill='none' stroke='%23a3a6a8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.5 6 3l3.5 3.5M2.5 11.5 6 15l3.5-3.5'/%3E%3C/svg%3E") no-repeat center / 12px 18px;
+  cursor: pointer;
+}
+
+input[type="number"]::-webkit-inner-spin-button:hover {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18' fill='none' stroke='%23cfd0d0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.5 6 3l3.5 3.5M2.5 11.5 6 15l3.5-3.5'/%3E%3C/svg%3E");
+}
+
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 16' fill='none' stroke='%23a3a6a8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px 16px;
+  cursor: pointer;
+}
+
+select:hover {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 16' fill='none' stroke='%23cfd0d0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Open dropdown lists use the dialogs' glass where the browser allows styling them
+   (Chrome 135+); older browsers keep their own list. */
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  select::picker-icon {
+    display: none;
+  }
+
+  ::picker(select) {
+    margin-top: 6px;
+    padding: 6px;
+    border: 0;
+    border-radius: var(--radius-small);
+    background: var(--glass-strong);
+    box-shadow: inset 0 1px 0 var(--edge-strong), 0 24px 64px var(--drop-shadow);
+    -webkit-backdrop-filter: blur(28px) saturate(1.2);
+    backdrop-filter: blur(28px) saturate(1.2);
+    color: var(--text);
+  }
+
+  option {
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  option:hover {
+    background: var(--field-hover);
+    color: var(--text-hover);
+  }
+
+  option:checked {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  /* Group names read like the other section labels: small, uppercase, muted. */
+  optgroup {
+    padding-top: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  optgroup option {
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
+  option::checkmark {
+    display: none;
+  }
 }
 
 input::placeholder,
@@ -925,8 +1242,9 @@ input[type="radio"] {
 }
 
 .field label {
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 .field-narrow {
@@ -1019,6 +1337,9 @@ input[type="radio"] {
 .panel-brief {
   background: none;
   border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   padding: 0 8px;
   text-align: center;
 }
@@ -1096,11 +1417,6 @@ input[type="radio"] {
   outline: none;
 }
 
-.score-chip:focus-visible .score-chip-ring {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
-}
-
 .score-ring {
   position: absolute;
   inset: 0;
@@ -1113,7 +1429,7 @@ input[type="radio"] {
 }
 
 .ring-track {
-  stroke: rgb(255 255 255 / 0.16);
+  stroke: var(--gap-mark);
   stroke-width: 1.5;
 }
 
@@ -1141,7 +1457,7 @@ input[type="radio"] {
 }
 
 .score-chip:hover .score-chip-label {
-  color: var(--text);
+  color: var(--text-hover);
 }
 
 [data-level="optimal"] {
@@ -1168,6 +1484,14 @@ input[type="radio"] {
   --level: var(--level-ok);
 }
 
+[data-level="on_time"] {
+  --level: var(--level-great);
+}
+
+[data-level="late"] {
+  --level: var(--level-too-much);
+}
+
 [data-level="too_much"] {
   --level: var(--level-too-much);
 }
@@ -1185,9 +1509,38 @@ input[type="radio"] {
   padding: 4px 0 8px;
 }
 
+/* The gauge and its readout: the kicker and number sit inside the arc. */
+.gauge-wrap {
+  position: relative;
+  width: min(270px, 76%);
+}
+
 .gauge {
-  width: min(300px, 82%);
+  display: block;
+  width: 100%;
   overflow: visible;
+}
+
+.gauge-readout {
+  position: absolute;
+  inset: auto 0 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gauge-stop-from {
+  stop-color: color-mix(in oklab, var(--hue) 55%, var(--bg));
+}
+
+.gauge-stop-to {
+  stop-color: color-mix(in oklab, var(--hue) 70%, var(--white));
+}
+
+@media (min-width: 1100px) {
+  .gauge-wrap {
+    width: 310px;
+  }
 }
 
 .gauge-track,
@@ -1197,17 +1550,17 @@ input[type="radio"] {
 }
 
 .gauge-track {
-  stroke: rgb(255 255 255 / 0.14);
-  stroke-width: 2;
+  stroke: var(--meter-track);
+  stroke-width: 5;
 }
 
 .gauge-fill {
-  stroke: var(--level);
-  stroke-width: 3;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hue) 35%, transparent));
 }
 
 .hero-kicker {
-  margin: -104px 0 0;
+  margin: 0;
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -1222,7 +1575,7 @@ input[type="radio"] {
 }
 
 .hero-number {
-  font-size: 4rem;
+  font-size: 3.25rem;
   font-weight: 300;
   letter-spacing: -0.02em;
 }
@@ -1234,9 +1587,10 @@ input[type="radio"] {
 }
 
 .hero-headline {
-  margin: 14px 0 8px;
+  text-wrap: balance;
+  margin: 10px 0 6px;
   font-family: var(--serif);
-  font-size: 2rem;
+  font-size: 1.65rem;
   font-weight: 400;
   letter-spacing: -0.01em;
 }
@@ -1247,8 +1601,8 @@ input[type="radio"] {
   align-items: center;
   justify-content: center;
   gap: 6px 14px;
-  margin: 0 0 6px;
-  font-size: 0.9rem;
+  margin: 0 0 4px;
+  font-size: 0.85rem;
   color: var(--text-muted);
 }
 
@@ -1262,6 +1616,120 @@ input[type="radio"] {
   max-width: 40ch;
   margin: 10px 0 0;
   color: var(--text);
+}
+
+.module-details .hero-note {
+  max-width: none;
+  margin: 0 0 8px;
+}
+
+/* Under a module's hero: one capsule per contributor, its outline lit to the score. */
+.ring-pills {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The bracket: one stem down from the status line, splitting out to the outer pills. */
+.ring-pills::before,
+.ring-pills::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-color: var(--bracket);
+}
+
+.ring-pills::before {
+  top: -14px;
+  left: 38px;
+  right: 38px;
+  height: 12px;
+  border-style: solid;
+  border-width: 1px 1px 0;
+  border-radius: 10px 10px 0 0;
+}
+
+.ring-pills::after {
+  top: -22px;
+  left: 50%;
+  height: 8px;
+  border-left: 1px solid;
+}
+
+.ring-pills:has(> li:only-child)::before {
+  display: none;
+}
+
+.ring-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ring-pill-dial {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 76px;
+  height: 40px;
+}
+
+.ring-pill-glyph {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--hue);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ring-pill-dial > svg:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ring-pill-track,
+.ring-pill-fill {
+  fill: none;
+  stroke-width: 3;
+}
+
+.ring-pill-track {
+  stroke: var(--pill-track);
+}
+
+.ring-pill-fill {
+  stroke: var(--hue);
+  stroke-linecap: round;
+}
+
+.ring-pill-number {
+  position: relative;
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ring-pill-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.view-module > h1 {
+  margin: 0;
 }
 
 /* The check-in on Home: mood, tags and the rest-day box. */
@@ -1323,11 +1791,6 @@ input[type="radio"] {
   font-weight: 700;
 }
 
-.mood-option input:focus-visible + span {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-
 .mood .hint {
   margin: 6px 0 0;
 }
@@ -1345,12 +1808,12 @@ input[type="radio"] {
 }
 
 .tag-toggle:hover {
-  color: var(--text);
+  color: var(--text-hover);
 }
 
 .tag-toggle[aria-pressed="true"] {
   background: var(--accent-soft);
-  border-color: var(--accent);
+  border-color: transparent;
   color: var(--text);
 }
 
@@ -1681,16 +2144,16 @@ input[type="radio"] {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background: var(--bg);
+  background: var(--field);
   cursor: pointer;
 }
 
 .module-option:hover {
-  border-color: var(--accent);
+  border-color: var(--border-hover);
 }
 
 .module-option:has(input:checked) {
-  border-color: var(--accent);
+  border-color: transparent;
   background: var(--accent-soft);
 }
 
@@ -1721,12 +2184,45 @@ input[type="radio"] {
   border-top: 1px solid var(--border);
 }
 
+.task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .task label {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: flex-start;
   gap: 10px;
   padding: 10px 0;
   cursor: pointer;
+}
+
+/* A task's Focus button: quiet until the row is pointed at (always shown on touch). */
+.task-focus {
+  flex: none;
+  min-height: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.task-focus:hover {
+  color: var(--text);
+}
+
+@media (hover: hover) {
+  .task-focus {
+    opacity: 0;
+  }
+
+  .task:hover .task-focus,
+  .task-focus:focus-visible {
+    opacity: 1;
+  }
 }
 
 .task input {
@@ -1777,7 +2273,7 @@ input[type="radio"] {
   height: 36px;
   border-radius: var(--radius-small);
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--field);
   color: var(--accent-text);
   cursor: pointer;
   font: inherit;
@@ -1787,7 +2283,7 @@ input[type="radio"] {
 }
 
 .habit-cell:hover {
-  border-color: var(--accent);
+  border-color: var(--border-hover);
 }
 
 .habit-cell[aria-pressed="true"] {
@@ -1887,7 +2383,7 @@ input[type="radio"] {
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  height: 120px;
+  height: 112px;
 }
 
 .week-bars[style] .week-bar-track::after {
@@ -1896,26 +2392,65 @@ input[type="radio"] {
   left: -4px;
   right: -4px;
   bottom: var(--target);
-  border-top: 1px dashed rgb(255 255 255 / 0.35);
+  border-top: 1px dashed var(--course-line);
 }
 
 .week-bar-fill {
   width: min(28px, 70%);
   height: var(--height);
   min-height: 2px;
-  border-radius: 6px 6px 2px 2px;
-  background: var(--accent);
-  opacity: 0.6;
+  border-radius: 6px 6px 3px 3px;
+  background: var(--hue);
+  opacity: 0.68;
 }
 
 .week-bar[data-today] .week-bar-fill {
   opacity: 1;
 }
 
+/* An unlogged day: a short stub on the baseline, never a bar at 0. */
 .week-bar[data-gap] .week-bar-fill {
-  height: 2px;
-  background: var(--border);
+  height: 3px;
+  min-height: 3px;
+  border-radius: 2px;
+  background: var(--gap-mark);
   opacity: 1;
+}
+
+.week-bar[data-gap] .week-bar-value {
+  color: var(--text-muted);
+}
+
+/* Two series in one bar: Study below, Work above. The parts are shares of the total,
+   which keeps them inside the bar's height for every value of the top scale. */
+.week-bar-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: min(28px, 70%);
+  height: var(--height);
+  min-height: 2px;
+}
+
+.week-bar-stack .week-bar-fill {
+  width: 100%;
+  min-height: 0;
+  border-radius: 0;
+  opacity: 1;
+}
+
+.week-bar-stack .week-bar-fill-a {
+  background: var(--focus-study);
+  border-radius: 0 0 3px 3px;
+}
+
+.week-bar-stack .week-bar-fill-b {
+  background: var(--focus-work);
+  border-radius: 6px 6px 0 0;
+}
+
+.week-bars-compact .week-bar-stack {
+  width: 70%;
 }
 
 .week-bar-day {
@@ -1932,11 +2467,11 @@ input[type="radio"] {
 }
 
 .week-bars-compact .week-bar-value {
-  display: none;
+  visibility: hidden;
 }
 
 .week-bars-compact .week-bar-track {
-  height: 90px;
+  height: 112px;
 }
 
 .week-bars-compact .week-bar-fill {
@@ -1957,10 +2492,12 @@ input[type="radio"] {
   bottom: var(--usual-low);
   height: calc(var(--usual-high) - var(--usual-low));
   min-height: 2px;
-  background: rgb(143 196 238 / 0.12);
+  background: color-mix(in srgb, var(--hue) 13%, transparent);
 }
 
-.usual-key {
+.usual-key,
+.chart-key {
+  margin: 10px 0 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1970,7 +2507,7 @@ input[type="radio"] {
   width: 14px;
   height: 10px;
   border-radius: 2px;
-  background: rgb(143 196 238 / 0.25);
+  background: color-mix(in srgb, var(--hue) 30%, transparent);
 }
 
 .hero-usual {
@@ -1978,6 +2515,12 @@ input[type="radio"] {
   color: var(--text-muted);
   font-size: 0.9rem;
   text-align: center;
+}
+
+.module-chart .hero-usual {
+  margin: -4px 0 14px;
+  font-size: 0.85rem;
+  text-align: left;
 }
 
 .hero-usual[data-place="learning"] {
@@ -1989,8 +2532,12 @@ input[type="radio"] {
   font-weight: 600;
 }
 
-/* Contributors: what went into the score, each with a thin meter. */
+/* Contributors as verdict rows: the name and its line, the level word on the right,
+   and a five-segment bar filled to the score in the level's colour. */
 .contributors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 18px 28px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1999,41 +2546,40 @@ input[type="radio"] {
 .contributor {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.contributor:first-child {
-  padding-top: 0;
-}
-
-.contributor:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
+  grid-template-areas:
+    "label level"
+    "meter meter"
+    "text text";
+  align-items: baseline;
+  gap: 0 12px;
 }
 
 .contributor-label {
-  font-weight: 500;
+  grid-area: label;
+  font-weight: 600;
 }
 
 .contributor-level {
+  grid-area: level;
   font-size: 0.85rem;
+  font-weight: 600;
   color: var(--level);
 }
 
 .contributor-text {
-  grid-column: 1 / -1;
+  grid-area: text;
+  margin-top: 6px;
   font-size: 0.85rem;
   color: var(--text-muted);
 }
 
 .meter {
-  grid-column: 1 / -1;
-  height: 4px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: var(--surface-2);
+  grid-area: meter;
+  height: 5px;
+  margin-top: 8px;
+  background: var(--meter-track);
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 calc(20% - 4px), transparent calc(20% - 4px) 20%);
+  mask: repeating-linear-gradient(90deg, #000 0 calc(20% - 4px), transparent calc(20% - 4px) 20%);
   overflow: hidden;
 }
 
@@ -2041,8 +2587,155 @@ input[type="radio"] {
   display: block;
   width: var(--value);
   height: 100%;
-  border-radius: 999px;
   background: var(--level);
+}
+
+/* The quiet tier: readouts sit straight on the page, no pane behind them. */
+.panel-quiet {
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  padding: 14px 4px 0;
+}
+
+.panel-quiet > h2 {
+  margin-bottom: 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The focus timer: its mode tabs, then the length presets and your own length side by side. */
+.focus-modes {
+  margin-bottom: 14px;
+}
+
+.focus-lengths-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+}
+
+.focus-lengths .mood-options {
+  min-height: 44px;
+}
+
+.focus-lengths legend,
+.focus-own label {
+  margin: 0 0 6px;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.focus-own {
+  gap: 0;
+}
+
+.focus-own .input-unit {
+  align-items: baseline;
+}
+
+.focus-own input {
+  max-width: 8ch;
+  min-height: 44px;
+}
+
+.focus-form .hint {
+  margin: 0;
+}
+
+/* Module pages: hero on top, then a side column (log, details) and a main column (chart,
+   contributors). One column below 1100 px, in the same order. */
+.module-layout,
+.module-side,
+.module-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .module-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 5fr) minmax(0, 7fr);
+    align-items: start;
+    gap: 20px;
+  }
+
+  .module-side {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+.module-chart .panel-head {
+  margin-bottom: 14px;
+}
+
+/* Segmented tabs: a dark track, the chosen one a lighter grey pill. */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--track);
+}
+
+.segment {
+  min-height: 40px;
+  padding: 4px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 799px) {
+  .segment {
+    min-height: 44px;
+  }
+}
+
+.segment:hover {
+  color: var(--text-hover);
+}
+
+.segment[aria-selected="true"] {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.module-log .form-actions {
+  margin-top: 6px;
+}
+
+.module-log .btn,
+.focus-form .btn-main {
+  flex: 1 1 100%;
+}
+
+/* Study and Work below 1100 px: one column in the order log, details, chart, contributors. */
+@media (max-width: 1099px) {
+  .module-timed :is(.module-side, .module-main) {
+    display: contents;
+  }
+
+  .module-timed .module-focus { order: 1; }
+  .module-timed .module-log { order: 2; }
+  .module-timed .module-details { order: 3; }
+  .module-timed .module-chart { order: 4; }
+  .module-timed .module-contributors { order: 5; }
 }
 
 .module-details > p {
@@ -2063,47 +2756,111 @@ input[type="radio"] {
   text-align: center;
 }
 
-.focus-ring {
+/* The running timer: an LCD readout in a dark bezel. Unlit "8"s sit behind the lit digits;
+   while a session runs the bezel glows softly in the page's hue. */
+.focus-lcd {
   position: relative;
-  width: min(220px, 72%);
-  aspect-ratio: 1;
+  width: min(340px, 100%);
+  padding: 18px 20px 16px;
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--hue) 14%, transparent), transparent 75%),
+    linear-gradient(180deg, var(--lcd-face-top), var(--lcd-face));
+  box-shadow:
+    inset 0 1px 0 var(--edge-strong),
+    inset 0 0 0 1px var(--edge),
+    inset 0 10px 24px var(--drop-shadow),
+    0 0 0 6px var(--glass);
 }
 
-.focus-ring svg {
+.focus-clock {
+  position: relative;
+  margin: 0;
+  font-family: var(--lcd);
+  font-size: clamp(2.4rem, 10vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.lcd-ghost {
+  position: absolute;
+  inset: 0;
+  color: var(--lcd-unlit);
+}
+
+.lcd-digits {
+  position: relative;
+  color: color-mix(in oklab, var(--hue) 35%, var(--white));
+  text-shadow: 0 0 14px color-mix(in srgb, var(--hue) 45%, transparent);
+}
+
+.lcd-timeline {
   display: block;
   width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
+  height: 4px;
+  margin-top: 14px;
+  overflow: visible;
 }
 
 .focus-ring-track,
 .focus-ring-fill {
   fill: none;
-  stroke-width: 6;
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 
 .focus-ring-track {
-  stroke: rgb(255 255 255 / 0.14);
+  stroke: var(--meter-track);
 }
 
 .focus-ring-fill {
-  stroke: var(--accent);
-  stroke-linecap: round;
+  stroke: var(--hue);
 }
 
 .focus-ring[data-phase="break"] .focus-ring-fill {
   stroke: var(--good);
 }
 
-.focus-clock {
+/* The glow is its own layer, so breathing only changes its opacity. */
+.focus-lcd::after {
+  content: "";
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  margin: 0;
-  font-size: clamp(2rem, 10vw, 2.75rem);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  inset: -6px;
+  border-radius: 28px;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--hue) 15%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.focus-running:not([data-paused]) .focus-lcd[data-phase="focus"]::after {
+  opacity: 1;
+}
+
+.focus-running[data-paused] .lcd-digits {
+  color: var(--text-muted);
+  text-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .focus-lcd::after {
+    transition: opacity 300ms var(--ease-out);
+  }
+
+  .focus-running:not([data-paused]) .focus-lcd[data-phase="focus"]::after {
+    animation: lcd-breathe 5s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes lcd-breathe {
+  from {
+    opacity: 0.55;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .focus-what {
@@ -2120,6 +2877,19 @@ input[type="radio"] {
   margin: 0 0 12px;
 }
 
+.focus-strict-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Settings > Focus: the three break numbers side by side, wrapping on a phone. */
+.focus-prefs-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
 .focus-message {
   margin: 12px 0 0;
   color: var(--text-muted);
@@ -2128,7 +2898,9 @@ input[type="radio"] {
 
 .focus-list-title {
   margin: 24px 0 4px;
-  font-size: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .session-list {
@@ -2194,21 +2966,2293 @@ input[type="radio"] {
 
 .dialog {
   max-width: min(440px, calc(100% - 32px));
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  padding: 22px;
+  border: 0;
+  border-radius: 32px;
+  background: var(--glass-strong);
+  box-shadow: inset 0 1px 0 var(--edge-strong), 0 24px 64px var(--drop-shadow);
+  -webkit-backdrop-filter: blur(28px) saturate(1.2);
+  backdrop-filter: blur(28px) saturate(1.2);
   color: var(--text);
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 0.5);
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .btn,
   .habit-cell,
   .module-option {
-    transition: background-color 120ms ease, border-color 120ms ease;
+    transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out),
+      transform 120ms var(--ease-out), filter 150ms var(--ease-out);
+  }
+}
+
+/* Focus page (2026-11-22, monochrome). Laid out like TickTick's Focus screen: the timer
+   fills a left pane (mode switch, "Focus ›" task, a large ring, one Start pill) and a right
+   rail holds Overview, the Focus record and time by task, with Charts as the rail's second
+   tab. The minute picker is the Pixlpin wheel, opened in the ring's place. No colour on this
+   page: white for what matters, greys for the rest. The one exception is the modules'
+   own colours (Study lilac, Work sand), used only to tell sessions apart: the Focus
+   record's dots and the charts' bars. */
+
+body:is([data-page="focus"], [data-page="focus-stats"]) {
+  --glow: #262626;
+  --hue: #d9d9d9;
+  --ring-track: rgb(255 255 255 / 0.1);
+  --ring-fill: #f4f2ee;
+  --mono-pill: rgb(255 255 255 / 0.09);
+  --mono-pill-hover: rgb(255 255 255 / 0.15);
+}
+
+.focus-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+}
+
+.focus-page-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+/* --- the timer pane --- */
+
+.focus-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.focus-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.focus-page-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.focus-page-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.focus-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.focus-icon-btn:hover,
+.focus-icon-btn[aria-expanded="true"] {
+  background: var(--mono-pill);
+  color: var(--text);
+}
+
+a.focus-icon-btn {
+  text-decoration: none;
+}
+
+.focus-icon-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.focus-more {
+  position: relative;
+}
+
+.focus-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 0;
+  background: rgb(30 30 30 / 0.55);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.07),
+    0 24px 64px var(--drop-shadow);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: blur(28px) saturate(1.4);
+}
+
+.focus-more-menu[hidden] {
+  display: none;
+}
+
+.focus-more-menu button {
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.focus-more-menu button:hover,
+.focus-more-menu button:focus-visible {
+  background: var(--mono-pill);
+}
+
+#focus-page-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 32px;
+}
+
+.focus-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.focus-card-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+}
+
+.focus-pane {
+  width: 100%;
+}
+
+/* Pomo / Stopwatch sits in the pane's header row, centred, like TickTick's switch. */
+.focus-card-mode {
+  align-self: center;
+}
+
+@media (min-width: 601px) {
+  .focus-stage .focus-card[data-state="idle"] .focus-card-mode {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+.focus-card-mode .segment {
+  min-width: 104px;
+}
+
+/* Study / Work: a quiet pair of chips, not a second loud switch. */
+.focus-area-picker {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.focus-area-picker legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.focus-area-picker .mood-options {
+  display: flex;
+  gap: 6px;
+}
+
+.focus-area-picker .mood-option > span {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 500;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.focus-area-picker .mood-option input:checked + span {
+  background: var(--ring-fill);
+  box-shadow: none;
+  color: #000;
+  font-weight: 600;
+}
+
+/* "Focus ›": the task picker as a quiet link-like line above the ring. */
+.focus-card .focus-task-picker .field {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+.focus-card .focus-task-picker .field > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.focus-card .focus-task-picker select {
+  width: auto;
+  field-sizing: content;
+  max-width: min(320px, 80vw);
+  min-height: 0;
+  padding: 6px 26px 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4.5 2.5 8 6l-3.5 3.5' fill='none' stroke='%23a3a3a3' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center / 12px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  appearance: none;
+}
+
+.focus-card .focus-task-picker select:hover {
+  background-color: var(--mono-pill);
+  color: var(--text);
+}
+
+/* The ring: a thin grey circle; while a countdown runs, a white arc drains from 12. */
+.focus-card-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(320px, 76vw);
+  aspect-ratio: 1;
+}
+
+.focus-card-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+
+.focus-card-ring .focus-ring-track,
+.focus-card-ring .focus-ring-fill {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.focus-card-ring .focus-ring-track {
+  stroke: var(--ring-track);
+}
+
+.focus-card-ring .focus-ring-fill {
+  stroke: var(--ring-fill);
+  stroke-linecap: round;
+}
+
+.focus-card[data-state="idle"] .focus-ring-fill,
+.focus-card[data-state="away"] .focus-ring-fill,
+.focus-card[data-phase="watch"] .focus-ring-fill {
+  stroke: transparent;
+}
+
+.focus-card[data-phase="break"] .focus-ring-fill,
+.focus-card[data-paused] .focus-ring-fill {
+  stroke: rgb(255 255 255 / 0.4);
+}
+
+.focus-card-time {
+  position: relative;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(3rem, 9vw, 4.5rem);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.focus-card[data-paused] .focus-card-time {
+  color: var(--text-muted);
+}
+
+/* The idle reading is the button that opens the wheel. */
+.focus-card-trigger {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px 26px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.focus-card-trigger .focus-card-time {
+  font-size: clamp(3rem, 9vw, 4.5rem);
+}
+
+/* The hint hangs below the time without taking space, so the Pomo reading sits in the
+   ring's exact middle, in the same place as the stopwatch's. */
+.focus-card-hint {
+  position: absolute;
+  top: calc(100% - 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.focus-card-trigger:hover .focus-card-hint,
+.focus-card-trigger:focus-visible .focus-card-hint {
+  opacity: 1;
+}
+
+.focus-card-trigger:hover {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.focus-card-trigger:active {
+  transform: scale(0.97);
+}
+
+/* Rolling digits: one slot per character; a changing digit's old and new glyphs overlap
+   in the slot while they swap. */
+.focus-digits {
+  display: inline-flex;
+}
+
+.focus-digit {
+  position: relative;
+  display: inline-block;
+}
+
+.focus-digit > span {
+  display: inline-block;
+}
+
+.focus-digit > .out {
+  position: absolute;
+  inset: 0;
+}
+
+/* The minute wheel takes the reading's place inside the ring. */
+.focus-card-picker {
+  display: none;
+}
+
+.focus-card[data-open="true"] .focus-card-trigger {
+  display: none;
+}
+
+.focus-card[data-open="true"] .focus-card-picker {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.focus-wheel-field {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* One snapping column, five rows tall: the chosen row in the middle, the rest fading and
+   softening like the reference. Its own height, so it scrolls itself and never the page. */
+.focus-wheel {
+  --row: 36px;
+  height: calc(var(--row) * 5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 38%, #000 62%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 38%, #000 62%, transparent);
+}
+
+.focus-wheel::-webkit-scrollbar {
+  display: none;
+}
+
+.focus-wheel-list {
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--row) * 2) 0;
+}
+
+.focus-wheel .wheel-option {
+  position: relative;
+  display: grid;
+  place-items: center end;
+  height: var(--row);
+  scroll-snap-align: center;
+  cursor: pointer;
+}
+
+.focus-wheel .wheel-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.focus-wheel .wheel-option {
+  --d: 2;
+}
+
+.focus-wheel .wheel-option:has(input:checked) {
+  --d: 0;
+}
+
+/* app.js sets --d from each row's distance to the middle as the wheel scrolls: the middle
+   row is sharp and full size, the rest shrink, fade and blur the further out they are. */
+.focus-wheel .wheel-option > span {
+  color: var(--text);
+  font-size: 2.25rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  opacity: calc(1 - var(--d) * 0.27);
+  filter: blur(calc(var(--d) * 0.8px));
+  transform: scale(calc(1 - var(--d) * 0.13));
+  transform-origin: right center;
+}
+
+.focus-wheel-unit {
+  color: var(--text-muted);
+  font-size: 1.25rem;
+}
+
+/* Popovers on the Focus card, after TickTick's task picker: a dark raised panel that
+   floats over the ring, never pushing it. */
+.task-pop-wrap,
+.focus-own-wrap {
+  position: relative;
+  display: grid;
+  justify-items: center;
+}
+
+.pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 30;
+  translate: -50% 0;
+  padding: 10px;
+  border-radius: 16px;
+  /* Frosted glass like the app's panels and the phone nav: what's behind (the ring, the
+     wheel) shows through blurred. */
+  background: rgb(30 30 30 / 0.55);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.07),
+    0 24px 64px var(--drop-shadow);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: blur(28px) saturate(1.4);
+  text-align: left;
+}
+
+.pop[hidden] {
+  display: none;
+}
+
+/* The wrapper of an open popover sits above the parts of the card drawn after it. */
+.task-pop-wrap:has(> .pop:not([hidden])),
+.focus-own-wrap:has(> .pop:not([hidden])),
+.focus-card-dial:has(.pop:not([hidden])),
+.focus-task-picker:has(.pop:not([hidden])) {
+  position: relative;
+  z-index: 40;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pop:not([hidden]) {
+    animation: pop-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    transform-origin: top center;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+.task-pop-trigger,
+.focus-own-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(320px, 80vw);
+  min-height: 0;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.task-pop-trigger [data-task-pop-label] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-pop-trigger::after {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4.5 2.5 8 6l-3.5 3.5' fill='none' stroke='%23a3a3a3' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center / 12px;
+}
+
+.task-pop-trigger:hover,
+.task-pop-trigger[aria-expanded="true"],
+.focus-own-open:hover,
+.focus-own-open[aria-expanded="true"] {
+  background: var(--mono-pill);
+  color: var(--text);
+}
+
+.focus-own-open {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+}
+
+/* The task popover: tabs, search, then the lists. */
+.task-pop {
+  width: min(300px, 86vw);
+}
+
+.task-pop-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin: 0 auto 10px;
+  padding: 0;
+  background: transparent;
+}
+
+.task-pop-tabs .segment {
+  min-height: 28px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.task-pop-tabs .segment[aria-selected="true"] {
+  background: var(--mono-pill-hover);
+  color: var(--text);
+}
+
+.task-pop-search {
+  position: relative;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.task-pop-search::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  width: 14px;
+  height: 14px;
+  translate: 0 -50%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='7' cy='7' r='4.75' fill='none' stroke='%238a8a8a' stroke-width='1.5'/%3E%3Cpath d='m10.5 10.5 3 3' stroke='%238a8a8a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / 14px;
+  pointer-events: none;
+}
+
+.task-pop-search input {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px 6px 32px;
+  border: 0;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.task-pop-panel {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+}
+
+.task-pop-heading {
+  margin: 8px 4px 2px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.task-pop-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-pop-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-pop-row:hover,
+.task-pop-row:focus-visible {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.task-pop-none {
+  color: var(--text-muted);
+}
+
+.task-pop-dot {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid rgb(255 255 255 / 0.45);
+  border-radius: 50%;
+}
+
+.task-pop-row[aria-pressed="true"] .task-pop-dot {
+  border-color: var(--text);
+  background: radial-gradient(circle, var(--text) 0 3.5px, transparent 4px);
+}
+
+.task-pop-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pomos done / planned for a task, after TickTick's estimated pomos. */
+.task-pop-pomos {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-estimate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.task-estimate-step {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.task-estimate .focus-icon-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+}
+
+.task-estimate .focus-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.task-pop-create .task-pop-plus {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.task-pop-create[hidden] {
+  display: none;
+}
+
+.task-pop-note {
+  margin: 0 6px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.task-pop-note:empty {
+  display: none;
+}
+
+.task-pop-note:not(:empty) {
+  margin: 4px 6px 8px;
+}
+
+.task-pop-empty {
+  margin: 10px 6px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* The exact-length popover: one field and Set. */
+.own-pop {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 10px;
+  width: 236px;
+}
+
+.own-pop:not([hidden]) {
+  display: grid;
+}
+
+.own-pop label {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.own-pop .input-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.own-pop .input-unit input {
+  flex: none;
+  width: 72px;
+  background-image: none;
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text);
+  text-align: center;
+}
+
+.own-pop input::-webkit-inner-spin-button,
+.own-pop input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.own-pop input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.own-pop .own-pop-done {
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text);
+  box-shadow: none;
+  color: #0a0a0a;
+}
+
+.own-pop .own-pop-done:hover {
+  background: #fff;
+}
+
+.focus-card-note {
+  margin: -6px 0 0;
+  max-width: 34ch;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.focus-card[data-open="false"] .focus-card-note {
+  display: none;
+}
+
+/* The stopwatch's hint is read out but not shown, so both modes are the same height and
+   the ring stays in the same place when switching between them. */
+.focus-pane#focus-pane-stopwatch .focus-card-note {
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.focus-card-head {
+  margin: 0;
+  max-width: 36ch;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.focus-note,
+.focus-message {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Start: one white pill. Running controls: Pause in white, the rest grey. */
+.focus-card .focus-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.focus-card .focus-card-actions .btn {
+  min-width: 112px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mono-pill);
+  box-shadow: none;
+  color: var(--text);
+}
+
+.focus-card .focus-card-actions .btn:hover {
+  background: var(--mono-pill-hover);
+}
+
+.focus-card .focus-card-actions .btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.focus-card .focus-card-actions .btn-main,
+.focus-card .focus-card-actions .btn-primary {
+  background: var(--ring-fill);
+  background-image: none;
+  color: #000;
+  font-weight: 600;
+}
+
+.focus-card .focus-card-actions .btn-main {
+  min-width: 180px;
+  min-height: 48px;
+}
+
+.focus-card .focus-card-actions .btn-main:hover,
+.focus-card .focus-card-actions .btn-primary:hover {
+  background: #ffffff;
+}
+
+/* A timer running for the other module, shown on this page as a line. */
+#focus-page-timer > .focus-line {
+  margin: 48px 0;
+}
+
+/* --- the rail: Overview, Focus record, time by task; Charts --- */
+
+.focus-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.focus-rail .panel {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.focus-rail .focus-totals h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.focus-rail .panel h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.focus-rail .panel + .panel {
+  margin-top: 14px;
+}
+
+.focus-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.focus-stat {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.focus-stat h3 {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.focus-stat-value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-stat-detail {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+/* Focus record: a timeline per day, newest first. */
+.focus-log-day + .focus-log-day {
+  margin-top: 14px;
+}
+
+.focus-log-day h3 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.focus-day-total {
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-record {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.focus-record-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding: 8px 0 8px 24px;
+}
+
+/* The dot and the line that joins one day's sessions. */
+.focus-record-item::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ring-fill);
+}
+
+.focus-record-item[data-area="study"]::before {
+  background: var(--focus-study);
+}
+
+.focus-record-item[data-area="work"]::before {
+  background: var(--focus-work);
+}
+
+.focus-record-item + .focus-record-item::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  bottom: calc(100% - 13px);
+  left: 8px;
+  width: 1px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.focus-record-time {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-record-length {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-record-task {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.focus-record-note {
+  grid-column: 1;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* "Your 25 min session is saved. Add a note" at the top of the record. */
+.focus-note-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 10px 6px 10px 14px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+  font-size: 0.88rem;
+}
+
+.focus-note-prompt > span {
+  flex: 1;
+  min-width: 12em;
+  color: var(--text-muted);
+}
+
+.focus-note-dismiss {
+  width: 30px;
+  height: 30px;
+  font-size: 1.1rem;
+}
+
+/* The daily goal above the rail's tiles. */
+.focus-goal {
+  margin-bottom: 12px;
+}
+
+.focus-goal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.focus-goal-head span:first-child {
+  color: var(--text-muted);
+}
+
+.focus-goal-bar {
+  margin: 8px 0 6px;
+}
+
+.focus-goal-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.focus-area-name {
+  margin-right: 4px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.focus-record-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 14px;
+  margin-top: 2px;
+}
+
+.focus-record-remove {
+  padding: 2px 0;
+  min-height: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.focus-record-remove:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+@media (hover: hover) {
+  .focus-record-actions {
+    position: absolute;
+    top: 8px;
+    right: 64px;
+    margin: 0;
+    opacity: 0;
+  }
+
+  .focus-record-item:hover .focus-record-actions,
+  .focus-record-actions:focus-within {
+    opacity: 1;
+  }
+}
+
+/* "Focus record" and its + Add. */
+.focus-log-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-record-add {
+  min-height: 0;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mono-pill);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.focus-record-add:hover {
+  background: var(--mono-pill-hover);
+}
+
+/* The Add / Edit record dialog: centred on the screen, the same glass as the popovers. */
+.pop.record-pop {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 60;
+  width: min(340px, calc(100vw - 32px));
+  padding: 16px;
+  translate: -50% -50%;
+}
+
+.record-pop form {
+  display: grid;
+  gap: 12px;
+}
+
+.record-pop-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.record-pop .field {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.record-pop label,
+.record-pop legend {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.record-pop input[type="text"],
+.record-pop input[type="date"] {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.record-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.record-times input {
+  max-width: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-pop .record-areas {
+  margin: 0;
+}
+
+.record-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.record-error:empty {
+  display: none;
+}
+
+.record-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.record-actions .btn-main {
+  border: 0;
+  border-radius: 999px;
+  background: var(--text);
+  box-shadow: none;
+  color: #0a0a0a;
+}
+
+.record-actions .btn {
+  min-height: 36px;
+  padding: 6px 18px;
+  border-radius: 999px;
+}
+
+/* + / − beside the running time: quiet until the ring is pointed at. */
+.focus-adjust {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mono-pill);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  translate: 0 -50%;
+}
+
+.focus-adjust:hover {
+  background: var(--mono-pill-hover);
+}
+
+.focus-adjust.is-less {
+  left: 9%;
+}
+
+.focus-adjust.is-more {
+  right: 9%;
+}
+
+@media (hover: hover) {
+  .focus-adjust {
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .focus-card-dial:hover .focus-adjust,
+  .focus-adjust:focus-visible {
+    opacity: 1;
+  }
+}
+
+/* Focus stats page (#/focus/stats): full width, like TickTick's separate Statistics page.
+   The timeline, most focused time and the year grid live here at a readable size. */
+/* The header: the Focus icon on the left (back to the timer), then the title. */
+.stats-head {
+  justify-content: flex-start;
+  margin-left: -8px;
+}
+
+.stats-head h1 {
+  font-family: var(--font);
+}
+
+/* Focus stats slides in from the right; going back, Focus slides in from the left. */
+main:has(.is-entering) {
+  overflow-x: clip;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .view-focus-stats.is-entering {
+    animation: slide-from-right 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .view-focus.is-entering {
+    animation: slide-from-left 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes slide-from-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-from-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+.stats-page {
+  display: grid;
+  gap: 16px;
+}
+
+.stats-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stats-totals .focus-stat {
+  padding: 16px 18px;
+}
+
+.stats-totals .focus-stat-value {
+  font-size: 1.9rem;
+}
+
+.stats-card {
+  min-width: 0;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.stats-card .focus-chart-block h3,
+.stats-card.focus-chart-block h3,
+.stats-card h2 {
+  color: var(--text);
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.stats-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.focus-chart-note {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Timeline: a 24-hour track per day with hour gridlines. */
+.timeline-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.timeline-day {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.timeline-track {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(to right, rgb(255 255 255 / 0.07) 0 1px, transparent 1px calc(100% / 8)),
+    rgb(255 255 255 / 0.04);
+}
+
+.timeline-block {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  min-width: 3px;
+  border-radius: 4px;
+  background: var(--focus-study);
+}
+
+.timeline-block[data-area="work"] {
+  background: var(--focus-work);
+}
+
+.timeline-block:hover {
+  filter: brightness(1.2);
+}
+
+.timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 0 0 76px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-hours .timeline-axis {
+  margin-left: 0;
+}
+
+/* Most focused time */
+.focus-hours-peak,
+.focus-year-sum {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+.focus-hours-peak span,
+.focus-year-sum {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.hour-bars {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  align-items: end;
+  gap: 4px;
+  height: 160px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.hour-bar {
+  border-radius: 4px 4px 0 0;
+  background: rgb(255 255 255 / 0.22);
+}
+
+.hour-bar:hover {
+  background: rgb(255 255 255 / 0.4);
+}
+
+.hour-bar.is-peak {
+  background: var(--text);
+}
+
+/* Year: 53 weeks, months on top, Mon/Wed/Fri down the side, packed like GitHub's
+   contribution graph: small fixed squares, tight gaps, the key under the grid's right edge.
+   Scrolls sideways on a phone. */
+.focus-year {
+  --cell: 11px;
+  --cell-gap: 3px;
+}
+
+.year-box {
+  width: max-content;
+  max-width: 100%;
+}
+
+.year-wrap {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  row-gap: 4px;
+  overflow-x: auto;
+}
+
+.year-main {
+  display: contents;
+}
+
+.year-months,
+.year-grid {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 53), var(--cell));
+  gap: var(--cell-gap);
+}
+
+.year-months {
+  grid-row: 1;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.year-months span {
+  white-space: nowrap;
+}
+
+.year-grid {
+  grid-row: 2;
+  grid-template-rows: repeat(7, var(--cell));
+  grid-auto-flow: column;
+}
+
+.year-days {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell));
+  gap: var(--cell-gap);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.year-days span {
+  display: flex;
+  align-items: center;
+}
+
+.year-cell {
+  display: block;
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.03);
+}
+
+.year-grid .year-cell:not(.is-blank):hover {
+  outline: 1px solid rgb(255 255 255 / 0.6);
+}
+
+.year-cell.is-blank {
+  background: none;
+  box-shadow: none;
+}
+
+.year-cell[data-level="1"] { background: rgb(255 255 255 / 0.22); }
+.year-cell[data-level="2"] { background: rgb(255 255 255 / 0.42); }
+.year-cell[data-level="3"] { background: rgb(255 255 255 / 0.66); }
+.year-cell[data-level="4"] { background: rgb(255 255 255 / 0.92); }
+
+.year-scale {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cell-gap);
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* The Day / Week / Month card: the period switch and ‹ title › on one row, four tiles,
+   then the bars beside the ring and the task ranking. */
+.stats-period-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stats-period-tabs .segment[aria-pressed="true"] {
+  background: var(--mono-pill-hover);
+  color: var(--text);
+}
+
+.stats-period-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-period-nav h2 {
+  min-width: 9.5em;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.stats-step:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: transparent;
+}
+
+.stats-period-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stats-period-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 28px;
+}
+
+.stats-period-split h3 {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+/* Month and Day have many bars: no number over each one (the screen reader still reads them). */
+.stats-period-bars.is-dense .week-bar-value {
+  visibility: hidden;
+}
+
+.stats-period-bars.is-dense {
+  grid-template-columns: repeat(var(--bars, 24), minmax(0, 1fr));
+  gap: 3px;
+}
+
+.focus-donut {
+  position: relative;
+  width: 148px;
+  margin: 0 auto 16px;
+}
+
+.focus-donut svg {
+  display: block;
+  width: 100%;
+  transform: rotate(-90deg);
+}
+
+.donut-track,
+.donut-arc {
+  fill: none;
+  stroke-width: 11;
+}
+
+.donut-track {
+  stroke: rgb(255 255 255 / 0.07);
+}
+
+.donut-arc.study {
+  stroke: var(--focus-study);
+}
+
+.donut-arc.work {
+  stroke: var(--focus-work);
+}
+
+.focus-donut figcaption {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.focus-donut figcaption strong {
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.focus-donut figcaption span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.task-rank {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-rank-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 5px;
+  font-size: 0.9rem;
+}
+
+.task-rank-row .focus-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.task-rank-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-rank-row:not(:has(.focus-task-badge)) .task-rank-name {
+  grid-column: 2 / 4;
+}
+
+.task-rank-time {
+  grid-column: 4;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.task-rank-bar {
+  grid-column: 2 / -1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.06);
+}
+
+.task-rank-bar span {
+  display: block;
+  width: var(--share);
+  height: 100%;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.55);
+}
+
+/* Achievements: the level, a progress bar to the next, and the badges. */
+.level-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.level-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.level-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.level-bar {
+  height: 6px;
+  margin: 12px 0 18px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.level-bar span {
+  display: block;
+  width: var(--share);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--text);
+}
+
+.badge-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badge {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.badge-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px dashed rgb(255 255 255 / 0.22);
+  font-size: 0.8rem;
+}
+
+.badge[data-earned] {
+  color: var(--text);
+}
+
+.badge[data-earned] .badge-mark {
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+}
+
+.badge-text {
+  display: grid;
+  min-width: 0;
+}
+
+.badge-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.badge-how {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+@media (max-width: 900px) {
+  .stats-period-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stats-period-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .stats-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .stats-card {
+    padding: 16px;
+  }
+
+  .stats-totals .focus-stat {
+    padding: 12px 14px;
+  }
+
+  .stats-totals .focus-stat-value {
+    font-size: 1.3rem;
+  }
+
+  .timeline-row {
+    grid-template-columns: 44px 1fr;
+    gap: 8px;
+  }
+
+  .timeline-axis {
+    margin-left: 52px;
+  }
+
+  .hour-bars {
+    gap: 2px;
+    height: 110px;
+  }
+}
+
+/* "Study goal" on a task named after one. */
+.focus-task-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* Charts */
+.focus-chart-block + .focus-chart-block {
+  margin-top: 20px;
+}
+
+.focus-chart-block h3 {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.focus-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.focus-key .focus-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.focus-key .focus-swatch.work {
+  margin-left: 10px;
+}
+
+.focus-swatch.study {
+  background: var(--focus-study);
+}
+
+.focus-swatch.work {
+  background: var(--focus-work);
+}
+
+/* --- layout --- */
+
+/* Wide screens: TickTick's 60 / 40 split, both panes exactly one screen tall. The timer is
+   centred in its pane and never moves; the rail scrolls inside itself, so switching
+   Overview and Charts (or a long record) can't change the page's height. */
+@media (min-width: 1100px) {
+  .focus-page {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 0;
+    height: calc(100dvh - 112px);
+    min-height: 560px;
+  }
+
+  .focus-stage {
+    height: 100%;
+    padding-right: 0;
+  }
+
+  /* The header row floats over the pane, so the timer centres in the whole pane. The row
+     itself lets clicks through to the Pomo / Stopwatch switch under its middle; only its
+     title and buttons take them. */
+  .focus-stage .focus-page-head {
+    position: absolute;
+    top: 0;
+    right: 28px;
+    left: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .focus-stage .focus-page-head > * {
+    pointer-events: auto;
+  }
+
+  #focus-page-timer {
+    flex: 1;
+    /* "safe": on a short window the group starts under the header instead of spilling up
+       over the Pomo / Stopwatch switch. */
+    justify-content: safe center;
+    /* The top clears the header row; the extra room below puts the ring itself (not the
+       whole group with the chips above it and Start below) in the middle of the pane. */
+    padding: 48px 0 84px;
+  }
+
+  /* The ring shrinks on short windows so the whole timer fits without scrolling. */
+  .focus-card-dial {
+    width: min(320px, 76vw, max(220px, calc(100dvh - 440px)));
+  }
+
+  .focus-rail {
+    height: 100%;
+    min-height: 0;
+    padding-left: 28px;
+    border-left: 1px solid rgb(255 255 255 / 0.07);
+  }
+
+  .focus-rail .focus-page-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-right: -10px;
+    padding-right: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+  }
+}
+
+#focus-view.focus-fullscreen .focus-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#focus-view.focus-fullscreen .focus-rail {
+  display: none;
+}
+
+#focus-view.focus-fullscreen .focus-stage {
+  padding-right: 0;
+}
+
+#focus-view.focus-fullscreen .focus-card-dial {
+  width: min(440px, 80vw);
+}
+
+@media (max-width: 600px) {
+  .focus-card-dial {
+    width: min(260px, 72vw);
+  }
+
+  .focus-card-mode .segment {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .focus-card-mode {
+    align-self: stretch;
+  }
+}
+
+/* Motion, after the reference video: the reading opens into the wheel with a soft spring
+   and a blur, digits roll, the ring sweeps in on Start and drains smoothly, and every state
+   change (Start, Pause, Stop, Pomo / Stopwatch) morphs through a View Transition. */
+@media (prefers-reduced-motion: no-preference) {
+  .focus-card {
+    --spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+    --glide: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .focus-card[data-open="true"] .focus-card-picker {
+    /* backwards, not both: a held filter would stop the glass popover inside from blurring. */
+    animation: focus-blur-in 420ms var(--spring) backwards;
+  }
+
+  .focus-card[data-toggled][data-open="false"] .focus-card-trigger {
+    animation: focus-blur-in 380ms var(--spring) backwards;
+  }
+
+  .focus-card-ring {
+    transition: transform 480ms var(--spring);
+  }
+
+  .focus-card-ring .focus-ring-track {
+    transition: stroke 300ms var(--glide);
+  }
+
+  /* The ring leans in while the wheel is open, like the reference's card growing. */
+  .focus-card[data-open="true"] .focus-card-ring {
+    transform: rotate(-90deg) scale(1.035);
+  }
+
+  .focus-card[data-open="true"] .focus-ring-track {
+    stroke: rgb(255 255 255 / 0.18);
+  }
+
+  /* Between ticks the arc glides instead of stepping once a second. */
+  .focus-ring-fill[data-timer-ring] {
+    transition: stroke-dasharray 1s linear;
+  }
+
+  .focus-card[data-enter="start"] .focus-ring-fill[data-timer-ring] {
+    animation: focus-ring-sweep 900ms cubic-bezier(0.65, 0, 0.25, 1) both;
+  }
+
+  .focus-digit > .in {
+    animation: focus-digit-in 340ms var(--glide) both;
+  }
+
+  .focus-digit > .out {
+    animation: focus-digit-out 280ms var(--glide) both;
+  }
+
+  .focus-card[data-phase="watch"] .focus-digit > .in {
+    animation-name: focus-digit-in-up;
+  }
+
+  .focus-card[data-phase="watch"] .focus-digit > .out {
+    animation-name: focus-digit-out-up;
+  }
+
+  /* Paused: the time breathes slowly so it reads as held, not frozen. */
+  .focus-card[data-paused] .focus-card-time {
+    animation: focus-breathe 2.4s ease-in-out infinite;
+  }
+
+  .focus-card .btn,
+  .focus-card-trigger {
+    transition: transform 160ms var(--glide), background-color 160ms var(--glide), color 160ms var(--glide);
+  }
+
+  .focus-card .btn:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+
+  .focus-card-hint {
+    transition: opacity 150ms var(--ease-out);
+  }
+
+  /* The parts that morph between states. Only one card shows at a time, so the names are
+     unique on the page. */
+  .focus-card .focus-card-mode {
+    view-transition-name: focus-mode;
+  }
+
+  .focus-card-dial {
+    view-transition-name: focus-dial;
+  }
+
+  /* A view-transition name would cut the glass popover's blur off at the ring, and nothing
+     morphs while the wheel is open anyway. */
+  .focus-card[data-open="true"] .focus-card-dial {
+    view-transition-name: none;
+  }
+
+  .focus-card-time {
+    view-transition-name: focus-time;
+  }
+
+  .focus-card-actions {
+    view-transition-name: focus-actions;
+  }
+}
+
+::view-transition-group(focus-dial),
+::view-transition-group(focus-time),
+::view-transition-group(focus-actions),
+::view-transition-group(focus-mode) {
+  animation-duration: 460ms;
+  animation-timing-function: cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+::view-transition-old(focus-time),
+::view-transition-old(focus-actions) {
+  animation: focus-vt-out 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+::view-transition-new(focus-time),
+::view-transition-new(focus-actions) {
+  animation: focus-vt-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms both;
+}
+
+/* Keep the rest of the page still: no page-wide cross-fade on a timer change. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0s;
+}
+
+@keyframes focus-blur-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: scale(0.88);
+  }
+}
+
+@keyframes focus-vt-out {
+  to {
+    opacity: 0;
+    filter: blur(8px);
+    transform: scale(0.94);
+  }
+}
+
+@keyframes focus-vt-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: scale(1.06);
+  }
+}
+
+@keyframes focus-ring-sweep {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+
+@keyframes focus-digit-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(-0.3em);
+  }
+}
+
+@keyframes focus-digit-out {
+  to {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(0.3em);
+  }
+}
+
+@keyframes focus-digit-in-up {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(0.3em);
+  }
+}
+
+@keyframes focus-digit-out-up {
+  to {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(-0.3em);
+  }
+}
+
+@keyframes focus-breathe {
+  50% {
+    opacity: 0.45;
   }
 }

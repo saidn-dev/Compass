@@ -43,6 +43,7 @@ SESSION_AREAS = ("study", "work")
 SESSION_MINUTES = (1, 180)
 MAX_SESSIONS = 48
 MAX_SESSION_ID = 32
+MAX_SESSION_NOTE = 500
 
 
 def _number(value: object, low: float, high: float) -> float | None:
@@ -108,8 +109,13 @@ def clean_session(raw: object) -> dict | None:
         return None
     if task is not None and not isinstance(task, str):
         return None
+    note = raw.get("note")
+    if note is not None and not isinstance(note, str):
+        return None
     task = (task or "").strip()[:MAX_TASK_TEXT] or None
-    return {"id": session_id, "area": area, "task": task, "minutes": round(minutes), "ended_at": ended_at}
+    note = (note or "").strip()[:MAX_SESSION_NOTE] or None
+    return {"id": session_id, "area": area, "task": task, "minutes": round(minutes), "ended_at": ended_at,
+            "note": note}
 
 
 def _sessions(raw: object) -> list[dict]:
@@ -352,6 +358,44 @@ class StartingPoint(BaseModel):
         return check_date_key(v.strip())
 
 
+MAX_ESTIMATES = 50
+MAX_ESTIMATE = 20
+
+
+class FocusPrefs(BaseModel):
+    """The focus timer's options, after TickTick's Pomo settings, and the daily focus goal.
+
+    daily_goal: minutes a day, 0 for none. The breaks and how often the long one comes
+    shape each round. auto_break / auto_focus: start the break / the next session by
+    themselves; when off, the timer waits at the full length for a press. strict: no
+    Pause, Finish early or Reset while a session runs. estimates: pomos planned per task.
+    """
+    daily_goal: Annotated[int, Field(ge=0, le=720)] = 0
+    short_break: Annotated[int, Field(ge=1, le=30)] = 5
+    long_break: Annotated[int, Field(ge=1, le=60)] = 15
+    long_break_every: Annotated[int, Field(ge=2, le=8)] = 4
+    auto_break: bool = True
+    auto_focus: bool = True
+    strict: bool = False
+    estimates: dict[str, int] = {}
+
+    @field_validator("estimates", mode="before")
+    @classmethod
+    def _estimates(cls, v: object) -> dict[str, int]:
+        if not isinstance(v, dict):
+            raise ValueError("Estimates must be task names with a number of pomos.")
+        clean: dict[str, int] = {}
+        for name, count in v.items():
+            name = str(name).strip()[:MAX_TASK_TEXT]
+            if not name or isinstance(count, bool) or not isinstance(count, int):
+                continue
+            if 1 <= count <= MAX_ESTIMATE:
+                clean[name] = count
+        if len(clean) > MAX_ESTIMATES:
+            raise ValueError(f"Estimate up to {MAX_ESTIMATES} tasks.")
+        return clean
+
+
 class Settings(BaseModel):
     onboarded: bool = False
     modules: Annotated[list[str], Field(max_length=3)] = []
@@ -366,3 +410,4 @@ class Settings(BaseModel):
     tone: Literal["supportive", "direct"] = "supportive"
     shields: Annotated[list[Shield], Field(max_length=MAX_SHIELDS)] = []
     starting_point: StartingPoint | None = None
+    focus: FocusPrefs = FocusPrefs()

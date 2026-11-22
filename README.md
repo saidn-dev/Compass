@@ -2,7 +2,7 @@
 
 A local, single-user life dashboard. You log a few numbers a day (sleep, study, work) and Compass reads your last seven days and tells you what to focus on next. Everything runs on your own computer.
 
-> **Status: v1 done, and v2 stage 1 (the focus timer) built.** Every check in the [QA checklist](docs/qa-checklist.md) has passed except a screen-reader listen-through and a week of real use, which need a person.
+> **Status: v1 done, and v2 stage 1 (the focus timer) and the Focus page built.** Every check in the [QA checklist](docs/qa-checklist.md) has passed except a screen-reader listen-through and a week of real use, which need a person.
 
 ## Features
 
@@ -14,7 +14,8 @@ A local, single-user life dashboard. You log a few numbers a day (sleep, study, 
 | **Insights** | Weekly review against the week before, patterns from the last 4 weeks, and streaks |
 | **Check-in** | Mood (1-5), tags for the day and a rest-day box; rest days lower that week's Study and Work targets |
 | **Focus, habits, goals, notes** | Up to 3 tasks a day (yesterday's unfinished ones offered again), a 7-day habit grid, up to 3 goals, a daily note |
-| **Focus timer** | On the Study and Work pages: 15, 25 or 50 minutes on one of today's tasks, a pomodoro cycle with breaks, and a notification at each change. Session minutes add to that day's hours, and each session can be removed |
+| **Focus timer** | On the Study, Work and Focus pages: 15, 25 or 50 minutes on one of today's tasks, a pomodoro cycle with breaks, and a notification at each change. Session minutes add to that day's hours, and each session can be removed |
+| **Focus page** | One place to start the shared Study/Work timer (Timer or Stopwatch), with today and this-week totals by area and a 14-day session log; its stats page has Day/Week/Month views with a focus split ring, the year grid, a level and badges. A daily focus goal, notes on sessions, estimated pomos per task, and break, auto-start and strict-mode options in Settings |
 | **Your data** | Export to one JSON file, import it back, or delete everything |
 
 Default targets: Sleep 7.5 h a night, Study 12 h a week, Work 16 h a week. **A blank is a gap, never zero:** a missing value never counts against you. Compass gives no medical or financial advice and makes no AI calls.
