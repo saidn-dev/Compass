@@ -3,7 +3,8 @@ import test from "node:test";
 import assert from "node:assert";
 import {
   IDLE, startSession, pause, resume, reset, finishEarly, skipBreak, stopCycle, tick, keepAway, dropAway,
-  remainingMs, ringShare, countdownText, fromSaved,
+  remainingMs, ringShare, countdownText, fromSaved, startWatch, elapsedMs, countupText, readoutText,
+  adjust, pause as pauseTimer, timerOptions, roundSize, isStrict, DEFAULT_OPTIONS, isPaused,
 } from "../js/timer.js";
 
 const MIN = 60_000;
@@ -152,7 +153,7 @@ test("a session keeps the date it started on, even past midnight", () => {
 test("fromSaved: a good saved state comes back; junk becomes idle", () => {
   const s = begin();
   assert.deepStrictEqual(fromSaved(JSON.parse(JSON.stringify(s))), s);
-  for (const junk of [null, 5, "x", {}, { phase: "focus" }, { ...s, minutes: 30 }, { ...s, area: "sleep" }, { ...s, endsAt: "soon" }]) {
+  for (const junk of [null, 5, "x", {}, { phase: "focus" }, { ...s, minutes: 181 }, { ...s, minutes: 0 }, { ...s, area: "sleep" }, { ...s, endsAt: "soon" }]) {
     assert.deepStrictEqual(fromSaved(junk), IDLE, JSON.stringify(junk));
   }
 });
@@ -163,4 +164,163 @@ test("countdownText", () => {
   assert.strictEqual(countdownText(500), "0:01");
   assert.strictEqual(countdownText(0), "0:00");
   assert.strictEqual(countdownText(-5), "0:00");
+});
+
+test("a custom length is kept when saved", () => {
+  const s = startSession({ area: "study", minutes: 40 }, T0);
+  assert.strictEqual(remainingMs(s, at(10)), 30 * MIN);
+  assert.deepStrictEqual(fromSaved(JSON.parse(JSON.stringify(s))), s);
+});
+
+test("stopwatch: counts up, pauses, and Stop saves the whole minutes", () => {
+  let w = startWatch({ area: "work", task: "Site" }, T0);
+  assert.strictEqual(readoutText(w, at(12) + 4000), "12:04");
+  w = pause(w, at(20));
+  assert.strictEqual(elapsedMs(w, at(50)), 20 * MIN);
+  w = resume(w, at(50));
+  assert.strictEqual(elapsedMs(w, at(55) + 30_000), 25 * MIN + 30_000);
+  assert.deepStrictEqual(fromSaved(JSON.parse(JSON.stringify(w))), w);
+  w = run(w, at(50) + 1000, at(55) + 30_000).state; // the page ticks every second while it runs
+  const { state, session } = finishEarly(w, at(55) + 30_000);
+  assert.deepStrictEqual(state, IDLE);
+  assert.deepStrictEqual(session, { date: "2026-11-19", area: "work", task: "Site", minutes: 25, ended_at: "14:55" });
+  assert.strictEqual(finishEarly(startWatch({ area: "work" }, T0), at(0.5)).session, null);
+});
+
+test("stopwatch stops by itself at 3 hours and saves 180 minutes", () => {
+  const { state, events } = run(startWatch({ area: "study" }, T0), T0 + 1000, at(180) + 1000);
+  assert.deepStrictEqual(state, IDLE);
+  assert.strictEqual(events[0].session.minutes, 180);
+  assert.strictEqual(events[1].type, "watchFull");
+});
+
+test("countupText", () => {
+  assert.strictEqual(countupText(0), "0:00");
+  assert.strictEqual(countupText(61_000), "1:01");
+  assert.strictEqual(countupText(62 * MIN + 9000), "1:02:09");
+});
+
+
+test("stopwatch: a long unwatched gap is never counted without asking", () => {
+  const t0 = new Date(2026, 10, 22, 9, 0).getTime();
+  let s = startWatch({ area: "study" }, t0);
+  // Watched for 20 minutes, ticking each second.
+  for (let ms = 1000; ms <= 20 * 60_000; ms += 1000) s = tick(s, t0 + ms).state;
+  const { state, events } = tick(s, t0 + 5 * 60 * 60_000); // the laptop slept for hours
+  assert.equal(state.phase, "away");
+  assert.equal(state.pending.minutes, 20);         // only the watched minutes, up to the last tick
+  assert.equal(state.pending.ended_at, "09:20");
+  assert.deepEqual(events.map((e) => e.type), ["away"]);
+});
+
+test("stopwatch: Stop after an unwatched gap asks instead of saving", () => {
+  const t0 = new Date(2026, 10, 22, 9, 0).getTime();
+  let s = startWatch({ area: "work" }, t0);
+  for (let ms = 1000; ms <= 10 * 60_000; ms += 1000) s = tick(s, t0 + ms).state;
+  const { state, session } = finishEarly(s, t0 + 2 * 60 * 60_000);
+  assert.equal(session, null);
+  assert.equal(state.phase, "away");
+  assert.equal(state.pending.minutes, 10);
+});
+
+test("stopwatch: an unwatched gap with under a minute counted just stops", () => {
+  const t0 = new Date(2026, 10, 22, 9, 0).getTime();
+  const s = startWatch({ area: "study" }, t0);
+  const { state, events } = tick(s, t0 + 60 * 60_000);
+  assert.equal(state.phase, "idle");
+  assert.deepEqual(events.map((e) => e.type), ["watchAway"]);
+});
+
+test("stopwatch: normal ticking still saves by itself at 3 hours", () => {
+  const t0 = new Date(2026, 10, 22, 9, 0).getTime();
+  let s = startWatch({ area: "study" }, t0);
+  let last = { state: s, events: [] };
+  for (let ms = 1000; ms <= 3 * 60 * 60_000 && last.state.phase === "watch"; ms += 1000) last = tick(last.state, t0 + ms);
+  assert.deepEqual(last.events.map((e) => e.type), ["session", "watchFull"]);
+  assert.equal(last.events[0].session.minutes, 180);
+});
+
+
+test("+ / − changes a running or paused focus session by 5 minutes, within its limits", () => {
+  const t0 = new Date(2026, 10, 22, 9, 0).getTime();
+  const s = startSession({ area: "study", minutes: 25 }, t0);
+  const longer = adjust(s, 5, t0 + 60_000);
+  assert.equal(longer.minutes, 30);
+  assert.equal(remainingMs(longer, t0 + 60_000), 29 * 60_000);
+  // Never shorter than what has run: 10 min in, a 25-minute session can go down to 11.
+  assert.equal(adjust(s, -20, t0 + 10 * 60_000).minutes, 11);
+  assert.equal(adjust(startSession({ area: "study", minutes: 178 }, t0), 5, t0).minutes, 180);
+  const paused = pauseTimer(s, t0 + 60_000);
+  assert.equal(remainingMs(adjust(paused, 5, t0 + 120_000), t0 + 120_000), 29 * 60_000);
+  const watch = startWatch({ area: "work" }, t0);
+  assert.strictEqual(adjust(watch, 5, t0), watch);
+  const one = startSession({ area: "study", minutes: 1 }, t0);
+  assert.strictEqual(adjust(one, -5, t0), one); // already the shortest: unchanged
+});
+
+// --- the round's options (TickTick's Pomo settings) ---
+
+test("timer options come from the settings' focus prefs, with defaults for anything off", () => {
+  assert.deepStrictEqual(timerOptions(undefined), DEFAULT_OPTIONS);
+  assert.deepStrictEqual(
+    timerOptions({ short_break: 10, long_break: 30, long_break_every: 3, auto_break: false, auto_focus: false, strict: true }),
+    { shortBreak: 10, longBreak: 30, every: 3, autoBreak: false, autoFocus: false, strict: true });
+  assert.deepStrictEqual(timerOptions({ short_break: 0, long_break: 61, long_break_every: 9, strict: "yes" }), DEFAULT_OPTIONS);
+});
+
+test("custom breaks and a long break every 2 sessions end the round sooner", () => {
+  const options = { short_break: 10, long_break: 20, long_break_every: 2 };
+  const s = begin({ options });
+  assert.strictEqual(roundSize(s), 2);
+  let { state } = run(s, T0, at(25));
+  assert.strictEqual(state.phase, "break");
+  assert.strictEqual(state.long, false);
+  assert.strictEqual(state.endsAt, at(35)); // a 10-minute break
+  ({ state } = run(state, at(25) + 1000, at(60)));
+  assert.strictEqual(state.phase, "break");
+  assert.strictEqual(state.long, true);
+  assert.strictEqual(state.endsAt, at(80)); // the 20-minute long break after session 2
+  ({ state } = run(state, at(60) + 1000, at(80)));
+  assert.strictEqual(state.phase, "done");
+});
+
+test("with auto-start off the break waits at full length, then the next session waits too", () => {
+  const s = begin({ options: { auto_break: false, auto_focus: false } });
+  const first = run(s, T0, at(30));
+  assert.deepStrictEqual(first.events.map((e) => e.type), ["session", "break"]);
+  assert.strictEqual(first.events[1].waiting, true);
+  assert.ok(isPaused(first.state) && first.state.waiting);
+  assert.strictEqual(remainingMs(first.state, at(30)), 5 * MIN);
+  const started = resume(first.state, at(40));
+  assert.strictEqual(started.waiting, undefined);
+  assert.strictEqual(started.endsAt, at(45));
+  const second = run(started, at(40) + 1000, at(46));
+  assert.strictEqual(second.state.phase, "focus");
+  assert.ok(second.state.waiting && second.state.remaining === 25 * MIN);
+});
+
+test("a session that waited for a press is saved on the day it starts", () => {
+  const late = startSession({ area: "study", minutes: 25, options: { auto_break: true, auto_focus: false } },
+    new Date(2026, 10, 19, 23, 20).getTime());
+  const waiting = run(late, late.lastTick, late.lastTick + 31 * MIN).state;
+  assert.ok(waiting.waiting);
+  const nextDay = new Date(2026, 10, 20, 8, 0).getTime();
+  assert.strictEqual(resume(waiting, nextDay).date, "2026-11-20");
+});
+
+test("strict mode applies to a running focus session only", () => {
+  const s = begin({ options: { strict: true } });
+  assert.ok(isStrict(s));
+  assert.ok(!isStrict(run(s, T0, at(25)).state));
+  assert.ok(!isStrict(begin()));
+});
+
+test("the options and a waiting state survive a reload; an old save without options gets the defaults", () => {
+  const s = begin({ options: { long_break_every: 3, auto_break: false } });
+  const waiting = run(s, T0, at(25)).state;
+  const back = fromSaved(JSON.parse(JSON.stringify(waiting)));
+  assert.deepStrictEqual(back, waiting);
+  const { opts, ...old } = begin();
+  assert.deepStrictEqual(fromSaved(old).opts, DEFAULT_OPTIONS);
+  assert.strictEqual(fromSaved({ ...JSON.parse(JSON.stringify(s)), round: 4 }), IDLE); // past a round of 3
 });

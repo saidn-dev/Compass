@@ -115,8 +115,12 @@ HOURS_PERIODS = {"avg": "a night on average", "sum": "this week"}
 LATE_NIGHTS_OK = 2  # 1-2 late nights is Ok, more is Too much
 
 
+# Bedtime has its own words: none late is On time, 1-2 late nights Ok, more Late.
+BEDTIME_WORDS = {100: "On time", 85: "Ok", 50: "Late"}
+
+
 def _late_nights_score(late: int) -> int:
-    """Bedtime is a limit: no late nights is Great (100), 1-2 Ok (85), 3 or more Too much."""
+    """Bedtime is a limit: no late nights is On time (100), 1-2 Ok (85), 3 or more Late (50)."""
     if late == 0:
         return 100
     return 85 if late <= LATE_NIGHTS_OK else 50
@@ -145,8 +149,9 @@ def module_contributors(area_id: str, settings: Settings, window: list[dict]) ->
         bedtimes = [d["bedtime"] for d in window if d.get("bedtime")]
         if bedtimes:
             on_time = sum(minutes_late(b, planned) <= LATE_GRACE_MINUTES for b in bedtimes)
-            rows.append(_contributor("Bedtime", f"{on_time} of {len(bedtimes)} nights on time",
-                                     _late_nights_score(len(bedtimes) - on_time), "limit"))
+            score = _late_nights_score(len(bedtimes) - on_time)
+            rows.append({**_contributor("Bedtime", f"{on_time} of {len(bedtimes)} nights on time", score, "limit"),
+                         "level": BEDTIME_WORDS[score]})
         else:
             rows.append(_contributor("Bedtime", "No bedtimes logged", None, "limit"))
 
@@ -161,7 +166,9 @@ def module_contributors(area_id: str, settings: Settings, window: list[dict]) ->
 
 def top_reason(contributors: list[dict]) -> str | None:
     """"Mostly hours: 4 of 10 h this week": the weakest contributor below the top level, or None."""
-    below = [c for c in contributors if c["score"] is not None and c["level"] not in TOP_LEVELS]
+    # Bedtime's own top word ("On time") counts as the top level too.
+    top = (*TOP_LEVELS, BEDTIME_WORDS[100])
+    below = [c for c in contributors if c["score"] is not None and c["level"] not in top]
     if not below:
         return None
     weakest = min(below, key=lambda c: c["score"])

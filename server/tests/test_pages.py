@@ -149,12 +149,12 @@ def test_sleep_contributors_average_and_bedtime():
     got = module_contributors("sleep", with_schedule(), window)
     assert [c["label"] for c in got] == ["Hours", "Bedtime", "Logging"]
     assert got[0]["text"] == "7.5 of 7.5 h a night on average"
-    # Bedtime is a limit: 2 late nights is Ok.
+    # Bedtime has its own words: 2 late nights is Ok.
     assert got[1] == {"label": "Bedtime", "text": "2 of 4 nights on time", "score": 85, "level": "Ok"}
 
 
-@pytest.mark.parametrize("late, level", [(0, "Great"), (1, "Ok"), (2, "Ok"), (3, "Too much")])
-def test_bedtime_contributor_uses_limit_words(late, level):
+@pytest.mark.parametrize("late, level", [(0, "On time"), (1, "Ok"), (2, "Ok"), (3, "Late")])
+def test_bedtime_contributor_uses_its_own_words(late, level):
     bedtimes = ["23:45"] * late + ["22:00"] * (5 - late)
     window = [{"sleep_hours": 7.5, "bedtime": b} for b in bedtimes] + [{}, {}]
     assert module_contributors("sleep", with_schedule(), window)[1]["level"] == level
@@ -194,3 +194,21 @@ def test_sleep_goal_has_no_bedtime_contributor():
 def test_sleep_schedule_with_no_bedtimes_logged():
     got = module_contributors("sleep", with_schedule(), days("sleep_hours", [None] * 7))
     assert got[1] == {"label": "Bedtime", "text": "No bedtimes logged", "score": None, "level": "No data"}
+
+
+def test_no_top_reason_when_bedtime_is_on_time():
+    # Bedtime's top word is "On time", not "Great"; a perfect week still has no reason.
+    rows = [
+        {"label": "Hours", "text": "7.5 of 7.5 h a night on average", "score": 100, "level": "Optimal"},
+        {"label": "Bedtime", "text": "7 of 7 nights on time", "score": 100, "level": "On time"},
+        {"label": "Logging", "text": "7 of 7 days", "score": 100, "level": "Optimal"},
+    ]
+    assert top_reason(rows) is None
+
+
+def test_late_bedtime_is_still_a_reason():
+    rows = [
+        {"label": "Hours", "text": "7.5 of 7.5 h a night on average", "score": 100, "level": "Optimal"},
+        {"label": "Bedtime", "text": "3 of 7 nights on time", "score": 50, "level": "Late"},
+    ]
+    assert top_reason(rows) == "Mostly bedtime: 3 of 7 nights on time"

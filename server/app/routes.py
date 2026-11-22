@@ -11,11 +11,11 @@ from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from app.areas import AREAS, last_n_dates
 from app.dashboard import build_dashboard
-from app.focus import add_session, remove_session, with_focus_hours
+from app.focus import YEAR_DAYS, add_session, edit_session, focus_page, remove_session, with_focus_hours
 from app.insights import HISTORY_WEEKS, build_insights
 from app.db import Repository
 from app.lists import check_tasks
-from app.models import MAX_TASK_TEXT, SESSION_AREAS, SESSION_MINUTES, Settings, check_date_key, merge_numbers
+from app.models import MAX_SESSION_NOTE, MAX_TASK_TEXT, SESSION_AREAS, SESSION_MINUTES, Settings, check_date_key, merge_numbers
 from app.settings_rules import apply_onboarding, check_settings
 from app.sleep import Age, HabitId, Role, parse_time, suggest
 
@@ -44,10 +44,29 @@ class NewSession(BaseModel):
     task: Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_TASK_TEXT)] | None = None
     minutes: Annotated[int, Field(ge=SESSION_MINUTES[0], le=SESSION_MINUTES[1])]
     ended_at: str
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_SESSION_NOTE)] | None = None
 
     @field_validator("ended_at", mode="before")
     @classmethod
     def _time(cls, v: object) -> str:
+        time = parse_time(v)
+        if time is None:
+            raise ValueError("Times must look like HH:MM, e.g. 14:05.")
+        return time
+
+
+class SessionChange(BaseModel):
+    """A change to a saved session from the Focus record: its length, end time, task or note."""
+    minutes: Annotated[int, Field(ge=SESSION_MINUTES[0], le=SESSION_MINUTES[1])] | None = None
+    ended_at: str | None = None
+    task: Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_TASK_TEXT)] | None = None
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_SESSION_NOTE)] | None = None
+
+    @field_validator("ended_at", mode="before")
+    @classmethod
+    def _time(cls, v: object) -> str | None:
+        if v is None:
+            return None
         time = parse_time(v)
         if time is None:
             raise ValueError("Times must look like HH:MM, e.g. 14:05.")
@@ -144,6 +163,21 @@ def remove_focus_session(date_key: str, session_id: str, repo: Repo) -> dict:
     return repo.get_day(date_key)
 
 
+@router.patch("/days/{date_key}/sessions/{session_id}")
+def change_focus_session(date_key: str, session_id: str, body: SessionChange, repo: Repo) -> dict:
+    day = repo.get_day(check_date_key(date_key))
+    # Only the fields sent change; "task": "" or "note": "" clears it.
+    changes = body.model_dump(exclude_unset=True)
+    for field in ("task", "note"):
+        if field in changes and not changes[field]:
+            changes[field] = None
+    try:
+        repo.put_day(edit_session(day, session_id, changes))
+    except LookupError:
+        raise ApiError(404, "not_found", "There's no such focus session on that day.") from None
+    return repo.get_day(date_key)
+
+
 @router.post("/days/bulk")
 def save_days_bulk(body: Bulk, repo: Repo) -> dict:
     saved, skipped = 0, []
@@ -180,6 +214,20 @@ def insights(repo: Repo, date_key: Annotated[str | None, Query(alias="date")] = 
     today = check_date_key(date_key) if date_key else date.today().isoformat()
     first = last_n_dates(today, HISTORY_WEEKS * 7)[0]
     return build_insights(with_focus_hours(repo.days_between(first, today)), repo.get_settings(), today)
+
+
+# --- focus page ---
+
+@router.get("/focus")
+def focus(repo: Repo, date_key: Annotated[str | None, Query(alias="date")] = None) -> dict:
+    today = check_date_key(date_key) if date_key else date.today().isoformat()
+    # From the first saved day (or a year back, for the year grid) to today: the lifetime
+    # totals and achievements read them all; the stats page's periods read the last 53 weeks.
+    first = last_n_dates(today, YEAR_DAYS)[0]
+    earliest = repo.earliest_date()
+    if earliest and earliest < first:
+        first = earliest
+    return focus_page(repo.days_between(first, today), repo.get_settings(), today)
 
 
 # --- backup and delete ---

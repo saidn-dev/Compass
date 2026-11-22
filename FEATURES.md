@@ -80,6 +80,26 @@ A finished session never ticks a focus task; checkboxes stay manual (decided 202
 
 Claude's calls (change them freely): dates are read in the browser (`web/js/dates.js`) and saved as YYYY-MM-DD, so the server and the brief are unchanged; the box shows what the date was read as while you type. "Monday" is the coming one and today counts; "next Monday" is never today; a day and month with no year is the next one to come. Steps are up to 10 a goal, typed one a line in the Study page's Edit form (onboarding stays short) and ticked on the page; a tick is kept when the step's text is unchanged. Session totals count the Study sessions whose task is the goal's name, over the 12 weeks the page loads, so renaming a goal starts its total again.
 
+### v2 stage 2b: Focus page (built 2026-11-22)
+| Feature | Needs |
+|---|---|
+| Focus page at `#/focus`, shown only when Study or Work is on; a Focus link in the nav, with all 7 links fitting at 360 px | Focus timer, Module pages |
+| One shared timer on Focus and the module pages: Study/Work switch, Timer and Stopwatch modes, and the running area chosen by the timer | Focus timer |
+| Today and this-week totals split by area and a 14-day session log with Remove on any day; the charts and time by task (7 days or 12 weeks, with a goal badge) live on Focus stats | Focus sessions, Study goals |
+| `GET /api/focus?date=YYYY-MM-DD` returns the page payload; no new table and no schema bump | REST API, Focus sessions |
+| From TickTick's Focus page (2026-11-22): **+ Add** a session that wasn't timed, and **Edit** a saved one's start, end and task (`PATCH /api/days/{date}/sessions/{id}`), which also covers "extra time" and "forgot to stop" | Focus sessions, REST API |
+| From TickTick: **+ / − 5 min** beside the running time (never shorter than what has run, 1-180 min) | Focus timer |
+| From TickTick: a full-width **Focus stats** page at `#/focus/stats` (the bar-chart icon beside ⋯ on Focus; it slides in from the right, and the Focus icon at its top left slides Focus back in from the left): totals for the last 7 days, this month, this year and the longest streak; a **Year** grid (53 weeks, months and weekdays marked); a 14-day **Focus timeline** on 24-hour tracks; **Most focused time** (minutes per hour over 12 weeks); the 7-day and 12-week bars; and time by task. The payload gains `year` and `hours` | Focus sessions |
+| From TickTick's Statistics: Focus stats gains a **Day / Week / Month** switch with **‹ ›** arrows (remembered under `compass.focus.statsPeriod`): focus time, sessions, daily average (or longest session for a day), goal days, the bars (hours for a day, days otherwise), a **Focus split** ring by area and a task ranking. The payload gains `sessions` (53 weeks, or back to the first saved day) | Focus sessions |
+| From TickTick: a **daily focus goal** (Settings → Focus, 0-720 min): a goal bar on the Focus rail, "Goal met" tiles and a longest goal streak on Focus stats | Focus sessions, Settings |
+| From TickTick: a **note** on each session (500 characters): in the record dialog, shown in the Focus record, and offered with "Add a note" right after a timed session saves | Focus sessions, REST API |
+| From TickTick: **estimated pomos** per task: − / + under the chosen task sets a plan (1-20, saved in `settings.focus.estimates`), and the task popover shows done/planned | Focus tasks, Settings |
+| From TickTick: **timer options** in Settings → Focus: short and long break lengths, a long break after 2-8 sessions, auto-start the break and the next session (off: the timer waits at full length with Start break / Start session), and **strict mode** (no Pause, Finish or Reset while a session runs) | Focus timer, Settings |
+| From TickTick: **Level and badges** on Focus stats: 13 levels by hours of focus and 9 badges (first session, 10 and 100 hours, 100 sessions, 7- and 30-day streaks, goal met 7 times, early start, late finish), computed from saved sessions | Focus sessions |
+| From TickTick: a **Focus** button on Home's open tasks opens Focus with that task picked; the task popover's search can **add** a new task | Focus tasks, Focus timer |
+
+Design: `docs/superpowers/specs/2026-11-22-focus-page-design.md`. Sessions stay Study or Work only and are still written by the existing session routes. Home remains a summary, but its focus line now links to `#/focus`, so the 2026-11-18 decision that the timer does not live on Home is narrowed to: the timer lives on Focus and the module pages.
+
 ### v2 stage 3: Reminders and other pages
 | Feature | Needs |
 |---|---|

@@ -8,21 +8,27 @@ import {
   gapText, renderSleepChoice, renderSleepSuggestion,
   renderStudyGoals, studyDateHint,
   renderWorkQuestion, WORK_QUESTIONS, weekHoursText,
-  renderNav, renderModulePage, renderModuleEdit,
+  renderNav, renderModulePage, renderModuleEdit, MODULE_PARTS,
   renderCheckIn, renderCarryOver, renderInsights,
   renderStartingPoint, renderProjection, renderFirstSession,
-  renderFocusPanel, renderFocusSummary, durationText,
+  renderFocusCard, renderFocusPanel, renderFocusPage, renderFocusStatsPage, renderStatsPeriod, renderFocusSummary, renderTaskEstimate, renderFocusTaskPicker, durationText,
+  timeDigits, renderTaskPopover, recentTasks,
 } from "./render.js";
 import { pageFromHash, hashFor } from "./route.js";
 import { parseDate } from "./dates.js";
+import { pomoCounts } from "./stats.js";
 import {
-  IDLE, SESSIONS_A_ROUND, startSession, pause, resume, reset, finishEarly, skipBreak, stopCycle, tick,
-  keepAway, dropAway, fromSaved, isRunning, isPaused, countdownText, remainingMs, ringShare,
+  ADJUST_STEP, adjust,
+  IDLE, roundSize, isStrict, startSession, pause, resume, reset, finishEarly, skipBreak, stopCycle, tick,
+  keepAway, dropAway, fromSaved, isRunning, isPaused, readoutText, ringShare, startWatch, isLength, MAX_MINUTES,
 } from "./timer.js";
 
 const MAX_TASKS = 3;
 const MAX_GOALS = 3;
 const NOTE_SAVE_DELAY_MS = 500;
+const FOCUS_MODULE_IDS = ["study", "work"];
+const FOCUS_AREA_KEY = "compass.focus.area";
+const STATS_PERIOD_KEY = "compass.focus.statsPeriod";
 
 // Everything the page knows right now.
 let areas = [];        // every module the server offers
@@ -34,6 +40,10 @@ let modulePage = null; // the module whose page is showing ("sleep", "study", "w
 let pageShown = false; // false until the first page has been shown
 let carryOver = [];    // yesterday's unfinished tasks offered on Home
 let focusToday = null; // the dashboard's focus summary, for Home
+let focusData = null;  // GET /api/focus, for the Focus page
+let statsView = null;  // Focus stats' { period, offset }: see statsOptions
+let notePrompt = null; // { date, id } of the session the timer just saved: offer "Add a note"
+let pendingFocusTask = null; // a Home task's Focus button: picked on the Focus page's timer
 
 const $ = (id) => document.getElementById(id);
 
@@ -47,17 +57,32 @@ function todayKey() {
   return `${d.getFullYear()}-${month}-${date}`;
 }
 
-// Shows one view ("onboarding", "dashboard", "module", "insights" or "settings") and hides the others.
+// Shows one view ("onboarding", "dashboard", "module", "focus", "insights" or "settings") and hides the others.
 // The nav is hidden during onboarding.
 function showView(name) {
+  // Focus stats slides in from the right; going back, Focus slides in from the left.
+  const stats = $("focus-stats-view");
+  const focus = $("focus-view");
+  const sliding = name === "focus-stats" && stats.hidden ? stats
+    : name === "focus" && !stats.hidden ? focus : null;
   $("loading").hidden = true;
   $("onboarding-view").hidden = name !== "onboarding";
   $("dashboard-view").hidden = name !== "dashboard";
   $("module-view").hidden = name !== "module";
+  $("focus-view").hidden = name !== "focus";
+  $("focus-stats-view").hidden = name !== "focus-stats";
   $("insights-view").hidden = name !== "insights";
   $("settings-view").hidden = name !== "settings";
   $("side-nav").hidden = name === "onboarding";
   if (name === "onboarding") document.body.dataset.page = "onboarding";
+  if (sliding && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    sliding.classList.remove("is-entering");
+    void sliding.offsetWidth; // restart the animation
+    sliding.classList.add("is-entering");
+    sliding.addEventListener("animationend", (event) => {
+      if (event.target === sliding) sliding.classList.remove("is-entering");
+    });
+  }
 }
 
 // Puts a message in one of the small red boxes under a form. Empty text hides it.
@@ -115,6 +140,7 @@ async function showPage(moveFocus = true) {
   const page = pageFromHash(location.hash, settings.modules);
   if (location.hash !== hashFor(page)) history.replaceState(null, "", hashFor(page));
   drawNav(page);
+  if (page !== "focus") pendingFocusTask = null; // a Home task picked for Focus is used once
   // The page's name on <body> lets the stylesheet give each page its own glow.
   document.body.dataset.page = page;
   modulePage = null;
@@ -128,11 +154,25 @@ async function showPage(moveFocus = true) {
   } else if (page === "insights") {
     $("insights-body").innerHTML = renderInsights(await api.getInsights(today));
     view = "insights";
+  } else if (page === "focus") {
+    $("focus-stats-body").innerHTML = "";
+    await loadFocusPage();
+    view = "focus";
+  } else if (page === "focus-stats") {
+    const payload = await api.getFocus(today);
+    $("focus-body").innerHTML = "";
+    focusData = payload;
+    $("focus-stats-body").innerHTML = renderFocusStatsPage(payload, today, statsOptions());
+    showChosenTabs();
+    view = "focus-stats";
   } else {
     await loadModulePage(page);
     modulePage = page;
   }
   showView(view);
+  // On a narrow screen the year grid scrolls sideways: open it at the latest weeks.
+  const year = view === "focus-stats" && $("focus-stats-body").querySelector(".year-wrap");
+  if (year) year.scrollLeft = year.scrollWidth;
   // Move focus to the new page's heading so screen readers read it,
   // but not on the very first page: that would steal focus on load.
   if (pageShown && moveFocus) $(`${view}-view`).querySelector("h1").focus();
@@ -149,6 +189,71 @@ async function loadModulePage(id) {
   const area = dashboard.areas.find((a) => a.id === id);
   $("module-title").textContent = area.label;
   $("module-body").innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id));
+  showChosenTabs();
+}
+
+// The Focus page uses the same Study/Work modules and the same timer; nothing is stored
+// per-page except the small view choices in localStorage.
+function enabledFocusAreas() {
+  return FOCUS_MODULE_IDS.filter((id) => settings && settings.modules.includes(id));
+}
+
+function focusAreaOptions() {
+  return enabledFocusAreas().map((id) => ({
+    id, label: areas.find((area) => area.id === id)?.label || (id === "study" ? "Study" : "Work"),
+  }));
+}
+
+function studyGoalNames() {
+  return settings ? settings.study_goals.map((goal) => goal.name) : [];
+}
+
+function habitNames() {
+  return settings && Array.isArray(settings.habits) ? settings.habits.map((habit) => habit.name) : [];
+}
+
+// What the Focus page's task popover lists besides today's tasks: recent sessions' tasks
+// in that area, and the habits.
+function taskSources(area) {
+  return { recent: recentTasks(focusData?.log, area), habits: habitNames(), preset: pendingFocusTask,
+    estimates: settings?.focus?.estimates || {}, pomos: pomoCounts(focusData?.sessions || []) };
+}
+
+// The chosen task's pomos line under the picker, drawn again whenever the task changes.
+function drawEstimate(form) {
+  const slot = form?.querySelector("[data-task-estimate-slot]");
+  if (!slot) return;
+  const name = form.querySelector("#focus-task")?.value || "";
+  const { estimates, pomos } = taskSources(form.dataset.area);
+  slot.innerHTML = renderTaskEstimate(name, pomos[name] || 0, estimates[name] || 0);
+}
+
+function chosenFocusArea() {
+  const enabled = enabledFocusAreas();
+  if (enabled.includes(timer.area)) return timer.area; // a running session picks its own area
+  const saved = readStored(FOCUS_AREA_KEY);
+  if (enabled.includes(saved)) return saved;
+  return enabled.includes("study") ? "study" : enabled[0] || "study";
+}
+
+function focusOptions(area) {
+  return {
+    areas: focusAreaOptions(), area, goals: studyGoalNames(),
+    mode: tabChoices()[`focus-${area}`] || "timer", today, habits: habitNames(), preset: pendingFocusTask,
+    dailyGoal: settings.focus?.daily_goal || 0, notePrompt, estimates: settings.focus?.estimates || {},
+  };
+}
+
+function focusMarkup(data, area, message) {
+  return renderFocusPage(data, timer, (day && day.tasks) || [], Date.now(), message, focusOptions(area));
+}
+
+async function loadFocusPage() {
+  const [payload, todayData] = await Promise.all([api.getFocus(today), api.getDay(today)]);
+  day = todayData;
+  focusData = payload;
+  $("focus-body").innerHTML = focusMarkup(focusData, chosenFocusArea(), focusMessage);
+  showChosenTabs();
 }
 
 // --- Onboarding ---
@@ -324,7 +429,7 @@ $("onboarding-sleep-suggest").addEventListener("click", async () => {
   const answers = {
     habits: [...help.querySelectorAll('input[name="sleep-habit"]:checked')].map((box) => box.value),
   };
-  for (const field of help.querySelectorAll('select, input[type="time"]')) {
+  for (const field of help.querySelectorAll('select, input[data-time]')) {
     if (field.value) answers[field.name] = field.value;
   }
   try {
@@ -508,7 +613,7 @@ $("onboarding-session-form").addEventListener("submit", async (event) => {
   try {
     askForNotifications();
     focusMessage = "";
-    setTimer(startSession({ area, task: null, minutes }, Date.now()));
+    setTimer(startSession({ area, task: null, minutes, options: settings.focus }, Date.now()));
     await finishOnboarding([], area);
     announce(`Your first session started: ${minutes} minutes.`);
   } catch (error) {
@@ -714,8 +819,8 @@ document.addEventListener("change", (event) => {
 // Typing a bed or wake time updates the "= 8 h a night" next to it.
 document.addEventListener("input", (event) => {
   const times = event.target.closest(".sleep-times");
-  if (!times || event.target.type !== "time") return;
-  const [bed, wake] = times.querySelectorAll('input[type="time"]');
+  if (!times || !("time" in event.target.dataset)) return;
+  const [bed, wake] = times.querySelectorAll("input[data-time]");
   times.querySelector(".sleep-gap").textContent = gapText(bed.value, wake.value);
 });
 
@@ -732,13 +837,13 @@ function updateWorkWeek(question) {
   const schedule = question.querySelector(".work-schedule");
   if (!schedule) return;
   const days = schedule.querySelectorAll('.day-toggle[aria-pressed="true"]').length;
-  const [start, end] = schedule.querySelectorAll('input[type="time"]');
+  const [start, end] = schedule.querySelectorAll("input[data-time]");
   schedule.querySelector(".work-week").textContent = weekHoursText(days, start.value, end.value);
 }
 
 document.addEventListener("input", (event) => {
   const question = event.target.closest(".work-question");
-  if (question && event.target.type === "time") updateWorkWeek(question);
+  if (question && "time" in event.target.dataset) updateWorkWeek(question);
 });
 
 // "It varies" swaps the schedule for the hours a week.
@@ -769,9 +874,9 @@ function drawDashboard(dashboard) {
   $("habit-completion").textContent = completion === null ? "" : `${completion}% this week`;
   $("habit-grid").innerHTML = renderHabitGrid(dashboard.habits.grid, settings.habits);
   $("goals").innerHTML = renderGoals(settings.goals);
-  $("tasks").innerHTML = renderTasks(day.tasks);
+  $("tasks").innerHTML = renderTasks(day.tasks, enabledFocusAreas().length > 0);
   focusToday = dashboard.focus;
-  $("focus-summary").innerHTML = renderFocusSummary(focusToday, timer, Date.now());
+  $("focus-summary").innerHTML = renderFocusSummary(focusToday, timer, Date.now(), enabledFocusAreas().length > 0);
 
   // Don't overwrite the note while the user is typing in it.
   if (document.activeElement !== $("note")) $("note").value = day.note;
@@ -792,7 +897,7 @@ function readLogInputs(inputs) {
   const changes = {};
   for (const input of inputs) {
     const blank = input.value.trim() === "";
-    if (input.type === "time") changes[input.name] = blank ? null : input.value;
+    if ("time" in input.dataset) changes[input.name] = blank ? null : input.value.trim();
     else changes[input.name] = blank ? null : Number(input.value);
   }
   return changes;
@@ -835,6 +940,334 @@ $("module-view").addEventListener("click", (event) => {
     $("module-edit").focus();
   } else if (event.target.closest("#module-study")) {
     changeStudyRows(event, $("module-study"), "mod");
+  }
+});
+
+// Tab lists: the module chart's "7 days / 12 weeks" and the focus timer's "Timer / Stopwatch".
+// Each choice is remembered across refreshes.
+const TABS_KEY = "compass.tabs";
+let tabChoice = null;
+const tabChoices = () => (tabChoice ||= { chart: "days", ...(readStored(TABS_KEY) || {}) });
+
+function showTab(list, value, focus = false) {
+  const tabs = [...list.querySelectorAll("[role='tab'][data-tab]")];
+  if (!tabs.some((tab) => tab.dataset.tab === value)) value = tabs[0].dataset.tab;
+  tabChoices()[list.dataset.tabs] = value;
+  if (list.dataset.tabs.startsWith("focus-")) {
+    store(TABS_KEY, tabChoices());
+  }
+  tabs.forEach((tab) => {
+    const on = tab.dataset.tab === value;
+    tab.setAttribute("aria-selected", String(on));
+    tab.tabIndex = on ? 0 : -1;
+    $(tab.getAttribute("aria-controls")).hidden = !on;
+    if (on && focus) tab.focus();
+  });
+}
+
+// After a page or part of it is drawn: show each tab list's remembered choice.
+function showChosenTabs() {
+  for (const list of document.querySelectorAll("#module-body [data-tabs], #focus-body [data-tabs]")) {
+    const key = list.dataset.tabs;
+    const choice = tabChoices()[key] || list.querySelector("[aria-selected='true']")?.dataset.tab || "";
+    showTab(list, choice);
+  }
+  centerFocusWheel();
+}
+
+// The minute wheel opens with the chosen length centred, like a scroll wheel.
+// smooth: glide there (after a click on a row) instead of jumping (on open).
+function centerFocusWheel(smooth = false) {
+  const wheel = document.querySelector("#focus-view .focus-wheel");
+  const picked = wheel?.querySelector("input:checked")?.closest(".wheel-option");
+  if (!picked || !wheel.clientHeight) return; // the picker may still be the collapsed pill
+  // Wait for the panel to be laid out; offsetTop ignores the card's entrance transform.
+  requestAnimationFrame(() => {
+    if (!wheel.isConnected || !wheel.clientHeight) return;
+    const top = (picked.offsetTop - wheel.offsetTop) - (wheel.clientHeight - picked.offsetHeight) / 2;
+    wheel.scrollTo({ top, behavior: smooth && !calm() ? "smooth" : "auto" });
+    paintWheel(wheel);
+  });
+}
+
+const calm = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+// Each row of the wheel softens with its distance from the middle (--d: 0 in the middle,
+// up to 3 at the edges), like the reference. Only rows whose distance changed are touched.
+function paintWheel(wheel) {
+  const mid = wheel.scrollTop + wheel.clientHeight / 2;
+  for (const row of wheel.querySelectorAll(".wheel-option")) {
+    const centre = row.offsetTop - wheel.offsetTop + row.offsetHeight / 2;
+    const d = Math.min(3, Math.abs(centre - mid) / row.offsetHeight);
+    const rounded = Math.round(d * 20) / 20;
+    if (row.dataset.d !== String(rounded)) {
+      row.dataset.d = String(rounded);
+      row.style.setProperty("--d", rounded);
+    }
+  }
+}
+
+// Scrolling the wheel picks the row that reaches the middle, as it passes, like the
+// reference: the reading and the exact box follow it.
+function pickFromWheel(wheel) {
+  const mid = wheel.scrollTop + wheel.clientHeight / 2;
+  let nearest = null;
+  let best = Infinity;
+  for (const row of wheel.querySelectorAll(".wheel-option")) {
+    const gap = Math.abs(row.offsetTop - wheel.offsetTop + row.offsetHeight / 2 - mid);
+    if (gap < best) {
+      best = gap;
+      nearest = row;
+    }
+  }
+  const input = nearest?.querySelector("input");
+  if (!input || input.checked) return;
+  input.checked = true;
+  const form = input.form;
+  const own = form?.querySelector("#focus-own");
+  if (own) {
+    own.value = "";
+    own.removeAttribute("aria-invalid");
+  }
+  const reading = form?.querySelector("[data-focus-length]");
+  if (reading) reading.textContent = `${String(input.value).padStart(2, "0")}:00`;
+}
+
+// A state change of the timer (Start, Pause, Stop, a mode switch) morphs from the old card
+// to the new one: the time and buttons blur across, the ring stays put. Without View
+// Transitions, or with reduced motion, it simply changes.
+function morph(change) {
+  if (!document.startViewTransition || calm() || document.hidden) {
+    change();
+    return;
+  }
+  try {
+    document.startViewTransition(change);
+  } catch {
+    change();
+  }
+}
+
+// Rolls only the characters of the time that changed: the old digit slides out blurred,
+// the new one slides in (down for a countdown, up for the stopwatch, via CSS).
+function rollDigits(box, text) {
+  const slots = box.children;
+  if (slots.length !== text.length) {
+    box.innerHTML = timeDigits(text);
+    return;
+  }
+  [...text].forEach((ch, i) => {
+    const slot = slots[i];
+    const current = slot.querySelector("span:not(.out)");
+    if (!current || current.textContent === ch) return;
+    for (const old of slot.querySelectorAll(".out")) old.remove();
+    current.className = "out";
+    const next = document.createElement("span");
+    next.className = "in";
+    next.textContent = ch;
+    slot.append(next);
+    setTimeout(() => current.remove(), 450);
+  });
+}
+
+// The Focus card's popovers. Opening one focuses its first field (or the chosen row);
+// closing returns focus to its opener when asked (Escape, Set, a pick).
+function openPop(opener, pop) {
+  pop.hidden = false;
+  opener.setAttribute("aria-expanded", "true");
+  const field = pop.querySelector("[data-task-search], #focus-own");
+  // The exact box starts from the wheel's length, selected, so typing replaces it.
+  if (field?.id === "focus-own" && !field.value) {
+    field.value = field.form?.querySelector('input[name="focus-minutes"]:checked')?.value || "";
+  }
+  requestAnimationFrame(() => {
+    field?.focus({ preventScroll: true });
+    if (field?.id === "focus-own") field.select();
+  });
+}
+
+function closePops(returnFocus = false) {
+  for (const pop of document.querySelectorAll(".pop:not([hidden])")) {
+    pop.hidden = true;
+    const opener = (pop.opener?.isConnected && pop.opener) || document.querySelector(`[aria-controls="${pop.id}"]`);
+    opener?.setAttribute("aria-expanded", "false");
+    if (returnFocus) opener?.focus({ preventScroll: true });
+  }
+}
+
+// "Add “…”" in the task popover: adds the typed name to today's tasks (when there is room)
+// and picks it. With today's list full it is still used for this session, and says so.
+function createTask(button) {
+  const wrap = button.closest("[data-task-pop]");
+  const pop = button.closest(".pop");
+  const text = pop.querySelector("[data-task-search]").value.trim().slice(0, 200);
+  if (!text) return;
+  const choose = () => {
+    wrap.querySelector("input[type='hidden']").value = text;
+    wrap.querySelector("[data-task-pop-label]").textContent = text;
+    for (const row of wrap.querySelectorAll("[data-task-pick]")) {
+      row.setAttribute("aria-pressed", String(row.dataset.taskPick === text));
+    }
+    drawEstimate(wrap.closest("form"));
+  };
+  if (!day || day.tasks.length >= MAX_TASKS) {
+    choose();
+    button.hidden = true;
+    // role="status": shown and read out; the popover stays open so it can be read.
+    pop.querySelector("[data-task-pop-note]").textContent =
+      `Using “${text}” for this session. Today already has ${MAX_TASKS} tasks, so it isn't added to the list.`;
+    return;
+  }
+  safely(async () => {
+    await saveToday({ tasks: [...day.tasks, { text, done: false }] });
+    // Draw the picker again so the new task is listed (and chosen) under Today.
+    const holder = wrap.closest(".focus-task-picker");
+    const form = holder.closest("form");
+    const area = form.querySelector('input[name$="-area"]:checked')?.value || form.dataset.area;
+    const id = wrap.querySelector("input[type='hidden']").id;
+    holder.innerHTML = renderTaskPopover(id, day.tasks, area === "study" ? studyGoalNames() : [], text, taskSources(area));
+    drawEstimate(form);
+    holder.querySelector("[data-pop-open]")?.focus({ preventScroll: true });
+    announce(`Added “${text}” to today's tasks and picked it.`);
+  });
+}
+
+// "HH:MM" from what was typed in a time box ("9", "9:05", "905", "21.30"), or null.
+function readClock(text) {
+  const m = String(text).trim().match(/^(\d{1,2})(?:[:.]?(\d{2}))?$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2] || 0);
+  if (h > 23 || min > 59) return null;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+// The record dialog: "+ Add" (a session that wasn't timed) or a row's Edit (its start,
+// end and task). opener: the button that opened it, where focus goes back.
+function openRecordPop(opener) {
+  const pop = $("focus-record-pop");
+  if (!pop) return;
+  closePops();
+  closeFocusMenu();
+  const form = $("record-form");
+  const edit = opener?.matches("[data-record-edit]") ? opener.dataset : null;
+  form.dataset.date = edit ? edit.sessionDate : "";
+  form.dataset.id = edit ? edit.sessionId : "";
+  $("record-pop-title").textContent = edit ? "Edit focus record" : "Add a focus record";
+  for (const part of form.querySelectorAll("[data-record-new-only]")) part.hidden = Boolean(edit);
+  $("record-date").value = today;
+  $("record-start").value = edit ? edit.start : "";
+  $("record-end").value = edit ? edit.end : "";
+  $("record-task").value = edit ? edit.task : "";
+  $("record-note").value = edit ? edit.note || "" : "";
+  $("record-error").textContent = "";
+  pop.opener = opener || null;
+  pop.hidden = false;
+  opener?.setAttribute("aria-expanded", "true");
+  // "Add a note" goes straight to the note; everything else starts at the times.
+  const first = opener?.hasAttribute("data-focus-note") ? $("record-note") : $("record-start");
+  requestAnimationFrame(() => first.focus({ preventScroll: true }));
+}
+
+// − / + under the chosen task: plan one pomo fewer or more (0 removes the plan).
+function changeEstimate(button) {
+  const line = button.closest("[data-task-estimate]");
+  const name = line.dataset.task;
+  const estimates = { ...(settings.focus?.estimates || {}) };
+  const planned = Math.min(20, Math.max(0, (estimates[name] || 0) + Number(button.dataset.estimateStep)));
+  if (planned) estimates[name] = planned;
+  else delete estimates[name];
+  const form = button.closest("form");
+  const step = button.dataset.estimateStep;
+  safely(async () => {
+    settings = await api.putSettings({ ...settings, focus: { ...settings.focus, estimates } });
+    drawEstimate(form);
+    const again = form.querySelector(`[data-estimate-step="${step}"]`);
+    (again && !again.disabled ? again : form.querySelector("[data-estimate-step]:not([disabled])"))?.focus();
+    announce(planned ? `${planned} ${planned === 1 ? "pomo" : "pomos"} planned for “${name}”.` : `No pomos planned for “${name}”.`);
+  });
+}
+
+function pickTask(row) {
+  const wrap = row.closest("[data-task-pop]");
+  const name = row.dataset.taskPick;
+  wrap.querySelector("input[type='hidden']").value = name;
+  wrap.querySelector("[data-task-pop-label]").textContent = name || "No task";
+  for (const other of wrap.querySelectorAll("[data-task-pick]")) {
+    other.setAttribute("aria-pressed", String(other.dataset.taskPick === name));
+  }
+  drawEstimate(row.closest("form"));
+  closePops(true);
+}
+
+// TickTick's Focus page keeps the time stats on screen while its "..." menu opens options.
+function closeFocusMenu() {
+  const menu = $("focus-more-menu");
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  $("focus-more-button")?.setAttribute("aria-expanded", "false");
+}
+
+function focusMenuAction(action) {
+  const menu = $("focus-more-menu");
+  if (!menu) return;
+  if (action === "toggle") {
+    menu.hidden = !menu.hidden;
+    $("focus-more-button")?.setAttribute("aria-expanded", String(!menu.hidden));
+    if (!menu.hidden) menu.querySelector("button")?.focus();
+    return;
+  }
+  closeFocusMenu();
+  if (action === "add") {
+    openRecordPop($("focus-page-timer")?.closest(".focus-page")?.querySelector('[data-focus-menu="add"]'));
+  } else if (action === "record") {
+    $("focus-page-log")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else if (action === "prefs") {
+    location.hash = "#/settings";
+    // After the Settings page is drawn: bring its Focus section into view.
+    setTimeout(() => $("settings-focus")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  } else if (action === "fullscreen") {
+    $("focus-view")?.classList.toggle("focus-fullscreen");
+  } else if (action === "settings") {
+    // "Timer length" must open the pill before it can scroll to the wheel.
+    const card = document.querySelector("#focus-view .focus-card[data-state='idle']");
+    if (card && card.dataset.open !== "true") {
+      card.dataset.open = "true";
+      card.querySelector("[data-focus-card-open]")?.setAttribute("aria-expanded", "true");
+    }
+    const wheel = document.querySelector("#focus-view .focus-wheel");
+    requestAnimationFrame(() => {
+      centerFocusWheel();
+      wheel?.querySelector("input:checked")?.focus({ preventScroll: true });
+    });
+  }
+}
+
+// A time box takes 24-hour times; tidy what was typed: "2300" or "23.00" -> "23:00", "7" -> "07:00".
+document.addEventListener("change", (event) => {
+  const box = event.target;
+  if (!box.matches("input[data-time]")) return;
+  const digits = box.value.replace(/\D/g, "");
+  let tidy = box.value.trim();
+  if (/^\d{1,2}$/.test(digits) && tidy.length <= 2) tidy = `${digits.padStart(2, "0")}:00`;
+  else if (/^\d{3,4}$/.test(digits)) tidy = `${digits.padStart(4, "0").slice(0, 2)}:${digits.padStart(4, "0").slice(2)}`;
+  box.value = tidy;
+  const ok = tidy === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(tidy);
+  if (ok) box.removeAttribute("aria-invalid");
+  else box.setAttribute("aria-invalid", "true");
+  box.dispatchEvent(new Event("input", { bubbles: true }));
+});
+
+// The timer's own length: typing one clears the preset; picking a preset clears it.
+document.addEventListener("input", (event) => {
+  if (event.target.id !== "focus-own") return;
+  event.target.removeAttribute("aria-invalid");
+  if (!event.target.value) return;
+  for (const radio of event.target.form.querySelectorAll('input[name="focus-minutes"]')) radio.checked = false;
+});
+document.addEventListener("change", (event) => {
+  if (event.target.name === "focus-minutes" && event.target.form.querySelector("#focus-own")) {
+    event.target.form.querySelector("#focus-own").value = "";
   }
 });
 
@@ -932,11 +1365,15 @@ let unsaved = Array.isArray(readStored(UNSAVED_KEY)) ? readStored(UNSAVED_KEY) :
 let focusMessage = ""; // what just happened, shown under the timer
 let lastRetry = 0;
 
-// The timer's HTML for a module page ("" for Sleep, which has no timer).
-function focusPanel(areaId) {
+// The timer's HTML for a module page ("" for Sleep), or for the Focus page with its
+// Study/Work switch added when both modules are on.
+function focusPanel(areaId, onFocusPage = false) {
   if (areaId !== "study" && areaId !== "work") return "";
-  const goals = settings ? settings.study_goals.map((g) => g.name) : [];
-  return renderFocusPanel(areaId, timer, (day && day.tasks) || [], Date.now(), focusMessage, goals);
+  const goals = studyGoalNames();
+  const mode = tabChoices()[`focus-${areaId}`] || "timer";
+  const options = onFocusPage && focusAreaOptions().length > 1 ? focusAreaOptions() : null;
+  const args = [areaId, timer, (day && day.tasks) || [], Date.now(), focusMessage, goals, mode, options, taskSources(areaId)];
+  return onFocusPage ? renderFocusCard(...args) : renderFocusPanel(...args);
 }
 
 // Reads text out to screen readers, on whatever page is showing.
@@ -962,11 +1399,14 @@ function notify(title, body) {
 
 // The time left, the ring and the tab title, without redrawing anything else.
 function updateClock(now) {
-  const left = countdownText(remainingMs(timer, now));
+  const left = readoutText(timer, now);
   for (const text of document.querySelectorAll("[data-timer-text]")) text.textContent = left;
+  for (const box of document.querySelectorAll("[data-timer-digits]")) rollDigits(box, left);
+  for (const ghost of document.querySelectorAll("[data-timer-ghost]")) ghost.textContent = left.replace(/\d/g, "8");
   const share = Math.round(ringShare(timer, now) * 1000) / 10;
   for (const ring of document.querySelectorAll("[data-timer-ring]")) ring.setAttribute("stroke-dasharray", `${share} 100`);
   if (isRunning(timer)) document.title = `${left} · ${BASE_TITLE}`;
+  else if (timer.waiting) document.title = `Ready · ${BASE_TITLE}`;
   else if (isPaused(timer)) document.title = `Paused · ${BASE_TITLE}`;
   else if (timer.phase === "away") document.title = `Save your session? · ${BASE_TITLE}`;
   else document.title = BASE_TITLE;
@@ -976,25 +1416,35 @@ function updateClock(now) {
 // button goes to the new timer's first button, so it is never dropped.
 function redrawFocus(moveFocus = false) {
   const now = Date.now();
-  const holder = modulePage ? $("focus-timer") : null;
+  const onFocusPage = !$("focus-view").hidden;
+  const holder = modulePage ? $("focus-timer") : onFocusPage ? $("focus-page-timer") : null;
   if (holder) {
     const hadFocus = holder.contains(document.activeElement);
-    holder.innerHTML = focusPanel(modulePage);
+    holder.innerHTML = modulePage ? focusPanel(modulePage) : focusPanel(chosenFocusArea(), true);
     if (hadFocus || moveFocus) {
       const target = holder.querySelector("[data-focus], button[type='submit'], a");
       if (target) target.focus();
     }
   }
   if (!$("dashboard-view").hidden && focusToday) {
-    $("focus-summary").innerHTML = renderFocusSummary(focusToday, timer, now);
+    $("focus-summary").innerHTML = renderFocusSummary(focusToday, timer, now, enabledFocusAreas().length > 0);
   }
+  if (entering && holder) holder.querySelector(".focus-card")?.setAttribute("data-enter", entering);
+  entering = null;
   updateClock(now);
+  centerFocusWheel();
 }
 
-function setTimer(next, moveFocus = false) {
+// "start" while a just-started card is drawn, so its ring sweeps in once (not on every redraw).
+let entering = null;
+
+function setTimer(next, moveFocus = false, how = null) {
   timer = next;
   store(TIMER_KEY, timer);
-  redrawFocus(moveFocus);
+  morph(() => {
+    entering = how;
+    redrawFocus(moveFocus);
+  });
 }
 
 // After sessions change: the page's numbers again, without touching what is being typed.
@@ -1009,12 +1459,12 @@ async function refreshAfterSessions() {
     const area = dashboard.areas.find((a) => a.id === id);
     const fresh = document.createElement("div");
     fresh.innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id));
-    const panels = [...fresh.children];
+    const panels = [...fresh.querySelectorAll(MODULE_PARTS)];
     const active = document.activeElement;
     const activeId = active && active.id;
     const inTimer = Boolean(active && active.closest(".module-focus"));
     const editing = $("module-edit-form") !== null;
-    [...$("module-body").children].forEach((old, i) => {
+    [...$("module-body").querySelectorAll(MODULE_PARTS)].forEach((old, i) => {
       const next = panels[i];
       if (!next) return;
       if (old.classList.contains("module-log")) {
@@ -1028,8 +1478,30 @@ async function refreshAfterSessions() {
         old.replaceWith(next);
       }
     });
+    showChosenTabs();
     if (document.activeElement === document.body || !document.activeElement) {
       const target = (activeId && $(activeId)) || (inTimer && $("focus-timer").querySelector("[data-focus], button, input"));
+      if (target) target.focus();
+    }
+  } else if (!$("focus-view").hidden && focusData) {
+    // Refetch the Focus payload but leave the timer holder alone: someone may be typing.
+    const payload = await api.getFocus(today);
+    if ($("focus-view").hidden) return;
+    focusData = payload;
+    const area = chosenFocusArea();
+    const fresh = document.createElement("div");
+    fresh.innerHTML = renderFocusPage(payload, timer, (day && day.tasks) || [], Date.now(), focusMessage, focusOptions(area));
+    const active = document.activeElement;
+    const activeId = active && active.id;
+    const inTimer = Boolean(active && active.closest("#focus-page-timer"));
+    for (const id of ["focus-page-totals", "focus-page-log"]) {
+      const old = $(id);
+      const next = fresh.querySelector(`#${id}`);
+      if (old && next) old.replaceWith(next);
+    }
+    showChosenTabs();
+    if (inTimer && (!document.activeElement || document.activeElement === document.body)) {
+      const target = (activeId && $(activeId)) || $("focus-page-timer").querySelector("[data-focus], button, input");
       if (target) target.focus();
     }
   } else if (!$("dashboard-view").hidden) {
@@ -1052,6 +1524,9 @@ async function flushSessions() {
         const answer = await api.postSession(date, session);
         if (date === today) day = answer;
         saved = true;
+        // The newest session on that day is this one: offer a note for it in the Focus record.
+        const added = answer.sessions[answer.sessions.length - 1];
+        if (added) notePrompt = { date, id: added.id };
       } catch (error) {
         if (error.code !== "invalid" && error.code !== "bad_request") {
           showBanner(`Your ${durationText(session.minutes)} session isn't saved yet (${error.message}). Compass will try again.`);
@@ -1077,22 +1552,32 @@ function saveSession(session) {
 // What each timer event means for the person: the words to show, read out and notify.
 function eventWords(events) {
   const types = events.map((e) => e.type);
+  // The timer is already the new state here, so its options give the lengths.
+  const opts = timer.opts || {};
   if (types.includes("break")) {
-    const long = events.find((e) => e.type === "break").long;
-    return { title: "Session done", text: long
-      ? `${SESSIONS_A_ROUND} sessions done. Take a 15-minute break.`
-      : "Session done. Take a 5-minute break." };
+    const { long, waiting } = events.find((e) => e.type === "break");
+    const length = long ? opts.longBreak ?? 15 : opts.shortBreak ?? 5;
+    const take = waiting ? `Start your ${length}-minute break when you're ready.` : `Take a ${length}-minute break.`;
+    return { title: "Session done", text: long ? `${roundSize(timer)} sessions done. ${take}` : `Session done. ${take}` };
   }
   if (types.includes("focus")) {
-    const round = events.find((e) => e.type === "focus").round;
-    return { title: "Break over", text: `Session ${round} of ${SESSIONS_A_ROUND} started.` };
+    const { round, waiting } = events.find((e) => e.type === "focus");
+    return { title: "Break over", text: waiting
+      ? `Break over. Start session ${round} of ${roundSize(timer)} when you're ready.`
+      : `Session ${round} of ${roundSize(timer)} started.` };
   }
   if (types.includes("roundDone")) {
     // The start form already says "Round done" on the page, so this is only read out and notified.
-    return { title: "Round done", text: `Round done: ${SESSIONS_A_ROUND} sessions. Start another when you're ready.`, quiet: true };
+    return { title: "Round done", text: `Round done: ${roundSize(timer)} sessions. Start another when you're ready.`, quiet: true };
   }
   if (types.includes("away")) {
     return { text: "A session ended while Compass wasn't open. Save it or discard it." };
+  }
+  if (types.includes("watchFull")) {
+    return { title: "Stopwatch stopped", text: `The stopwatch reached ${MAX_MINUTES / 60} hours, so it stopped and saved them.` };
+  }
+  if (types.includes("watchAway")) {
+    return { text: "The stopwatch stopped while Compass wasn't open. Under a minute was counted, so nothing was saved." };
   }
   if (types.includes("breakAway")) {
     return { text: "The break ended while Compass wasn't open, so the cycle stopped." };
@@ -1117,7 +1602,7 @@ function onTick() {
       announce(words.text);
       if (words.title) notify(words.title, words.text);
     }
-    redrawFocus();
+    morph(() => redrawFocus());
   } else {
     updateClock(now);
   }
@@ -1145,22 +1630,41 @@ function startTicking() {
 // The timer's buttons: Pause, Resume, Finish early, Reset, Skip break, Stop, Save, Discard.
 function focusAction(action) {
   const now = Date.now();
+  // Strict mode: a running session can't be paused, cut short or thrown away.
+  if (isStrict(timer) && ["pause", "finish", "reset"].includes(action)) return;
   focusMessage = "";
+  if (action === "more" || action === "less") {
+    // + / −: no morph, and keyboard focus stays on the button that was pressed.
+    const next = adjust(timer, action === "more" ? ADJUST_STEP : -ADJUST_STEP, now);
+    if (next === timer) {
+      announce(action === "more" ? "That's the longest a session can be." : "The session can't be shorter than the time it has run.");
+      return;
+    }
+    timer = next;
+    store(TIMER_KEY, timer);
+    redrawFocus();
+    document.querySelector(`#focus-view:not([hidden]) [data-focus="${action}"], #module-view:not([hidden]) [data-focus="${action}"]`)?.focus();
+    announce(`${timer.minutes}-minute session.`);
+    return;
+  }
   if (action === "pause") setTimer(pause(timer, now), true);
   else if (action === "resume") setTimer(resume(timer, now), true);
   else if (action === "reset") {
-    focusMessage = "Session reset. Nothing was saved.";
+    focusMessage = timer.phase === "watch" ? "Stopwatch reset. Nothing was saved." : "Session reset. Nothing was saved.";
     setTimer(reset(), true);
   } else if (action === "stop") {
     focusMessage = "Stopped.";
     setTimer(stopCycle(), true);
   } else if (action === "skip") {
     const next = skipBreak(timer, now);
-    focusMessage = next.phase === "done" ? `Round done: ${SESSIONS_A_ROUND} sessions.` : `Session ${next.round} of ${SESSIONS_A_ROUND} started.`;
+    focusMessage = next.phase === "done" ? `Round done: ${roundSize(next)} sessions.` : `Session ${next.round} of ${roundSize(next)} started.`;
     setTimer(next, true);
   } else if (action === "finish") {
     const { state, session } = finishEarly(timer, now);
-    focusMessage = session ? `Saved ${durationText(session.minutes)}.` : "Under a minute, so nothing was saved.";
+    focusMessage = session ? `Saved ${durationText(session.minutes)}.`
+      : state.phase === "away" ? "Compass wasn't watching for a while. Save the time it counted?"
+      : "Under a minute, so nothing was saved.";
+    if (timer.phase === "watch" && session && session.minutes === MAX_MINUTES) focusMessage += " The stopwatch stops at 3 hours.";
     setTimer(state, true);
     if (session) saveSession(session);
   } else if (action === "keep") {
@@ -1175,37 +1679,348 @@ function focusAction(action) {
   if (focusMessage) announce(focusMessage);
 }
 
-$("module-view").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-focus]");
-  if (button) {
-    focusAction(button.dataset.focus);
-    return;
-  }
-  const remove = event.target.closest("[data-session-remove]");
-  if (remove) {
+// One set of timer listeners serves the timer on a module page and on the Focus page.
+// The tab keys here work for every tab list on either page.
+function bindTimerEvents(view) {
+  const onFocus = view === $("focus-view");
+
+  view.addEventListener("click", (event) => {
+    if (onFocus) {
+      const menuItem = event.target.closest("[data-focus-menu]");
+      if (menuItem) {
+        closePops(); // one popup at a time
+        focusMenuAction(menuItem.dataset.focusMenu);
+        return;
+      }
+      if (!event.target.closest(".focus-more")) closeFocusMenu();
+    }
+    // The popovers (task, exact time): one open at a time; a click elsewhere closes them.
+    if (!event.target.closest(".pop, [data-pop-open], [data-record-add], [data-record-edit], [data-focus-menu]")) closePops();
+    if (event.target.closest("[data-note-dismiss]")) {
+      notePrompt = null;
+      event.target.closest(".focus-note-prompt")?.remove();
+      $("focus-page-log")?.querySelector("[data-record-add]")?.focus({ preventScroll: true });
+      return;
+    }
+    const estimateStep = event.target.closest("[data-estimate-step]");
+    if (estimateStep) {
+      changeEstimate(estimateStep);
+      return;
+    }
+    const recordOpener = event.target.closest("[data-record-add], [data-record-edit]");
+    if (recordOpener) {
+      openRecordPop(recordOpener);
+      return;
+    }
+    if (event.target.closest("[data-record-cancel]")) {
+      closePops(true);
+      return;
+    }
+    const popOpener = event.target.closest("[data-pop-open]");
+    if (popOpener) {
+      closeFocusMenu();
+      const pop = $(popOpener.getAttribute("aria-controls"));
+      const opening = pop.hidden;
+      closePops();
+      if (opening) openPop(popOpener, pop);
+      return;
+    }
+    const pick = event.target.closest("[data-task-pick]");
+    if (pick) {
+      pickTask(pick);
+      return;
+    }
+    const create = event.target.closest("[data-task-create]");
+    if (create) {
+      createTask(create);
+      return;
+    }
+    if (event.target.closest("[data-own-done]")) {
+      closePops(true);
+      return;
+    }
+    const opener = event.target.closest("[data-focus-card-open]");
+    if (opener) {
+      const card = opener.closest(".focus-card");
+      const open = card.dataset.open !== "true";
+      card.dataset.toggled = "";
+      card.dataset.open = String(open);
+      opener.setAttribute("aria-expanded", String(open));
+      if (open) {
+        // The picker was display:none, so measure the wheel only after it is laid out.
+        requestAnimationFrame(() => {
+          centerFocusWheel();
+          // preventScroll: focusing a row must scroll the wheel, never the page.
+          card.querySelector('.focus-wheel input:checked')?.focus({ preventScroll: true });
+        });
+      }
+      return;
+    }
+    const tab = event.target.closest("[role='tab'][data-tab]");
+    if (tab) {
+      const list = tab.closest("[data-tabs]");
+      // Pomo / Stopwatch morphs the reading inside the ring; other tabs just switch.
+      if (list.classList.contains("focus-card-mode") && tab.getAttribute("aria-selected") !== "true") morph(() => showTab(list, tab.dataset.tab));
+      else showTab(list, tab.dataset.tab);
+      return;
+    }
+    const button = event.target.closest("[data-focus]");
+    if (button) {
+      focusAction(button.dataset.focus);
+      return;
+    }
+    const remove = event.target.closest("[data-session-remove]");
+    if (remove) {
+      safely(async () => {
+        const date = remove.dataset.sessionDate || today;
+        const answer = await api.deleteSession(date, remove.dataset.sessionRemove);
+        if (date === today) day = answer;
+        focusMessage = "Session removed.";
+        announce(focusMessage);
+        await refreshAfterSessions();
+        const list = onFocus ? $("focus-page-log") : $("focus-sessions");
+        const timerHolder = onFocus ? $("focus-page-timer") : $("focus-timer");
+        const next = list.querySelector("[data-session-remove]") || (timerHolder && timerHolder.querySelector("button"));
+        if (next) next.focus();
+      });
+    }
+  });
+
+  // Arrow keys, Home and End move between the tabs, as in any tab list.
+  view.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && document.querySelector(".pop:not([hidden])")) {
+      closePops(true);
+      return;
+    }
+    // Enter in a popover never starts the timer: in the search it picks the first match,
+    // in the exact box it sets the length and closes.
+    if (event.key === "Enter" && event.target.matches("[data-task-search]")) {
+      event.preventDefault();
+      const pop = event.target.closest(".pop");
+      const first = [...pop.querySelectorAll(".task-pop-panel:not([hidden]) [data-task-pick]")]
+        .find((row) => !row.closest("li")?.hidden);
+      const create = pop.querySelector("[data-task-create]");
+      if (first) pickTask(first);
+      else if (!create.hidden) createTask(create);
+      return;
+    }
+    if (event.key === "Enter" && event.target.id === "focus-own") {
+      event.preventDefault();
+      closePops(true);
+      return;
+    }
+    if (event.key === "Escape") {
+      closeFocusMenu();
+      const card = event.target.closest(".focus-card[data-state='idle'][data-open='true']");
+      if (card) {
+        card.dataset.toggled = "";
+        card.dataset.open = "false";
+        card.querySelector("[data-focus-card-open]")?.setAttribute("aria-expanded", "false");
+        card.querySelector("[data-focus-card-open]")?.focus();
+      }
+      return;
+    }
+    const tab = event.target.closest("[role='tab'][data-tab]");
+    if (!tab) return;
+    const tabs = [...tab.parentElement.querySelectorAll("[role='tab']")];
+    const at = tabs.indexOf(tab);
+    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs.length - 1 }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    showTab(tab.closest("[data-tabs]"), tabs[(next + tabs.length) % tabs.length].dataset.tab, true);
+  });
+
+  // Changing the Focus page's area redraws only the task picker: Study goals belong to
+  // Study, and the chosen area is remembered for the next visit.
+  view.addEventListener("change", (event) => {
+    if (!event.target.matches('input[name="focus-area"], input[name="watch-area"]')) return;
+    const form = event.target.form;
+    const watch = event.target.name === "watch-area";
+    const area = event.target.value;
+    form.dataset.area = area;
+    store(FOCUS_AREA_KEY, area);
+    const holder = form.querySelector(".focus-task-picker");
+    if (!holder) return;
+    const chosen = holder.querySelector("select")?.value || null;
+    const id = watch ? "watch-task" : "focus-task";
+    const goals = area === "study" ? studyGoalNames() : [];
+    const current = holder.querySelector("input[type='hidden']")?.value || chosen;
+    holder.innerHTML = holder.querySelector("[data-task-pop]")
+      ? renderTaskPopover(id, (day && day.tasks) || [], goals, current || null, taskSources(area))
+      : renderFocusTaskPicker(id, (day && day.tasks) || [], goals, chosen);
+    drawEstimate(holder.closest("form"));
+  });
+
+  // The wheel is the preview: keep it centred on the chosen value, and the ring's reading
+  // ("25:00") in step with it.
+  const showLength = (form, minutes) => {
+    const reading = form.querySelector("[data-focus-length]");
+    if (reading) reading.textContent = `${String(minutes).padStart(2, "0")}:00`;
+  };
+  view.addEventListener("change", (event) => {
+    if (event.target.matches('input[name="focus-minutes"]') && event.target.form?.id === "focus-form") {
+      showLength(event.target.form, Number(event.target.value));
+      centerFocusWheel(true);
+    }
+  });
+  // Scroll events don't bubble, so listen in the capture phase; one paint per frame.
+  let wheelFrame = 0;
+  view.addEventListener("scroll", (event) => {
+    const wheel = event.target;
+    if (!(wheel instanceof Element) || !wheel.matches("[data-focus-wheel]") || wheelFrame) return;
+    wheelFrame = requestAnimationFrame(() => {
+      wheelFrame = 0;
+      paintWheel(wheel);
+      pickFromWheel(wheel);
+    });
+  }, true);
+  // The task popover's search narrows the rows in every tab as you type.
+  view.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-task-search]")) return;
+    const query = event.target.value.trim().toLowerCase();
+    const pop = event.target.closest(".pop");
+    for (const row of pop.querySelectorAll(".task-pop-list > li")) {
+      row.hidden = query !== "" && !row.textContent.toLowerCase().includes(query);
+    }
+    for (const group of pop.querySelectorAll(".task-pop-group")) {
+      group.hidden = !group.querySelector("li:not([hidden])");
+    }
+    // No row with exactly this name: offer to add it as a task.
+    const typed = event.target.value.trim();
+    const exists = [...pop.querySelectorAll("[data-task-pick]")]
+      .some((row) => row.dataset.taskPick.toLowerCase() === typed.toLowerCase());
+    const create = pop.querySelector("[data-task-create]");
+    create.hidden = typed === "" || exists;
+    create.querySelector("[data-task-create-name]").textContent = typed;
+    pop.querySelector("[data-task-pop-note]").textContent = "";
+  });
+  view.addEventListener("input", (event) => {
+    if (event.target.id !== "focus-own") return;
+    const form = event.target.form;
+    // Keep the wheel showing the same value when a length is typed directly.
+    const n = Number(event.target.value);
+    if (Number.isInteger(n) && n >= 1 && n <= MAX_MINUTES) {
+      const radio = form.querySelector(`input[name="focus-minutes"][value="${n}"]`);
+      if (radio && !radio.checked) {
+        radio.checked = true;
+        centerFocusWheel();
+      }
+      showLength(form, n);
+    }
+  });
+
+  // Start session 1 of a round, with the length and task picked in the form.
+  view.addEventListener("submit", (event) => {
+    if (event.target.id !== "focus-form") return;
+    event.preventDefault();
+    const form = event.target;
+    const picked = form.querySelector('input[name="focus-minutes"]:checked');
+    const own = form.querySelector("#focus-own");
+    const minutes = own.value ? Number(own.value) : picked ? Number(picked.value) : 25;
+    if (!isLength(minutes)) {
+      own.setAttribute("aria-invalid", "true");
+      announce(`Pick a length from 1 to ${MAX_MINUTES} minutes.`);
+      own.focus();
+      return;
+    }
+    const task = form.querySelector("#focus-task").value || null;
+    const area = form.querySelector('input[name="focus-area"]:checked')?.value || form.dataset.area;
+    askForNotifications();
+    focusMessage = "";
+    pendingFocusTask = null;
+    setTimer(startSession({ area, task, minutes, options: settings.focus }, Date.now()), true, "start");
+    announce(`Session 1 of ${roundSize(timer)} started: ${minutes} minutes.`);
+  });
+
+  // Start the stopwatch, with the task picked in its form.
+  view.addEventListener("submit", (event) => {
+    if (event.target.id !== "watch-form") return;
+    event.preventDefault();
+    const form = event.target;
+    const task = form.querySelector("#watch-task").value || null;
+    const area = form.querySelector('input[name="watch-area"]:checked')?.value || form.dataset.area;
+    focusMessage = "";
+    pendingFocusTask = null;
+    setTimer(startWatch({ area, task }, Date.now()), true, "start");
+    announce("Stopwatch started.");
+  });
+
+  // Save the record dialog: a new session on the chosen day, or the edited one.
+  view.addEventListener("submit", (event) => {
+    if (event.target.id !== "record-form") return;
+    event.preventDefault();
+    const form = event.target;
+    const error = (text, field) => {
+      $("record-error").textContent = text;
+      field?.focus();
+    };
+    const start = readClock($("record-start").value);
+    const end = readClock($("record-end").value);
+    if (!start) return error("Type the start time, like 09:00.", $("record-start"));
+    if (!end) return error("Type the end time, like 09:25.", $("record-end"));
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    // Past midnight counts as the same session: 23:40 to 00:20 is 40 minutes.
+    const minutes = ((eh * 60 + em) - (sh * 60 + sm) + 1440) % 1440;
+    if (minutes < 1 || minutes > MAX_MINUTES) {
+      return error(`A session is 1 minute to ${MAX_MINUTES / 60} hours long.`, $("record-end"));
+    }
+    const task = $("record-task").value.trim() || null;
+    const note = $("record-note").value.trim();
+    const editing = Boolean(form.dataset.id);
+    const date = editing ? form.dataset.date : $("record-date").value || today;
+    if (!editing && date > today) return error("A record can't be in the future.", $("record-date"));
+    const area = form.querySelector('input[name="record-area"]:checked, input[name="record-area"][type="hidden"]')?.value || chosenFocusArea();
     safely(async () => {
-      day = await api.deleteSession(today, remove.dataset.sessionRemove);
-      focusMessage = "Session removed.";
+      try {
+        const answer = editing
+          ? await api.changeSession(date, form.dataset.id, { minutes, ended_at: end, task: task || "", note })
+          : await api.postSession(date, { area, task, minutes, ended_at: end, note: note || null });
+        if (editing && notePrompt?.id === form.dataset.id) notePrompt = null;
+        if (date === today) day = answer;
+      } catch (e) {
+        return error(e.message);
+      }
+      closePops();
+      focusMessage = editing ? "Record changed." : `Added ${durationText(minutes)}.`;
       announce(focusMessage);
       await refreshAfterSessions();
-      const next = $("focus-sessions").querySelector("[data-session-remove]") || $("focus-timer").querySelector("button");
-      if (next) next.focus();
+      $("focus-page-log")?.querySelector("[data-record-add]")?.focus({ preventScroll: true });
     });
-  }
-});
+  });
+}
 
-// Start: session 1 of a round, with the length and task picked in the form.
-$("module-view").addEventListener("submit", (event) => {
-  if (event.target.id !== "focus-form") return;
-  event.preventDefault();
-  const form = event.target;
-  const picked = form.querySelector('input[name="focus-minutes"]:checked');
-  const minutes = picked ? Number(picked.value) : 25;
-  const task = form.querySelector("#focus-task").value || null;
-  askForNotifications();
-  focusMessage = "";
-  setTimer(startSession({ area: form.dataset.area, task, minutes }, Date.now()), true);
-  announce(`Session 1 of ${SESSIONS_A_ROUND} started: ${minutes} minutes.`);
+bindTimerEvents($("module-view"));
+bindTimerEvents($("focus-view"));
+
+// Focus stats: Day / Week / Month and the ‹ › arrows redraw the period card on its own.
+// The period is remembered (statsView, at the top); the arrows start again from the current one.
+function statsOptions() {
+  if (!statsView) {
+    const saved = readStored(STATS_PERIOD_KEY);
+    statsView = { period: ["day", "week", "month"].includes(saved) ? saved : "week", offset: 0 };
+  }
+  return { view: statsView, goal: settings.focus?.daily_goal || 0, goalNames: settings.study_goals.map((g) => g.name) };
+}
+
+$("focus-stats-body").addEventListener("click", (event) => {
+  const periodButton = event.target.closest("[data-stats-period]");
+  const stepButton = event.target.closest("[data-stats-step]");
+  if (!focusData || (!periodButton && !stepButton)) return;
+  if (periodButton) {
+    statsView = { period: periodButton.dataset.statsPeriod, offset: 0 };
+    store(STATS_PERIOD_KEY, statsView.period);
+  } else {
+    if (stepButton.disabled) return;
+    statsView = { ...statsView, offset: statsView.offset + Number(stepButton.dataset.statsStep) };
+  }
+  $("stats-period").outerHTML = renderStatsPeriod(focusData, today, statsView, statsOptions());
+  // Keep the keyboard where it was; an arrow that just went disabled hands over to the title.
+  const again = periodButton
+    ? $("stats-period").querySelector(`[data-stats-period="${statsView.period}"]`)
+    : $("stats-period").querySelector(`[data-stats-step="${stepButton.dataset.statsStep}"]`);
+  if (again && !again.disabled) again.focus();
+  else $("stats-period").querySelector("[data-stats-step]:not([disabled])")?.focus();
 });
 
 // --- Error banner ---
@@ -1228,6 +2043,14 @@ $("task-form").addEventListener("submit", (event) => {
     await saveToday({ tasks: [...day.tasks, { text, done: false }] });
     $("task-text").value = "";
   });
+});
+
+// A task's Focus button: open the Focus page with that task picked.
+$("tasks").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-focus-task]");
+  if (!button) return;
+  pendingFocusTask = day.tasks[Number(button.dataset.focusTask)]?.text || null;
+  location.hash = "#/focus";
 });
 
 // One listener for all task checkboxes (they are redrawn often).
@@ -1368,7 +2191,8 @@ function drawSettings() {
   $("settings-habits").innerHTML = renderHabitList(settings.habits);
   $("settings-goals").innerHTML = renderGoalList(settings.goals);
   for (const radio of $("tone-choice").querySelectorAll("input")) radio.checked = radio.value === settings.tone;
-  for (const id of ["modules-error", "habit-error", "goal-error", "import-error"]) {
+  drawFocusPrefs();
+  for (const id of ["modules-error", "habit-error", "goal-error", "import-error", "focus-prefs-error"]) {
     showFormError(id, "");
   }
 }
@@ -1378,6 +2202,47 @@ async function saveSettings(newSettings) {
   settings = await api.putSettings(newSettings);
   drawSettings();
 }
+
+// Focus: the daily goal and the timer's options. Shown when Study or Work is on.
+function drawFocusPrefs() {
+  const form = $("focus-prefs-form");
+  const prefs = settings.focus || {};
+  $("settings-focus").hidden = !settings.modules.some((id) => FOCUS_MODULE_IDS.includes(id));
+  form.elements.daily_goal.value = prefs.daily_goal ?? 0;
+  form.elements.short_break.value = prefs.short_break ?? 5;
+  form.elements.long_break.value = prefs.long_break ?? 15;
+  form.elements.long_break_every.value = prefs.long_break_every ?? 4;
+  for (const name of ["auto_break", "auto_focus"]) form.elements[name].checked = prefs[name] !== false;
+  form.elements.strict.checked = prefs.strict === true;
+}
+
+$("focus-prefs-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const whole = (name, low, high) => {
+    const n = Number(form.elements[name].value);
+    return Number.isInteger(n) && n >= low && n <= high ? n : null;
+  };
+  const prefs = {
+    daily_goal: whole("daily_goal", 0, 720), short_break: whole("short_break", 1, 30),
+    long_break: whole("long_break", 1, 60), long_break_every: whole("long_break_every", 2, 8),
+  };
+  const bad = { daily_goal: "The daily goal is 0 to 720 minutes.", short_break: "A short break is 1 to 30 minutes.",
+    long_break: "A long break is 1 to 60 minutes.", long_break_every: "The long break comes after 2 to 8 sessions." };
+  const wrong = Object.keys(prefs).find((key) => prefs[key] === null);
+  if (wrong) {
+    showFormError("focus-prefs-error", bad[wrong]);
+    form.elements[wrong].focus();
+    return;
+  }
+  showFormError("focus-prefs-error", "");
+  safely(async () => {
+    await saveSettings({ ...settings, focus: { ...settings.focus, ...prefs,
+      auto_break: form.elements.auto_break.checked, auto_focus: form.elements.auto_focus.checked,
+      strict: form.elements.strict.checked } });
+    $("focus-prefs-status").textContent = "Saved. The next round you start uses them.";
+  });
+});
 
 // Tone: saved as soon as one is picked.
 $("tone-choice").addEventListener("change", (event) => {

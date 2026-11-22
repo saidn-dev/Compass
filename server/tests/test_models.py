@@ -305,7 +305,7 @@ def test_day_without_sessions_has_none():
 
 
 def test_good_session_is_kept():
-    assert normalize_day({"sessions": [SESSION]}, DATE)["sessions"] == [SESSION]
+    assert normalize_day({"sessions": [SESSION]}, DATE)["sessions"] == [{**SESSION, "note": None}]
 
 
 def test_session_task_is_trimmed_and_blank_task_is_none():

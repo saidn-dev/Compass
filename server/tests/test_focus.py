@@ -1,15 +1,16 @@
 import pytest
 
 from app.focus import (
-    add_session, duration_text, focus_review_line, focus_summary, remove_session, with_focus_hours,
+    LEVEL_HOURS, achievements, add_session, duration_text, edit_session, focus_page, focus_review_line,
+    focus_summary, longest_run, minutes_by_hour, remove_session, with_focus_hours,
 )
-from app.models import normalize_day
+from app.models import FocusPrefs, Settings, StudyGoal, normalize_day
 
 TODAY = "2026-11-19"
 
 
-def session(area="study", minutes=25, id="s1", task=None, ended_at="10:00") -> dict:
-    return {"id": id, "area": area, "task": task, "minutes": minutes, "ended_at": ended_at}
+def session(area="study", minutes=25, id="s1", task=None, ended_at="10:00", note=None) -> dict:
+    return {"id": id, "area": area, "task": task, "minutes": minutes, "ended_at": ended_at, "note": note}
 
 
 def day(date=TODAY, **fields) -> dict:
@@ -124,3 +125,190 @@ def test_review_line_with_nothing_before_or_the_same():
 
 def test_no_review_line_without_sessions_this_week():
     assert focus_review_line([day(), {"date": TODAY}], [day(sessions=[session()])]) is None
+
+
+# --- the Focus page payload ---
+
+def focus_settings(modules=("study", "work"), goals=()) -> Settings:
+    return Settings(onboarded=True, modules=list(modules),
+                    study_goals=[StudyGoal(name=name) for name in goals])
+
+
+def test_focus_page_with_no_sessions():
+    data = focus_page([day()], focus_settings(), TODAY)
+    assert data["summary"] == {
+        "today": {"count": 0, "minutes": 0, "study": 0, "work": 0},
+        "week": {"count": 0, "minutes": 0, "study": 0, "work": 0},
+    }
+    assert data["log"] == []
+    assert data["tasks"] == {"7d": [], "12w": []}
+    assert data["days"][0] == {"date": "2026-11-13", "study": 0, "work": 0}
+    assert data["days"][-1] == {"date": TODAY, "study": 0, "work": 0}
+    assert len(data["days"]) == 7 and len(data["weeks"]) == 12
+    assert data["weeks"][-1] == {"label": "13 Nov", "study": 0, "work": 0}
+
+
+def test_focus_page_groups_sessions_by_day_and_task():
+    days = [
+        day("2026-11-18", sessions=[session(area="work", minutes=50, id="w1", task="Ship")]),
+        day(TODAY, sessions=[
+            session(minutes=25, id="s1", task="Revise"),
+            session(minutes=25, id="s2", task="Revise"),
+            session(area="work", minutes=30, id="w2", task=None),
+        ]),
+    ]
+    data = focus_page(days, focus_settings(goals=["Revise"]), TODAY)
+    assert data["summary"]["week"] == {"count": 4, "minutes": 130, "study": 50, "work": 80}
+    assert [d["date"] for d in data["log"]] == [TODAY, "2026-11-18"]
+    assert data["log"][0]["minutes"] == 80
+    assert data["log"][0]["sessions"][2] == session(area="work", minutes=30, id="w2", task=None)
+    assert data["tasks"]["7d"] == [
+        {"area": "study", "task": "Revise", "minutes": 50, "count": 2, "goal": True},
+        {"area": "work", "task": "Ship", "minutes": 50, "count": 1, "goal": False},
+        {"area": "work", "task": None, "minutes": 30, "count": 1, "goal": False},
+    ]
+
+
+def test_focus_page_log_stops_at_14_days_but_tasks_keep_12_weeks():
+    days = [day("2026-11-04", sessions=[session(minutes=60, id="old", task="Exam")]), day()]
+    data = focus_page(days, focus_settings(), TODAY)
+    assert data["log"] == []
+    assert data["tasks"]["12w"] == [
+        {"area": "study", "task": "Exam", "minutes": 60, "count": 1, "goal": False}
+    ]
+    assert data["tasks"]["7d"] == []
+
+
+def test_focus_page_ignores_modules_that_are_switched_off():
+    days = [day(TODAY, sessions=[session(minutes=25, id="s1"),
+                                 session(area="work", minutes=50, id="w1")])]
+    data = focus_page(days, focus_settings(modules=["work"]), TODAY)
+    assert "study" not in data["summary"]["today"] and "study" not in data["summary"]["week"]
+    assert [s["area"] for d in data["log"] for s in d["sessions"]] == ["work"]
+    assert [t["area"] for t in data["tasks"]["7d"]] == ["work"]
+    assert all(d["study"] == 0 for d in data["days"])
+    assert all(w["study"] == 0 for w in data["weeks"])
+
+
+def test_focus_page_week_buckets_use_the_dashboard_labels():
+    days = [day("2026-11-13", sessions=[session(minutes=50, id="wk")])]
+    data = focus_page(days, focus_settings(), TODAY)
+    assert data["days"][0] == {"date": "2026-11-13", "study": 50, "work": 0}
+    assert data["weeks"][-1] == {"label": "13 Nov", "study": 50, "work": 0}
+
+
+# --- editing a session, the year grid and the hours ---
+
+def test_edit_session_changes_length_end_and_task_only():
+    before = day(TODAY, sessions=[session(id="a", task="Old"), session(id="b", area="work")])
+    after = edit_session(before, "a", {"minutes": 40, "ended_at": "11:15", "task": "New", "area": "work", "id": "x"})
+    assert after["sessions"][0] == session(id="a", minutes=40, ended_at="11:15", task="New")
+    assert after["sessions"][1] == before["sessions"][1]
+    assert edit_session(before, "a", {"task": None})["sessions"][0]["task"] is None
+
+
+def test_edit_session_refuses_unknown_ids_and_bad_values():
+    d = day(TODAY, sessions=[session(id="a")])
+    with pytest.raises(LookupError):
+        edit_session(d, "nope", {"minutes": 10})
+    with pytest.raises(ValueError):
+        edit_session(d, "a", {"minutes": 0})
+    with pytest.raises(ValueError):
+        edit_session(d, "a", {"ended_at": "25:00"})
+
+
+def test_minutes_by_hour_spreads_sessions_over_the_hours_they_ran():
+    hours = minutes_by_hour([session(minutes=50, ended_at="10:20"), session(minutes=30, ended_at="00:10")])
+    assert hours[9] == 30 and hours[10] == 20
+    assert hours[23] == 20 and hours[0] == 10
+    assert sum(hours) == 80
+
+
+def test_focus_page_year_grid_and_hours():
+    days = [day("2025-11-21", sessions=[session(id="old", minutes=30)]),
+            day(TODAY, sessions=[session(minutes=25, ended_at="09:25")])]
+    data = focus_page(days, focus_settings(), TODAY)
+    assert len(data["year"]) == 371
+    assert data["year"][-1] == {"date": TODAY, "minutes": 25}
+    assert data["year"][0] == {"date": "2025-11-14", "minutes": 0}
+    assert {"date": "2025-11-21", "minutes": 30} in data["year"]
+    assert data["hours"][9] == 25 and sum(data["hours"]) == 25  # the old one is past 12 weeks
+
+
+# --- notes, the stats page's sessions and achievements ---
+
+def test_a_session_keeps_a_trimmed_note_and_edit_can_change_or_clear_it():
+    d = add_session(day(), {"area": "study", "task": None, "minutes": 25, "ended_at": "10:00",
+                            "note": "  Read ch 4  "})
+    [saved] = d["sessions"]
+    assert saved["note"] == "Read ch 4"
+    changed = edit_session(d, saved["id"], {"note": "Finished it"})
+    assert changed["sessions"][0]["note"] == "Finished it"
+    assert edit_session(d, saved["id"], {"note": None})["sessions"][0]["note"] is None
+
+
+def test_a_long_note_is_cut_and_a_non_text_note_drops_the_session():
+    long = day(sessions=[{**session(), "note": "x" * 900}])
+    assert len(long["sessions"][0]["note"]) == 500
+    assert day(sessions=[{**session(), "note": 5}])["sessions"] == []
+
+
+def test_focus_page_lists_the_years_sessions_of_switched_on_areas_only():
+    days = [day(TODAY, sessions=[session(id="a"), session(id="b", area="work")]),
+            day("2025-11-01", sessions=[session(id="old")])]  # more than 53 weeks back
+    data = focus_page(days, focus_settings(modules=("study",)), TODAY)
+    assert [(s["date"], s["id"]) for s in data["sessions"]] == [(TODAY, "a")]
+
+
+def test_longest_run_counts_days_in_a_row():
+    assert longest_run([]) == 0
+    assert longest_run(["2026-11-01", "2026-11-02", "2026-11-02", "2026-11-04"]) == 2
+    assert longest_run(["2026-11-30", "2026-12-01", "2026-12-02"]) == 3
+
+
+def test_achievements_start_at_level_one_with_nothing_earned():
+    a = achievements([], 0)
+    assert (a["level"], a["hours"], a["next_hours"], a["progress"]) == (1, 0, LEVEL_HOURS[1], 0)
+    assert not any(b["earned"] for b in a["badges"])
+
+
+def test_achievements_level_progress_and_badges():
+    pairs = [(f"2026-11-{n:02d}", session(id=str(n), minutes=180, ended_at="12:00")) for n in range(1, 8)]
+    a = achievements(pairs, 120)
+    assert a["hours"] == 21 and a["level"] == 5  # 20 h reached, 40 h next
+    assert a["next_hours"] == 40 and a["progress"] == pytest.approx(0.05)
+    earned = {b["id"] for b in a["badges"] if b["earned"]}
+    assert earned == {"first", "hours-10", "streak-7", "goal-7"}
+    assert a["longest_streak"] == 7 and a["goal_days"] == 7
+
+
+def test_goal_badges_need_a_goal_and_the_clock_badges_read_start_and_end():
+    early = (TODAY, session(minutes=30, ended_at="06:50"))   # started 06:20
+    late = (TODAY, session(id="l", minutes=30, ended_at="23:10"))
+    a = achievements([early, late], 0)
+    earned = {b["id"] for b in a["badges"] if b["earned"]}
+    assert {"early", "late"} <= earned and "goal-7" not in earned and a["goal_days"] == 0
+    wraps = (TODAY, session(minutes=60, ended_at="00:30"))   # began before midnight
+    assert "late" in {b["id"] for b in achievements([wraps], 0)["badges"] if b["earned"]}
+
+
+def test_the_top_level_has_no_next_step():
+    a = achievements([(TODAY, session(minutes=180))] * 400, 0)  # 1200 h
+    assert a["level"] == len(LEVEL_HOURS) and a["next_hours"] is None and a["progress"] == 1.0
+
+
+def test_focus_prefs_defaults_keep_todays_timer():
+    p = FocusPrefs()
+    assert (p.daily_goal, p.short_break, p.long_break, p.long_break_every) == (0, 5, 15, 4)
+    assert p.auto_break and p.auto_focus and not p.strict and p.estimates == {}
+
+
+def test_focus_prefs_clean_estimates_and_reject_bad_numbers():
+    p = FocusPrefs(estimates={" Essay ": 4, "": 2, "Zero": 0, "Big": 21, "Bool": True, "Text": "3"})
+    assert p.estimates == {"Essay": 4}
+    with pytest.raises(ValueError):
+        FocusPrefs(long_break_every=1)
+    with pytest.raises(ValueError):
+        FocusPrefs(daily_goal=721)
+    with pytest.raises(ValueError):
+        FocusPrefs(estimates={f"t{i}": 1 for i in range(51)})
