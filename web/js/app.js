@@ -943,14 +943,20 @@ $("module-view").addEventListener("click", (event) => {
   }
 });
 
-// Tab lists: the module chart's "7 days / 12 weeks" and the focus timer's "Timer / Stopwatch".
-// Each choice is remembered across refreshes.
+// Tab lists: the module chart's "7 days / 12 weeks", the focus timer's "Timer / Stopwatch"
+// (Pomo / Stopwatch on the Focus page) and the task popover's Recent / Task / Habit.
+// Focus choices are remembered across refreshes. Each list's pill slides to the chosen tab
+// through --tab-index (CSS does the motion).
 const TABS_KEY = "compass.tabs";
 let tabChoice = null;
 const tabChoices = () => (tabChoice ||= { chart: "days", ...(readStored(TABS_KEY) || {}) });
 
 function showTab(list, value, focus = false) {
   const tabs = [...list.querySelectorAll("[role='tab'][data-tab]")];
+  // A module page's timer stays in its hidden view after you leave it and uses the same
+  // panel ids as the Focus page's, so find each panel inside this list's own view.
+  const scope = list.closest("#module-view, #focus-view") || document;
+  const panel = (tab) => scope.querySelector(`#${CSS.escape(tab.getAttribute("aria-controls"))}`);
   if (!tabs.some((tab) => tab.dataset.tab === value)) value = tabs[0].dataset.tab;
   tabChoices()[list.dataset.tabs] = value;
   if (list.dataset.tabs.startsWith("focus-")) {
@@ -960,9 +966,33 @@ function showTab(list, value, focus = false) {
     const on = tab.dataset.tab === value;
     tab.setAttribute("aria-selected", String(on));
     tab.tabIndex = on ? 0 : -1;
-    $(tab.getAttribute("aria-controls")).hidden = !on;
+    panel(tab).hidden = !on;
     if (on && focus) tab.focus();
   });
+  list.style.setProperty("--tab-count", tabs.length);
+  list.style.setProperty("--tab-index", tabs.findIndex((tab) => tab.dataset.tab === value));
+}
+
+// A click or arrow key on a tab. Timer / Stopwatch, Pomo / Stopwatch and the chart's
+// 7 days / 12 weeks change the whole panel, so they morph (the "tabs" and "chart" flavours
+// in styles.css): the panel crossfades and the part both sides share glides into place.
+// The task popover's tabs just switch; their pill slides.
+function switchTab(list, value, focus = false) {
+  const changes = list.querySelector("[role='tab'][aria-selected='true']")?.dataset.tab !== value;
+  const kind = list.matches(".focus-modes, .focus-card-mode") ? "tabs" : list.dataset.tabs === "chart" ? "chart" : "";
+  if (changes && kind) morph(() => showTab(list, value, focus), kind);
+  else showTab(list, value, focus);
+}
+
+// A tab list drawn afresh (Focus stats' Day / Week / Month) has a new pill, which a CSS
+// transition can't move, so play the slide here: from the old tab's place and label colours
+// to the new ones, on the list's own --pill-time and --pill-ease.
+function slidePill(list, from, colors) {
+  if (!list || calm()) return;
+  const style = getComputedStyle(list);
+  const timing = { duration: parseFloat(style.getPropertyValue("--pill-time")) || 400, easing: style.getPropertyValue("--pill-ease").trim() || "ease-out" };
+  list.querySelector(".segment-pill")?.animate([{ transform: `translateX(${from * 100}%)` }, {}], timing);
+  list.querySelectorAll(".segment").forEach((tab, i) => colors[i] && tab.animate([{ color: colors[i] }, {}], timing));
 }
 
 // After a page or part of it is drawn: show each tab list's remembered choice.
@@ -1036,14 +1066,24 @@ function pickFromWheel(wheel) {
 // A state change of the timer (Start, Pause, Stop, a mode switch) morphs from the old card
 // to the new one: the time and buttons blur across, the ring stays put. Without View
 // Transitions, or with reduced motion, it simply changes.
-function morph(change) {
+// kind: a flavour for CSS (html[data-morph]), such as "tabs" for a Focus mode switch.
+let morphRun = null;
+function morph(change, kind = "") {
   if (!document.startViewTransition || calm() || document.hidden) {
     change();
     return;
   }
+  const root = document.documentElement;
+  const run = {};
+  morphRun = run;
+  if (kind) root.dataset.morph = kind;
+  else delete root.dataset.morph;
   try {
-    document.startViewTransition(change);
+    document.startViewTransition(change).finished.finally(() => {
+      if (morphRun === run) delete root.dataset.morph;
+    });
   } catch {
+    delete root.dataset.morph;
     change();
   }
 }
@@ -1758,10 +1798,7 @@ function bindTimerEvents(view) {
     }
     const tab = event.target.closest("[role='tab'][data-tab]");
     if (tab) {
-      const list = tab.closest("[data-tabs]");
-      // Pomo / Stopwatch morphs the reading inside the ring; other tabs just switch.
-      if (list.classList.contains("focus-card-mode") && tab.getAttribute("aria-selected") !== "true") morph(() => showTab(list, tab.dataset.tab));
-      else showTab(list, tab.dataset.tab);
+      switchTab(tab.closest("[data-tabs]"), tab.dataset.tab);
       return;
     }
     const button = event.target.closest("[data-focus]");
@@ -1827,7 +1864,7 @@ function bindTimerEvents(view) {
     const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs.length - 1 }[event.key];
     if (next === undefined) return;
     event.preventDefault();
-    showTab(tab.closest("[data-tabs]"), tabs[(next + tabs.length) % tabs.length].dataset.tab, true);
+    switchTab(tab.closest("[data-tabs]"), tabs[(next + tabs.length) % tabs.length].dataset.tab, true);
   });
 
   // Changing the Focus page's area redraws only the task picker: Study goals belong to
@@ -2007,6 +2044,7 @@ $("focus-stats-body").addEventListener("click", (event) => {
   const periodButton = event.target.closest("[data-stats-period]");
   const stepButton = event.target.closest("[data-stats-step]");
   if (!focusData || (!periodButton && !stepButton)) return;
+  const before = statsView.period;
   if (periodButton) {
     statsView = { period: periodButton.dataset.statsPeriod, offset: 0 };
     store(STATS_PERIOD_KEY, statsView.period);
@@ -2014,13 +2052,24 @@ $("focus-stats-body").addEventListener("click", (event) => {
     if (stepButton.disabled) return;
     statsView = { ...statsView, offset: statsView.offset + Number(stepButton.dataset.statsStep) };
   }
-  $("stats-period").outerHTML = renderStatsPeriod(focusData, today, statsView, statsOptions());
-  // Keep the keyboard where it was; an arrow that just went disabled hands over to the title.
-  const again = periodButton
-    ? $("stats-period").querySelector(`[data-stats-period="${statsView.period}"]`)
-    : $("stats-period").querySelector(`[data-stats-step="${stepButton.dataset.statsStep}"]`);
-  if (again && !again.disabled) again.focus();
-  else $("stats-period").querySelector("[data-stats-step]:not([disabled])")?.focus();
+  const redraw = () => {
+    const colors = [...$("stats-period").querySelectorAll(".stats-period-tabs .segment")].map((tab) => getComputedStyle(tab).color);
+    $("stats-period").outerHTML = renderStatsPeriod(focusData, today, statsView, statsOptions());
+    if (periodButton && statsView.period !== before) {
+      slidePill($("stats-period").querySelector(".stats-period-tabs"), ["day", "week", "month"].indexOf(before), colors);
+    }
+    // Keep the keyboard where it was; an arrow that just went disabled hands over to the title.
+    const again = periodButton
+      ? $("stats-period").querySelector(`[data-stats-period="${statsView.period}"]`)
+      : $("stats-period").querySelector(`[data-stats-step="${stepButton.dataset.statsStep}"]`);
+    if (again && !again.disabled) again.focus();
+    else $("stats-period").querySelector("[data-stats-step]:not([disabled])")?.focus();
+  };
+  // A new period morphs like a tab switch: the pill slides, the tiles, bars and split
+  // crossfade while their boxes glide to the new size ("stats" in styles.css).
+  if (periodButton && statsView.period !== before) {
+    morph(redraw, "stats");
+  } else redraw();
 });
 
 // --- Error banner ---

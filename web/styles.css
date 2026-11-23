@@ -2716,6 +2716,61 @@ input[type="radio"] {
   color: var(--text);
 }
 
+/* Tab lists slide one shared pill under the chosen tab instead of lighting each tab.
+   The tabs share the width equally, so the pill keeps its size and only moves (transform),
+   while the label colours swap over the same time. The list sets --tab-count and
+   --tab-index; Focus mode switches use the slower curve below. */
+.segmented:is([role="tablist"], .stats-period-tabs) {
+  --pill-time: 260ms;
+  --pill-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --pill-inset: 3px;
+  position: relative;
+  display: inline-grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  isolation: isolate;
+}
+
+.segmented:is([role="tablist"], .stats-period-tabs) .segment {
+  position: relative;
+  z-index: 1;
+}
+
+.segmented:is([role="tablist"], .stats-period-tabs) .segment:is([aria-selected="true"], [aria-pressed="true"]) {
+  background: none;
+}
+
+.segment-pill {
+  position: absolute;
+  top: var(--pill-inset);
+  bottom: var(--pill-inset);
+  left: var(--pill-inset);
+  width: calc((100% - 2 * var(--pill-inset)) / var(--tab-count, 2));
+  border-radius: 999px;
+  background: var(--pill, var(--surface-3));
+  transform: translateX(calc(var(--tab-index, 0) * 100%));
+  pointer-events: none;
+}
+
+.focus-modes,
+.focus-card-mode,
+.segmented[data-tabs="chart"],
+.stats-period-tabs {
+  --pill-time: 400ms;
+  --pill-ease: cubic-bezier(0.25, 1, 0.3, 1);
+}
+
+/* With reduced motion the pill jumps and only the label colour changes. */
+@media (prefers-reduced-motion: no-preference) {
+  .segmented:is([role="tablist"], .stats-period-tabs) .segment {
+    transition: color var(--pill-time) var(--pill-ease);
+  }
+
+  .segment-pill {
+    transition: transform var(--pill-time) var(--pill-ease);
+  }
+}
+
 .module-log .form-actions {
   margin-top: 6px;
 }
@@ -3588,8 +3643,15 @@ a.focus-icon-btn {
 }
 
 .task-pop-tabs .segment[aria-selected="true"] {
-  background: var(--mono-pill-hover);
   color: var(--text);
+}
+
+.segmented.task-pop-tabs {
+  --pill-inset: 0px;
+  --pill: var(--mono-pill-hover);
+  display: grid;
+  width: max-content;
+  gap: 0;
 }
 
 .task-pop-search {
@@ -4617,8 +4679,11 @@ main:has(.is-entering) {
   margin-bottom: 16px;
 }
 
+.stats-period-tabs {
+  --pill: var(--mono-pill-hover);
+}
+
 .stats-period-tabs .segment[aria-pressed="true"] {
-  background: var(--mono-pill-hover);
   color: var(--text);
 }
 
@@ -5181,6 +5246,122 @@ main:has(.is-entering) {
 ::view-transition-new(focus-time),
 ::view-transition-new(focus-actions) {
   animation: focus-vt-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms both;
+}
+
+/* A Focus mode switch (Timer / Stopwatch, Pomo / Stopwatch; html[data-morph="tabs"]):
+   the tab list stays in the live page so its pill slides, the panel crossfades (out in
+   ~100 ms, in by ~250 ms, overlapping), and the parts both modes share (the dial and its
+   reading, the Start button) glide to their new place and size on the slower tab curve,
+   with no bounce. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-morph="tabs"] .focus-card .focus-card-mode {
+    view-transition-name: none;
+  }
+
+  html[data-morph="tabs"] .focus-pane {
+    view-transition-name: focus-pane;
+  }
+
+  html[data-morph="tabs"] .focus-form .form-actions {
+    view-transition-name: focus-actions;
+  }
+
+  /* 7 days / 12 weeks (data-morph="chart"): the bar chart is the shared part; its box glides
+     to the new size while the bars inside crossfade, and the key line fades in or out. */
+  html[data-morph="chart"] .module-chart .week-bars {
+    view-transition-name: chart-bars;
+  }
+
+  html[data-morph="chart"] .module-chart .chart-key {
+    view-transition-name: chart-key;
+  }
+
+  /* Focus stats' Day / Week / Month (data-morph="stats"): the same, for the period card. */
+  html[data-morph="stats"] .stats-period-nav h2 {
+    view-transition-name: stats-title;
+  }
+
+  html[data-morph="stats"] .stats-period-tiles {
+    view-transition-name: stats-tiles;
+  }
+
+  html[data-morph="stats"] .stats-period-trend {
+    view-transition-name: stats-trend;
+  }
+
+  html[data-morph="stats"] .stats-period-split {
+    view-transition-name: stats-split;
+  }
+}
+
+html[data-morph="chart"]::view-transition-group(*),
+html[data-morph="stats"]::view-transition-group(*) {
+  animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.25, 1, 0.3, 1);
+}
+
+html[data-morph="chart"]::view-transition-old(*),
+html[data-morph="stats"]::view-transition-old(*) {
+  animation: tab-fade-out 100ms ease-out both;
+}
+
+html[data-morph="chart"]::view-transition-new(*),
+html[data-morph="stats"]::view-transition-new(*) {
+  animation: tab-fade-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) 50ms both;
+}
+
+/* The key line sits below the 12-week chart only: leaving, it goes at once rather than
+   hang under the card while the card is already shorter. */
+html[data-morph="chart"]::view-transition-old(chart-key) {
+  animation: none;
+  opacity: 0;
+}
+
+/* The page itself never fades: only the named parts move. */
+html[data-morph]::view-transition-old(root),
+html[data-morph]::view-transition-new(root),
+html[data-morph]::view-transition-group(root) {
+  animation: none;
+}
+
+html[data-morph="tabs"]::view-transition-group(focus-pane),
+html[data-morph="tabs"]::view-transition-group(focus-dial),
+html[data-morph="tabs"]::view-transition-group(focus-time),
+html[data-morph="tabs"]::view-transition-group(focus-actions) {
+  animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.25, 1, 0.3, 1);
+}
+
+html[data-morph="tabs"]::view-transition-old(focus-pane),
+html[data-morph="tabs"]::view-transition-old(focus-time) {
+  animation: tab-fade-out 100ms ease-out both;
+}
+
+html[data-morph="tabs"]::view-transition-new(focus-pane),
+html[data-morph="tabs"]::view-transition-new(focus-time) {
+  animation: tab-fade-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) 50ms both;
+}
+
+/* The Start button is in both modes: it only glides, so it never dims mid-switch. */
+html[data-morph="tabs"]::view-transition-old(focus-actions) {
+  animation: none;
+  opacity: 0;
+}
+
+html[data-morph="tabs"]::view-transition-new(focus-actions) {
+  animation: none;
+}
+
+@keyframes tab-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tab-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* Keep the rest of the page still: no page-wide cross-fade on a timer change. */

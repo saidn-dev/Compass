@@ -7,6 +7,11 @@ import { PERIODS, canStep, focusPeriod, focusStreaks, pomoCounts } from "./stats
 import { ADJUST_STEP, IDLE, LENGTHS, MAX_MINUTES, isPaused, isStrict, readoutText, ringShare, roundSize } from "./timer.js";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// A tab list's one shared pill, which slides under the chosen tab (.segment-pill in
+// styles.css). The list carries its tab count and the chosen tab's index; showTab in app.js
+// moves it from there.
+const SEGMENT_PILL = `<span class="segment-pill" aria-hidden="true"></span>`;
+const pillPlace = (count, index) => ` style="--tab-count: ${count}; --tab-index: ${Math.max(0, index)}"`;
 const TREND_WORDS = { up: "Trending up", down: "Trending down", flat: "Steady", none: "Not enough data" };
 
 // Makes text safe to put inside HTML: "<b>" shows as the text <b>, not bold.
@@ -996,7 +1001,7 @@ export function renderTaskPopover(id, tasks, goals, chosen, sources = {}) {
         <span class="visually-hidden">Task: </span><span data-task-pop-label>${escapeHtml(chosen || "No task")}</span>
       </button>
       <div class="pop task-pop" id="${pid}-pop" role="dialog" aria-label="Choose a task" hidden>
-        <div class="segmented task-pop-tabs" role="tablist" aria-label="Task lists" data-tabs="${pid}-pop">${tabs}</div>
+        <div class="segmented task-pop-tabs" role="tablist" aria-label="Task lists" data-tabs="${pid}-pop"${pillPlace(panes.length, panes.findIndex(([key]) => key === "task"))}>${SEGMENT_PILL}${tabs}</div>
         <label class="task-pop-search">
           <span class="visually-hidden">Search tasks</span>
           <input type="search" placeholder="Search or add a task" autocomplete="off" maxlength="200" data-task-search>
@@ -1047,7 +1052,7 @@ function focusStartForm(areaId, timer, tasks, goals = [], mode = "timer", areaOp
   const formGoals = areaId === "study" ? goals : [];
   const tabs = FOCUS_MODES.map(([key, label]) => `<button type="button" class="segment" role="tab" id="focus-tab-${key}"
       aria-controls="focus-pane-${key}" aria-selected="${key === mode}" tabindex="${key === mode ? 0 : -1}" data-tab="${key}">${label}</button>`).join("");
-  return `<div class="segmented focus-modes" role="tablist" aria-label="Focus mode" data-tabs="focus-${area}">${tabs}</div>
+  return `<div class="segmented focus-modes" role="tablist" aria-label="Focus mode" data-tabs="focus-${area}"${pillPlace(FOCUS_MODES.length, FOCUS_MODES.findIndex(([key]) => key === mode))}>${SEGMENT_PILL}${tabs}</div>
   <div class="focus-pane" id="focus-pane-timer" role="tabpanel" aria-labelledby="focus-tab-timer"${mode === "timer" ? "" : " hidden"}>
   <form id="focus-form" class="focus-form" data-area="${area}" novalidate>
     ${picker}
@@ -1253,7 +1258,7 @@ function focusCardStart(areaId, timer, tasks, goals, mode, areaOptions, sources 
         </div>
       </div>`);
   return `<div class="focus-card" data-state="idle" data-phase="idle" data-open="false">
-    <div class="segmented focus-card-mode" role="tablist" aria-label="Focus mode" data-tabs="focus-${area}">${tabs}</div>
+    <div class="segmented focus-card-mode" role="tablist" aria-label="Focus mode" data-tabs="focus-${area}"${pillPlace(FOCUS_MODES.length, FOCUS_MODES.findIndex(([key]) => key === mode))}>${SEGMENT_PILL}${tabs}</div>
     <div class="focus-pane" id="focus-pane-timer" role="tabpanel" aria-labelledby="focus-tab-timer"${mode === "timer" ? "" : " hidden"}>
       <form id="focus-form" class="focus-form focus-card-form" data-area="${area}" novalidate>
         ${areaSwitch("focus-area")}
@@ -1624,7 +1629,7 @@ export function renderStatsPeriod(data, today, view, { goal = 0, goalNames = [] 
 
   return `<section class="stats-card stats-wide stats-period" id="stats-period" aria-labelledby="stats-period-title">
     <div class="stats-period-head">
-      <div class="segmented stats-period-tabs" role="group" aria-label="Period">${tabs}</div>
+      <div class="segmented stats-period-tabs" role="group" aria-label="Period"${pillPlace(PERIODS.length, PERIODS.indexOf(period))}>${SEGMENT_PILL}${tabs}</div>
       <div class="stats-period-nav">
         ${step(-1, "Previous", "‹", can.back)}
         <h2 id="stats-period-title" aria-live="polite">${escapeHtml(p.label)}</h2>
@@ -1802,7 +1807,7 @@ export function renderModulePage(area, dates, today, day, settings, focusTimer =
   const chart = `<section class="panel module-chart" aria-labelledby="module-chart-title">
     <div class="panel-head">
       <h2 id="module-chart-title">Over time</h2>
-      ${hasHistory ? `<div class="segmented" role="tablist" aria-label="Chart range" data-tabs="chart">
+      ${hasHistory ? `<div class="segmented" role="tablist" aria-label="Chart range" data-tabs="chart"${pillPlace(2, 0)}>${SEGMENT_PILL}
         ${chartTab("days", "7 days", true)}
         ${chartTab("weeks", "12 weeks", false)}
       </div>` : `<p class="stat">Last 7 days</p>`}
