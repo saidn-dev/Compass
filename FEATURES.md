@@ -69,7 +69,7 @@ Stages 1, 1b and 2 are built; the rest is planned. Build top to bottom, same as 
 | Browser notification at each session end and break end | Focus timer |
 
 A finished session never ticks a focus task; checkboxes stay manual (decided 2026-11-18). The timer control lives on the Study and Work pages, not Home: Home is the summary.
- Decided 2026-11-19: "Finish early" saves the minutes done and "Reset" saves nothing; the cycle runs on its own and stops after the long break; a session that ended while Compass wasn't open is only saved if you say so. Design: `docs/superpowers/specs/2026-11-19-focus-sessions-design.md`.
+ Decided 2026-11-19: "Finish early" saves the minutes done and "Reset" saves nothing; the cycle runs on its own and stops after the long break; a session that ended while Compass wasn't open is only saved if you say so. Design: `docs/specs/2026-11-19-focus-sessions-design.md`.
 
 ### v2 stage 2: Study page depth (built 2026-11-20)
 | Feature | Needs |
@@ -98,7 +98,7 @@ Claude's calls (change them freely): dates are read in the browser (`web/js/date
 | From TickTick: **Level and badges** on Focus stats: 13 levels by hours of focus and 9 badges (first session, 10 and 100 hours, 100 sessions, 7- and 30-day streaks, goal met 7 times, early start, late finish), computed from saved sessions | Focus sessions |
 | From TickTick: a **Focus** button on Home's open tasks opens Focus with that task picked; the task popover's search can **add** a new task | Focus tasks, Focus timer |
 
-Design: `docs/superpowers/specs/2026-11-22-focus-page-design.md`. Sessions stay Study or Work only and are still written by the existing session routes. Home remains a summary, but its focus line now links to `#/focus`, so the 2026-11-18 decision that the timer does not live on Home is narrowed to: the timer lives on Focus and the module pages.
+Design: `docs/specs/2026-11-22-focus-page-design.md`. Sessions stay Study or Work only and are still written by the existing session routes. Home remains a summary, but its focus line now links to `#/focus`, so the 2026-11-18 decision that the timer does not live on Home is narrowed to: the timer lives on Focus and the module pages.
 
 ### v2 stage 3: Reminders and other pages
 | Feature | Needs |
@@ -108,7 +108,7 @@ Design: `docs/superpowers/specs/2026-11-22-focus-page-design.md`. Sessions stay 
 | Sleep wind-down countdown using tonight's bedtime | Bedtime guidance, Session-end browser notification |
 
 ### v2 stage 1b: Progress language (built 2026-11-19, from the Opal and Oura research)
-Design: `docs/superpowers/specs/2026-11-19-progress-language-design.md`.
+Design: `docs/specs/2026-11-19-progress-language-design.md`.
 | Feature | Needs |
 |---|---|
 | Bands 85/70/60 (Optimal, Good, Fair, Pay attention); Great / Ok / Too much for limits; On track / Behind removed | Scores, weekly bars and contributors |
