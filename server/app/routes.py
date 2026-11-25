@@ -14,7 +14,6 @@ from app.dashboard import build_dashboard
 from app.focus import YEAR_DAYS, add_session, edit_session, focus_page, remove_session, with_focus_hours
 from app.insights import HISTORY_WEEKS, build_insights
 from app.db import Repository
-from app.lists import check_tasks
 from app.models import MAX_SESSION_NOTE, MAX_TASK_TEXT, SESSION_AREAS, SESSION_MINUTES, Settings, check_date_key, merge_numbers
 from app.settings_rules import apply_onboarding, check_settings
 from app.sleep import Age, HabitId, Role, parse_time, suggest
@@ -138,7 +137,6 @@ def read_day(date_key: str, repo: Repo) -> dict:
 @router.put("/days/{date_key}")
 def save_day(date_key: str, body: Annotated[dict, Body()], repo: Repo) -> dict:
     check_date_key(date_key)
-    check_tasks(body)
     # Sessions change only through their own URLs below, so a page holding an old
     # copy of the day (sent back to save a note, say) can't wipe a new session.
     stored = repo.get_day(date_key)

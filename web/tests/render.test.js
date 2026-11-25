@@ -10,7 +10,7 @@ import {
   renderNav, dayLabel, renderModulePage, renderModuleEdit,
   renderCheckIn, renderCarryOver, renderInsights, renderFocusReport, renderShield,
   renderStartingPoint, renderProjection, renderFirstSession,
-  durationText, focusBreakdown, renderSessionList, renderFocusPanel, renderFocusSummary, timerLine,
+  durationText, focusBreakdown, renderSessionList, renderFocusPanel, renderTaskPopover, renderFocusSummary, timerLine,
 } from "../js/render.js";
 import { IDLE, startSession, pause, tick } from "../js/timer.js";
 
@@ -557,8 +557,9 @@ test("check-in with nothing saved: no mood ticked, no Clear, rest unticked", () 
 });
 
 test("carry-over: one button per unfinished task, escaped; nothing when there are none", () => {
-  const html = renderCarryOver(["Call the bank", IMG]);
+  const html = renderCarryOver([{ text: "Call the bank", area: "work" }, { text: IMG }]);
   assert.strictEqual(html.match(/data-carry=/g).length, 2);
+  assert.ok(html.includes("+ Call the bank") && html.includes("&lt;img"));
   assert.ok(html.includes("From yesterday"));
   assert.ok(!html.includes("<img"));
   assert.strictEqual(renderCarryOver([]), "");
@@ -674,8 +675,12 @@ test("module pages keep the LCD focus panel", () => {
 
 test("focus panel when idle: lengths, today's unfinished tasks (escaped) and Start", () => {
   const html = renderFocusPanel("study", IDLE, TASKS, NOW);
-  assert.match(html, /name="focus-minutes" value="25" checked/);
-  assert.ok(html.includes('<option value="">No task</option>'));
+  assert.match(html, /id="focus-own" name="focus-own" value="25"/);
+  assert.match(html, /name="duration-mins"[^>]*value="25"/);
+  assert.ok(!html.includes("duration-hours"));
+  assert.match(html, /data-duration-toggle aria-expanded="false"/);
+  assert.ok(html.includes('data-task-pick="" aria-pressed="true"'));
+  assert.ok(html.includes('id="focus-task" name="task" value=""'));
   assert.ok(html.includes("&lt;img"));
   assert.ok(!html.includes("<img"));
   assert.ok(!html.includes("Done already"));
@@ -706,7 +711,9 @@ test("focus panel after a round and after an away session", () => {
   const done = { phase: "done", area: "study", task: IMG, minutes: 50 };
   const html = renderFocusPanel("study", done, TASKS, NOW);
   assert.ok(html.includes("Round done: 4 sessions."));
-  assert.match(html, /value="50" checked/);
+  assert.match(html, /id="focus-own" name="focus-own" value="50"/);
+  const long = renderFocusPanel("study", { ...done, minutes: 150 }, TASKS, NOW);
+  assert.match(long, /name="duration-mins"[^>]*value="150"/);
   assert.ok(html.includes("selected") && html.includes("Start another round"));
   const away = { phase: "away", area: "study", task: null, minutes: 25,
     pending: { date: "2026-11-19", area: "study", task: null, minutes: 25, ended_at: "14:25" } };
@@ -804,9 +811,9 @@ test("streaks show their state: lit, flicker, fade or out", () => {
 
 test("the Study timer offers study goals as tasks", () => {
   const html = renderFocusPanel("study", IDLE, [{ text: "Read notes", done: false }], 0, "", ["Revise <ch 5>"]);
-  assert.ok(html.includes('<optgroup label="Today\'s focus"><option value="Read notes">Read notes</option></optgroup>'));
-  assert.ok(html.includes('<optgroup label="Study goals"><option value="Revise &lt;ch 5&gt;">Revise &lt;ch 5&gt;</option></optgroup>'));
-  assert.ok(!renderFocusPanel("work", IDLE, [], 0, "", ["Revise"]).includes("optgroup"));
+  assert.ok(html.includes('task-pop-heading">Today</p>') && html.includes('data-task-pick="Read notes"'));
+  assert.ok(html.includes('task-pop-heading">Study goals</p>') && html.includes('data-task-pick="Revise &lt;ch 5&gt;"'));
+  assert.ok(!renderFocusPanel("work", IDLE, [], 0, "", ["Revise"]).includes("Study goals"));
 });
 
 test("study goal rows have an optional hours field", () => {
@@ -899,4 +906,23 @@ test("renderModulePage uses the goal list when the details carry goals", () => {
   const html = renderModulePage(area, [], "2026-11-20", { tasks: [], sessions: [] }, { study_goals: [] });
   assert.ok(html.includes('class="study-goal-list"'));
   assert.ok(html.includes("No sessions yet"));
+});
+
+test("tasks belong to a module: each popover lists only its own (and untagged older ones)", () => {
+  const tasks = [{ text: "Read ch 5", done: false, area: "study" }, { text: "Client email", done: false, area: "work" },
+    { text: "Old one", done: false }];
+  const study = renderTaskPopover("focus-task", tasks, [], null, { area: "study" });
+  assert.ok(study.includes('data-task-pick="Read ch 5"') && study.includes('data-task-pick="Old one"'));
+  assert.ok(!study.includes("Client email"));
+  const work = renderFocusPanel("work", IDLE, tasks, NOW, "", [], "timer", null, { area: "work" });
+  assert.ok(work.includes('data-task-pick="Client email"') && !work.includes("Read ch 5"));
+  assert.ok(!work.includes(">Habit<"), "module pages have no Habit tab");
+  assert.ok(renderTaskPopover("focus-task", tasks, [], null, { area: "work" }).includes(">Habit<"));
+});
+
+test("with both modules on, Home tags each task with its module", () => {
+  const tasks = [{ text: "Read ch 5", done: false, area: "study" }, { text: "Old one", done: false }];
+  assert.ok(renderTasks(tasks, true, true).includes('<span class="task-area">Study</span>'));
+  assert.strictEqual(renderTasks(tasks, true, true).match(/task-area/g).length, 1);
+  assert.ok(!renderTasks(tasks, true).includes("task-area"));
 });

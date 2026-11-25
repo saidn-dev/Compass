@@ -26,6 +26,10 @@ async function request(method, path, body, extraHeaders = {}) {
   }
 
   const data = await response.json().catch(() => null);
+  // A phone whose sign-in ran out (or whose passcode was changed) goes back to sign in.
+  if (response.status === 401 && data?.error?.code === "signed_out") {
+    location.replace("/login.html");
+  }
   if (!response.ok) {
     const error = data && data.error;
     throw new ApiError(

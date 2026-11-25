@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert";
 import {
   renderFocusAreaPicker, renderFocusCard, renderFocusLog, renderFocusPage,
-  renderFocusPanel, renderFocusSummary, renderFocusTaskPicker, renderFocusTotals, startedAt, renderTaskPopover, recentTasks,
+  renderFocusPanel, renderFocusSummary, renderFocusTotals, startedAt, renderTaskPopover, recentTasks,
   renderFocusTimeline, renderFocusHours, renderFocusYear, renderRecordPop, renderTasks, renderFocusStatsPage,
   timerButtons, renderFocusGoal, renderTaskEstimate,
 } from "../js/render.js";
@@ -66,15 +66,6 @@ test("the area picker offers only the enabled modules and ticks the current one"
   assert.match(html, /name="focus-area" value="work"/);
   assert.ok(html.includes("Focus area"));
   assert.ok(!renderFocusAreaPicker([{ id: "work", label: "Work" }], "work", "focus-area").includes("Study"));
-});
-
-test("the task picker can be redrawn on its own when the area changes", () => {
-  const html = renderFocusTaskPicker("focus-task", TASKS, ["Revise <ch 5>"], "Revise <ch 5>");
-  assert.ok(html.includes('<optgroup label="Study goals">'));
-  assert.ok(html.includes("Revise &lt;ch 5&gt;"));
-  const work = renderFocusTaskPicker("focus-task", TASKS, [], "");
-  assert.ok(!work.includes("optgroup"));
-  assert.ok(work.includes("Read notes"));
 });
 
 test("the Focus panel has an area switch on both start forms when both modules are on", () => {

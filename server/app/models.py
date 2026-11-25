@@ -31,7 +31,7 @@ TAGS: dict[str, str] = {
 }
 MOOD_RANGE = (1, 5)
 
-MAX_TASKS = 3
+TASK_AREAS = ("study", "work")
 MAX_TASK_TEXT = 200
 MAX_NOTE = 5000
 MAX_STUDY_GOALS = 5
@@ -73,8 +73,12 @@ def _tasks(raw: object) -> list[dict]:
             continue
         text = item["text"].strip()[:MAX_TASK_TEXT]
         if text:
-            tasks.append({"text": text, "done": item.get("done") is True})
-    return tasks[:MAX_TASKS]
+            task = {"text": text, "done": item.get("done") is True}
+            # Which focus module the task belongs to; older tasks have none.
+            if item.get("area") in TASK_AREAS:
+                task["area"] = item["area"]
+            tasks.append(task)
+    return tasks
 
 
 def _habits(raw: object) -> dict[str, bool]:

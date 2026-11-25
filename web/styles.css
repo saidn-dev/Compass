@@ -19,6 +19,8 @@
   --border: rgb(255 255 255 / 0.08);
   --field: rgb(255 255 255 / 0.07);       /* inputs and choice tiles */
   --field-hover: rgb(255 255 255 / 0.1);
+  --mono-pill: rgb(255 255 255 / 0.09);    /* the Focus popovers' quiet pills, on every page */
+  --mono-pill-hover: rgb(255 255 255 / 0.15);
   --border-hover: rgb(255 255 255 / 0.22);
   --track: rgb(255 255 255 / 0.06);        /* tab tracks */
   --meter-track: rgb(255 255 255 / 0.1);
@@ -295,8 +297,8 @@ body[data-page="settings"] {
 }
 
 .nav-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none;
 }
 
@@ -1083,6 +1085,7 @@ body:not([data-page="onboarding"]) :is(main, .site-header-inner) {
 }
 
 input[type="text"],
+input[type="password"],
 input[type="number"],
 input[type="time"],
 input[type="date"],
@@ -2233,6 +2236,20 @@ input[type="radio"] {
   overflow-wrap: anywhere;
 }
 
+.task-area {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.task-area-picker:not(:empty) {
+  margin-top: 12px;
+}
+
 .task.is-done .task-text {
   color: var(--text-muted);
   text-decoration: line-through;
@@ -2613,38 +2630,145 @@ input[type="radio"] {
   margin-bottom: 14px;
 }
 
-.focus-lengths-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 20px;
-}
-
-.focus-lengths .mood-options {
-  min-height: 44px;
-}
-
-.focus-lengths legend,
-.focus-own label {
-  margin: 0 0 6px;
-  padding: 0;
-  font-size: 0.85rem;
-  font-weight: 500;
-  line-height: 1.45;
-  color: var(--text-muted);
-}
-
-.focus-own {
+/* The session length badge. Closed, its two cards touch and read as one pill
+   ("25 Min." and a pencil); open, they spring apart into a minutes card and a check. Only width, gaps and corners move; the height stays put. */
+.duration {
+  --spring: 500ms cubic-bezier(0.3, 1.5, 0.6, 1);
+  interpolate-size: allow-keywords;
+  display: inline-flex;
+  justify-self: start;
+  height: 44px;
   gap: 0;
+  font-variant-numeric: tabular-nums;
 }
 
-.focus-own .input-unit {
-  align-items: baseline;
+.duration-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3em;
+  width: auto;
+  height: 100%;
+  padding: 0 0 0 0.35em;
+  border: 0;
+  border-radius: 0;
+  background: var(--field);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 100ms ease;
 }
 
-.focus-own input {
-  max-width: 8ch;
-  min-height: 44px;
+.duration-mins {
+  padding-left: 16px;
+  border-radius: 999px 0 0 999px;
+}
+
+.duration .duration-num {
+  field-sizing: content;
+  width: auto;
+  min-width: 1ch;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: inherit;
+}
+
+.duration .duration-num:focus {
+  outline: none;
+}
+
+.duration-num[aria-invalid="true"] {
+  color: var(--danger);
+}
+
+.duration-unit {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.duration-toggle {
+  position: relative;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  border-radius: 0 999px 999px 0;
+}
+
+.duration-icon {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 120ms ease;
+}
+
+.duration-pencil {
+  stroke: var(--text-muted);
+}
+
+.duration-check {
+  stroke: var(--text);
+  opacity: 0;
+}
+
+.duration[data-open="true"] {
+  --spring: 500ms cubic-bezier(0.3, 2, 0.6, 1);
+  gap: 8px;
+}
+
+.duration[data-open="true"] .duration-card {
+  padding: 0 14px;
+  border-radius: var(--radius-small);
+}
+
+.duration[data-open="true"] .duration-mins {
+  width: 116px;
+}
+
+.duration[data-open="true"] .duration-toggle {
+  width: 44px;
+  padding: 0;
+}
+
+.duration[data-open="true"] .duration-num {
+  cursor: text;
+}
+
+.duration[data-open="true"] .duration-pencil {
+  opacity: 0;
+}
+
+.duration[data-open="true"] .duration-check {
+  opacity: 1;
+}
+
+.duration-card:hover,
+.duration-card:has(.duration-num:focus) {
+  background: var(--field-hover);
+}
+
+.duration-toggle:focus-visible {
+  outline: 2px solid var(--border-hover);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .duration {
+    transition: gap var(--spring);
+  }
+
+  .duration-card {
+    transition: width var(--spring), padding var(--spring), border-radius var(--spring), background-color 100ms ease;
+  }
 }
 
 .focus-form .hint {
@@ -3260,7 +3384,7 @@ a.focus-icon-btn {
 }
 
 .focus-area-picker .mood-option input:checked + span {
-  background: var(--ring-fill);
+  background: var(--ring-fill, var(--accent));
   box-shadow: none;
   color: #000;
   font-weight: 600;
@@ -3532,6 +3656,22 @@ a.focus-icon-btn {
   justify-items: center;
 }
 
+/* The module pages' start form is left-aligned, so its task picker and popover are too. */
+.focus-form:not(.focus-card-form) .task-pop-wrap {
+  justify-items: start;
+}
+
+.focus-form:not(.focus-card-form) .task-pop {
+  left: 0;
+  translate: 0 0;
+  transform-origin: top left;
+}
+
+/* The pomos line has its room kept, so picking a task doesn't push Start down. */
+.focus-form:not(.focus-card-form) .task-estimate-slot {
+  min-height: 32px;
+}
+
 .pop {
   position: absolute;
   top: calc(100% + 8px);
@@ -3540,13 +3680,12 @@ a.focus-icon-btn {
   translate: -50% 0;
   padding: 10px;
   border-radius: 16px;
-  /* Frosted glass like the app's panels and the phone nav: what's behind (the ring, the
-     wheel) shows through blurred. */
-  background: rgb(30 30 30 / 0.55);
+  /* Solid: inside a glass panel a backdrop blur doesn't take, and any see-through fill let
+     the text behind read through the rows. */
+  background: rgb(26 26 26);
+  scroll-margin-bottom: 16px;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.07),
     0 24px 64px var(--drop-shadow);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
-  backdrop-filter: blur(28px) saturate(1.4);
   text-align: left;
 }
 
@@ -3554,13 +3693,26 @@ a.focus-icon-btn {
   display: none;
 }
 
+@media (max-width: 799px) {
+  .pop {
+    scroll-margin-bottom: 96px; /* clear of the floating nav */
+  }
+}
+
 /* The wrapper of an open popover sits above the parts of the card drawn after it. */
 .task-pop-wrap:has(> .pop:not([hidden])),
 .focus-own-wrap:has(> .pop:not([hidden])),
 .focus-card-dial:has(.pop:not([hidden])),
-.focus-task-picker:has(.pop:not([hidden])) {
+.focus-task-picker:has(.pop:not([hidden])),
+.panel:has(.pop:not([hidden])) {
   position: relative;
   z-index: 40;
+}
+
+/* While searching, only matches and "Add" show. */
+.task-pop[data-searching] .task-pop-none,
+.task-pop[data-searching] .task-pop-empty {
+  display: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -3733,13 +3885,13 @@ a.focus-icon-btn {
   flex: none;
   width: 13px;
   height: 13px;
-  border: 1.5px solid rgb(255 255 255 / 0.45);
+  border: 1.5px solid color-mix(in srgb, var(--hue) 55%, transparent);
   border-radius: 50%;
 }
 
 .task-pop-row[aria-pressed="true"] .task-pop-dot {
-  border-color: var(--text);
-  background: radial-gradient(circle, var(--text) 0 3.5px, transparent 4px);
+  border-color: var(--hue);
+  background: radial-gradient(circle, var(--hue) 0 3.5px, transparent 4px);
 }
 
 .task-pop-name {
@@ -3766,6 +3918,21 @@ a.focus-icon-btn {
   font-size: 0.82rem;
 }
 
+/* The count keeps the width of its longest wording, so − / + never slide under the pointer. */
+.task-estimate-count {
+  min-width: 15em;
+  text-align: right;
+}
+
+.focus-form:not(.focus-card-form) .task-estimate-count {
+  text-align: left;
+}
+
+.focus-form:not(.focus-card-form) .task-estimate {
+  justify-content: flex-start;
+  padding-left: 12px;
+}
+
 .task-estimate-step {
   display: inline-flex;
   gap: 2px;
@@ -3788,7 +3955,7 @@ a.focus-icon-btn {
   place-items: center;
   width: 13px;
   height: 13px;
-  color: var(--text);
+  color: var(--hue);
   font-size: 1rem;
   line-height: 1;
 }
@@ -5436,4 +5603,42 @@ html[data-morph="tabs"]::view-transition-new(focus-actions) {
   50% {
     opacity: 0.45;
   }
+}
+
+/* The sign-in page for phones on the home Wi-Fi (start.py --lan). */
+.login {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 16px;
+}
+
+.login-card {
+  display: grid;
+  gap: 16px;
+  width: min(340px, 100%);
+  padding: 24px 20px;
+}
+
+.login-card .brand {
+  margin: 0;
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.login-card .btn {
+  width: 100%;
+}
+
+.login-status:empty {
+  display: none;
+}
+
+.login-status {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
 }

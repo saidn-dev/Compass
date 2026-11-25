@@ -226,16 +226,19 @@ def test_history_is_twelve_weeks_oldest_first():
 
 
 def test_carry_over_lists_yesterdays_unfinished_tasks_not_already_planned():
-    d = days({1: {"tasks": [{"text": "Call the bank", "done": False}, {"text": "Email Sam", "done": True},
-                            {"text": "Read ch. 3", "done": False}]},
+    d = days({1: {"tasks": [{"text": "Call the bank", "done": False, "area": "work"},
+                            {"text": "Read ch. 3", "done": False}, {"text": "Old task", "done": False}]},
               0: {"tasks": [{"text": "Read ch. 3", "done": False}]}})
-    assert carry_over({x["date"]: x for x in d}, TODAY) == ["Call the bank"]
+    assert carry_over({x["date"]: x for x in d}, TODAY) == [{"text": "Call the bank", "area": "work"},
+                                                         {"text": "Old task"}]
+    finished = days({1: {"tasks": [{"text": "Email Sam", "done": True, "area": "work"}]}})
+    assert carry_over({x["date"]: x for x in finished}, TODAY) == []
 
 
-def test_carry_over_is_empty_when_today_is_full_or_yesterday_is_done():
-    full = days({1: {"tasks": [{"text": "x", "done": False}]},
-                 0: {"tasks": [{"text": t, "done": False} for t in "abc"]}})
-    assert carry_over({x["date"]: x for x in full}, TODAY) == []
+def test_carry_over_offers_every_unfinished_task_however_full_today_is():
+    busy = days({1: {"tasks": [{"text": t, "done": False} for t in "vwxyz"]},
+                 0: {"tasks": [{"text": t, "done": False} for t in "abcd"]}})
+    assert [t["text"] for t in carry_over({x["date"]: x for x in busy}, TODAY)] == list("vwxyz")
     assert carry_over({}, TODAY) == []
 
 

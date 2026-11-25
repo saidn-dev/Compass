@@ -185,10 +185,10 @@ def test_put_day_uses_the_date_in_the_path(client):
     assert client.get("/api/days/1999-01-01", headers=HOST).json()["sleep_hours"] is None
 
 
-def test_put_day_with_four_tasks_is_rejected(client):
-    tasks = [{"text": t, "done": False} for t in "abcd"]
-    assert_error(client.put("/api/days/2026-10-20", json={"tasks": tasks}, headers=HOST), 422)
-    assert client.get("/api/days/2026-10-20", headers=HOST).json()["tasks"] == []
+def test_put_day_keeps_any_number_of_tasks(client):
+    tasks = [{"text": t, "done": False} for t in "abcdefg"]
+    assert client.put("/api/days/2026-10-20", json={"tasks": tasks}, headers=HOST).status_code == 200
+    assert client.get("/api/days/2026-10-20", headers=HOST).json()["tasks"] == tasks
 
 
 def test_bad_date_is_rejected(client):
@@ -639,11 +639,13 @@ def test_a_week_of_rest_asks_for_nothing(client):
 def test_dashboard_history_tags_and_carry_over(client):
     onboard(client, ("study",))
     client.put("/api/days/2026-10-20", json={"study_hours": 5}, headers=JSON)
-    client.put("/api/days/2026-11-11", json={"tasks": [{"text": "Call the bank", "done": False}]}, headers=JSON)
+    client.put("/api/days/2026-11-11", json={"tasks": [{"text": "Call the bank", "done": False, "area": "study"},
+                                                       {"text": "No module", "done": False, "area": "nap"}]},
+               headers=JSON)
     d = client.get("/api/dashboard?date=2026-11-12", headers=HOST).json()
     history = area(d, "study")["history"]
     assert len(history) == 12 and history[-4] == {"label": "16 Oct", "value": 5}
-    assert d["carry_over"] == ["Call the bank"]
+    assert d["carry_over"] == [{"text": "Call the bank", "area": "study"}, {"text": "No module"}]
     assert d["tags"][0] == {"id": "caffeine", "label": "Caffeine late"}
     assert "guidance" not in area(d, "study")
 

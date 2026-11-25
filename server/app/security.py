@@ -3,6 +3,7 @@
 Rejects a wrong Host header, a foreign Origin, and writes that are not JSON,
 so other websites in your browser cannot talk to the local API.
 """
+import ipaddress
 from urllib.parse import urlsplit
 
 from starlette.responses import JSONResponse
@@ -16,9 +17,19 @@ def error_response(status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse({"error": {"code": code, "message": message}}, status_code=status)
 
 
+def _home_network_ip(hostname: str | None) -> bool:
+    """A private IP address typed as is (192.168.x.x and the like). A name could be
+    pointed at this laptop by another site (DNS rebinding); a bare IP can't."""
+    try:
+        return ipaddress.ip_address(hostname or "").is_private
+    except ValueError:
+        return False
+
+
 class HostOriginMiddleware:
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, lan: bool = False) -> None:
         self.app = app
+        self.lan = lan  # with --lan, the laptop's home-network address is allowed too
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -32,10 +43,10 @@ class HostOriginMiddleware:
             return
         await self.app(scope, receive, send)
 
-    @staticmethod
-    def _check(method: str, headers: dict[str, str]) -> JSONResponse | None:
+    def _check(self, method: str, headers: dict[str, str]) -> JSONResponse | None:
         host = headers.get("host", "")
-        if urlsplit("//" + host).hostname not in LOCAL_HOSTS:
+        hostname = urlsplit("//" + host).hostname
+        if hostname not in LOCAL_HOSTS and not (self.lan and _home_network_ip(hostname)):
             return error_response(403, "forbidden_host", "Requests must go to 127.0.0.1 or localhost.")
 
         origin = headers.get("origin")

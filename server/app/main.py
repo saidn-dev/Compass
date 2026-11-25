@@ -1,4 +1,5 @@
 """Entry point of the server: builds the app and wires everything together."""
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -7,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
 from app.db import Repository
+from app.lan import LanAuthMiddleware, LanConfig, login_router
 from app.routes import ApiError, router
 from app.security import HostOriginMiddleware, error_response
 
@@ -42,11 +44,18 @@ def _install_error_handlers(app: FastAPI) -> None:
         return error_response(500, "server_error", "Something went wrong on the server.")
 
 
-def create_app(db_path: str = "compass.db") -> FastAPI:
+def create_app(db_path: str = "compass.db", lan_config: Path | None = None) -> FastAPI:
+    """lan_config: the passcode file, to let phones on the home Wi-Fi in (start.py --lan)."""
     app = FastAPI(title="Compass")
-    app.add_middleware(HostOriginMiddleware)
+    config = LanConfig(lan_config) if lan_config else None
+    if config:
+        app.add_middleware(LanAuthMiddleware, config=config)
+    # Added last, so it runs first: a bad Host or Origin never reaches the sign-in check.
+    app.add_middleware(HostOriginMiddleware, lan=config is not None)
     app.state.repo = Repository(db_path)
     _install_error_handlers(app)
+    if config:
+        app.include_router(login_router(config))
 
     @app.get("/health")
     def health() -> dict:
@@ -58,4 +67,4 @@ def create_app(db_path: str = "compass.db") -> FastAPI:
     return app
 
 
-app = create_app()
+app = create_app(lan_config=Path(os.environ["COMPASS_LAN"]) if os.environ.get("COMPASS_LAN") else None)

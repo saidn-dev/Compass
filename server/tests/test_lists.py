@@ -71,12 +71,11 @@ def test_add_blank_task_raises():
         add_task(day(), "   ")
 
 
-def test_fourth_task_raises():
+def test_there_is_no_limit_on_tasks():
     d = day()
-    for text in ["a", "b", "c"]:
+    for text in "abcdefg":
         d = add_task(d, text)
-    with pytest.raises(ValueError):
-        add_task(d, "d")
+    assert len(d["tasks"]) == 7
 
 
 def test_add_task_does_not_change_the_input():

@@ -9,7 +9,7 @@ from app.areas import Area, area_score, area_value, effective_target, last_n_dat
 from app.brief import WEEKDAYS, _fmt, round_value
 from app.focus import focus_review_line
 from app.lists import habit_completion
-from app.models import MAX_TASKS, TAGS, Settings
+from app.models import TAGS, Settings
 from app.pages import PERIODS
 from app.progress import focus_report
 from app.settings_rules import AREAS_BY_ID, target_for
@@ -335,15 +335,16 @@ def build_history(area: Area, by_date: dict[str, dict], today: str) -> list[dict
 
 # --- today ---
 
-def carry_over(by_date: dict[str, dict], today: str) -> list[str]:
-    """Yesterday's unfinished focus tasks that aren't planned today, while today has room."""
+def carry_over(by_date: dict[str, dict], today: str) -> list[dict]:
+    """Yesterday's unfinished focus tasks that aren't planned today.
+
+    Each is {"text"} plus its "area" (study or work) when it had one.
+    """
     yesterday = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
     planned = [t["text"] for t in by_date.get(today, {}).get("tasks", [])]
-    room = MAX_TASKS - len(planned)
-    if room <= 0:
-        return []
-    undone = [t["text"] for t in by_date.get(yesterday, {}).get("tasks", []) if not t["done"]]
-    return [text for text in undone if text not in planned][:room]
+    undone = [t for t in by_date.get(yesterday, {}).get("tasks", []) if not t["done"]]
+    carried = [{"text": t["text"], **({"area": t["area"]} if t.get("area") else {})} for t in undone]
+    return [t for t in carried if t["text"] not in planned]
 
 
 def bedtime_guidance(settings: Settings, window: list[dict]) -> str | None:

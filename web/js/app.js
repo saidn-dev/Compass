@@ -11,7 +11,7 @@ import {
   renderNav, renderModulePage, renderModuleEdit, MODULE_PARTS,
   renderCheckIn, renderCarryOver, renderInsights,
   renderStartingPoint, renderProjection, renderFirstSession,
-  renderFocusCard, renderFocusPanel, renderFocusPage, renderFocusStatsPage, renderStatsPeriod, renderFocusSummary, renderTaskEstimate, renderFocusTaskPicker, durationText,
+  renderFocusCard, renderFocusPanel, renderFocusPage, renderFocusStatsPage, renderStatsPeriod, renderFocusSummary, renderTaskEstimate, renderFocusAreaPicker, durationText,
   timeDigits, renderTaskPopover, recentTasks,
 } from "./render.js";
 import { pageFromHash, hashFor } from "./route.js";
@@ -23,7 +23,6 @@ import {
   keepAway, dropAway, fromSaved, isRunning, isPaused, readoutText, ringShare, startWatch, isLength, MAX_MINUTES,
 } from "./timer.js";
 
-const MAX_TASKS = 3;
 const MAX_GOALS = 3;
 const NOTE_SAVE_DELAY_MS = 500;
 const FOCUS_MODULE_IDS = ["study", "work"];
@@ -184,8 +183,11 @@ window.addEventListener("hashchange", () => safely(() => showPage()));
 
 // Loads one module's page and draws it.
 async function loadModulePage(id) {
-  const [dashboard, todayData] = await Promise.all([api.getDashboard(today), api.getDay(today)]);
+  // The focus log feeds the task popover's Recent tab and pomo counts on Study and Work.
+  const [dashboard, todayData, focus] = await Promise.all([api.getDashboard(today), api.getDay(today),
+    FOCUS_MODULE_IDS.includes(id) ? api.getFocus(today) : null]);
   day = todayData;
+  if (focus) focusData = focus;
   const area = dashboard.areas.find((a) => a.id === id);
   $("module-title").textContent = area.label;
   $("module-body").innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id));
@@ -215,7 +217,7 @@ function habitNames() {
 // What the Focus page's task popover lists besides today's tasks: recent sessions' tasks
 // in that area, and the habits.
 function taskSources(area) {
-  return { recent: recentTasks(focusData?.log, area), habits: habitNames(), preset: pendingFocusTask,
+  return { area, recent: recentTasks(focusData?.log, area), habits: habitNames(), preset: pendingFocusTask,
     estimates: settings?.focus?.estimates || {}, pomos: pomoCounts(focusData?.sessions || []) };
 }
 
@@ -874,7 +876,8 @@ function drawDashboard(dashboard) {
   $("habit-completion").textContent = completion === null ? "" : `${completion}% this week`;
   $("habit-grid").innerHTML = renderHabitGrid(dashboard.habits.grid, settings.habits);
   $("goals").innerHTML = renderGoals(settings.goals);
-  $("tasks").innerHTML = renderTasks(day.tasks, enabledFocusAreas().length > 0);
+  $("tasks").innerHTML = renderTasks(day.tasks, enabledFocusAreas().length > 0, enabledFocusAreas().length > 1);
+  drawTaskArea();
   focusToday = dashboard.focus;
   $("focus-summary").innerHTML = renderFocusSummary(focusToday, timer, Date.now(), enabledFocusAreas().length > 0);
 
@@ -913,6 +916,18 @@ function sleepLogRule() {
 $("module-view").addEventListener("submit", (event) => {
   if (event.target.id !== "module-log-form") return;
   event.preventDefault();
+  // The server turns hours outside 0-24 (and a value the box can't read, like "1,5") into
+  // a blank, which would wipe the day's hours while saying "Saved". Stop and say so instead.
+  for (const input of event.target.querySelectorAll('input[type="number"]')) {
+    input.removeAttribute("aria-invalid");
+    const value = Number(input.value);
+    if (input.validity.badInput || (input.value !== "" && !(value >= 0 && value <= 24))) {
+      input.setAttribute("aria-invalid", "true");
+      $("module-log-status").textContent = "Enter hours from 0 to 24, like 1.5.";
+      input.focus();
+      return;
+    }
+  }
   safely(async () => {
     const changes = readLogInputs(event.target.querySelectorAll("input"));
     if (event.target.dataset.area === "sleep") Object.assign(changes, sleepLogRule());
@@ -1123,10 +1138,15 @@ function openPop(opener, pop) {
   requestAnimationFrame(() => {
     field?.focus({ preventScroll: true });
     if (field?.id === "focus-own") field.select();
+    // On a phone the popover can open below the fold or under the bottom nav. Scroll only
+    // when it is really cut off, so the page doesn't nudge on every open.
+    const room = innerHeight - parseFloat(getComputedStyle(pop).scrollMarginBottom || "0");
+    if (pop.getBoundingClientRect().bottom > room + 8) pop.scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
 }
 
 function closePops(returnFocus = false) {
+  for (const form of document.querySelectorAll("form[data-quick-start]")) delete form.dataset.quickStart;
   for (const pop of document.querySelectorAll(".pop:not([hidden])")) {
     pop.hidden = true;
     const opener = (pop.opener?.isConnected && pop.opener) || document.querySelector(`[aria-controls="${pop.id}"]`);
@@ -1142,6 +1162,9 @@ function createTask(button) {
   const pop = button.closest(".pop");
   const text = pop.querySelector("[data-task-search]").value.trim().slice(0, 200);
   if (!text) return;
+  const quick = button.closest("form")?.dataset.quickStart === "true";
+  const taskForm = button.closest("form");
+  const taskArea = taskForm.querySelector('input[name$="-area"]:checked')?.value || taskForm.dataset.area;
   const choose = () => {
     wrap.querySelector("input[type='hidden']").value = text;
     wrap.querySelector("[data-task-pop-label]").textContent = text;
@@ -1150,25 +1173,40 @@ function createTask(button) {
     }
     drawEstimate(wrap.closest("form"));
   };
-  if (!day || day.tasks.length >= MAX_TASKS) {
+  if (!day) {
     choose();
+    if (quick) {
+      const form = wrap.closest("form");
+      closePops();
+      form.requestSubmit();
+      return;
+    }
     button.hidden = true;
     // role="status": shown and read out; the popover stays open so it can be read.
     pop.querySelector("[data-task-pop-note]").textContent =
-      `Using “${text}” for this session. Today already has ${MAX_TASKS} tasks, so it isn't added to the list.`;
+      `Using “${text}” for this session. Today's list hasn't loaded, so it isn't added to it.`;
     return;
   }
   safely(async () => {
-    await saveToday({ tasks: [...day.tasks, { text, done: false }] });
-    // Draw the picker again so the new task is listed (and chosen) under Today.
+    await saveToday({ tasks: [...day.tasks, newTask(text, taskArea)] });
+    // Draw every picker of this area again (Timer and Stopwatch), so the new task is listed
+    // in both, and chosen in this one. Each keeps its own choice otherwise.
     const holder = wrap.closest(".focus-task-picker");
     const form = holder.closest("form");
-    const area = form.querySelector('input[name$="-area"]:checked')?.value || form.dataset.area;
-    const id = wrap.querySelector("input[type='hidden']").id;
-    holder.innerHTML = renderTaskPopover(id, day.tasks, area === "study" ? studyGoalNames() : [], text, taskSources(area));
-    drawEstimate(form);
+    const area = taskArea;
+    const showHabits = !form.closest("#module-view"); // the module pages list only their own tasks
+    for (const other of document.querySelectorAll(".focus-task-picker")) {
+      const otherForm = other.closest("form");
+      const otherArea = otherForm.querySelector('input[name$="-area"]:checked')?.value || otherForm.dataset.area;
+      if (otherArea !== area) continue;
+      const hidden = other.querySelector("input[type='hidden']");
+      const chosen = other === holder ? text : hidden.value || null;
+      other.innerHTML = renderTaskPopover(hidden.id, day.tasks, area === "study" ? studyGoalNames() : [], chosen, { ...taskSources(area), showHabits });
+      drawEstimate(otherForm);
+    }
     holder.querySelector("[data-pop-open]")?.focus({ preventScroll: true });
     announce(`Added “${text}” to today's tasks and picked it.`);
+    if (quick) form.requestSubmit();
   });
 }
 
@@ -1230,14 +1268,17 @@ function changeEstimate(button) {
 
 function pickTask(row) {
   const wrap = row.closest("[data-task-pop]");
+  const form = row.closest("form");
+  const quick = form?.dataset.quickStart === "true";
   const name = row.dataset.taskPick;
   wrap.querySelector("input[type='hidden']").value = name;
   wrap.querySelector("[data-task-pop-label]").textContent = name || "No task";
   for (const other of wrap.querySelectorAll("[data-task-pick]")) {
     other.setAttribute("aria-pressed", String(other.dataset.taskPick === name));
   }
-  drawEstimate(row.closest("form"));
+  drawEstimate(form);
   closePops(true);
+  if (quick) form.requestSubmit();
 }
 
 // TickTick's Focus page keeps the time stats on screen while its "..." menu opens options.
@@ -1308,6 +1349,112 @@ document.addEventListener("input", (event) => {
 document.addEventListener("change", (event) => {
   if (event.target.name === "focus-minutes" && event.target.form.querySelector("#focus-own")) {
     event.target.form.querySelector("#focus-own").value = "";
+  }
+});
+
+// The module pages' session length: a badge that opens into a minutes card and a check. The pencil opens it, the check (or Enter) saves it into #focus-own and closes it,
+// Escape closes it unchanged. Clicking a number on the closed badge opens it at that number.
+function openDuration(box, field) {
+  if (box.dataset.open === "true") return;
+  box.dataset.open = "true";
+  const toggle = box.querySelector("[data-duration-toggle]");
+  toggle.setAttribute("aria-expanded", "true");
+  toggle.setAttribute("aria-label", "Done");
+  for (const num of box.querySelectorAll(".duration-num")) num.tabIndex = 0;
+  const target = field || box.querySelector(".duration-num");
+  target.focus();
+  target.setSelectionRange(target.value.length, target.value.length);
+}
+
+function closeDuration(box) {
+  box.dataset.open = "false";
+  const toggle = box.querySelector("[data-duration-toggle]");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-label", "Change length");
+  for (const num of box.querySelectorAll(".duration-num")) {
+    num.tabIndex = -1;
+    num.removeAttribute("aria-invalid");
+  }
+}
+
+// Reads the minutes card into #focus-own. Returns false (and marks the cards) when the length
+// isn't 1 to MAX_MINUTES minutes.
+function commitDuration(box) {
+  const mins = box.querySelector('[name="duration-mins"]');
+  const minutes = Number(mins.value);
+  if (!isLength(minutes)) {
+    if (box.dataset.open !== "true") openDuration(box);
+    mins.setAttribute("aria-invalid", "true");
+    announce(`Pick a length from 1 to ${MAX_MINUTES} minutes.`);
+    mins.focus();
+    return false;
+  }
+  box.querySelector("#focus-own").value = String(minutes);
+  mins.value = String(minutes);
+  return true;
+}
+
+// Enter on the minutes goes on to the task: it opens the task popover, and picking or adding
+// a task there starts the timer. Closing the popover without a pick cancels that.
+function openTaskPicker(form) {
+  const opener = form?.querySelector("[data-task-pop] [data-pop-open]");
+  if (!opener) return;
+  closePops();
+  form.dataset.quickStart = "true";
+  openPop(opener, $(opener.getAttribute("aria-controls")));
+}
+
+document.addEventListener("click", (event) => {
+  const box = event.target.closest?.("[data-duration]");
+  if (!box) return;
+  if (event.target.closest("[data-duration-toggle]")) {
+    if (box.dataset.open !== "true") openDuration(box);
+    else if (commitDuration(box)) {
+      closeDuration(box);
+      box.querySelector("[data-duration-toggle]").focus();
+    }
+    return;
+  }
+  const card = event.target.closest(".duration-card");
+  if (card && box.dataset.open !== "true") {
+    event.preventDefault();
+    openDuration(box, card.querySelector(".duration-num"));
+  }
+});
+
+document.addEventListener("input", (event) => {
+  if (!event.target.matches?.(".duration-num")) return;
+  const digits = event.target.value.replace(/\D/g, "");
+  if (digits !== event.target.value) event.target.value = digits;
+  event.target.removeAttribute("aria-invalid");
+});
+
+// Leaving an open length box keeps what was typed when it is valid (the badge showed it but
+// nothing was set). An invalid length stays open, so Start still stops and says why.
+document.addEventListener("focusout", (event) => {
+  const box = event.target.closest?.("[data-duration]");
+  if (!box || box.dataset.open !== "true" || box.contains(event.relatedTarget)) return;
+  const mins = box.querySelector('[name="duration-mins"]');
+  if (!isLength(Number(mins.value))) return;
+  box.querySelector("#focus-own").value = String(Number(mins.value));
+  mins.value = box.querySelector("#focus-own").value;
+  closeDuration(box);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!event.target.matches?.(".duration-num")) return;
+  const box = event.target.closest("[data-duration]");
+  if (event.key === "Enter") {
+    event.preventDefault();
+    if (commitDuration(box)) {
+      closeDuration(box);
+      openTaskPicker(box.closest("form"));
+    }
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    box.querySelector('[name="duration-mins"]').value = box.querySelector("#focus-own").value;
+    closeDuration(box);
+    box.querySelector("[data-duration-toggle]").focus();
   }
 });
 
@@ -1493,9 +1640,11 @@ function setTimer(next, moveFocus = false, how = null) {
 async function refreshAfterSessions() {
   if (modulePage) {
     const id = modulePage;
-    const [dashboard, todayData] = await Promise.all([api.getDashboard(today), api.getDay(today)]);
+    const [dashboard, todayData, focus] = await Promise.all([api.getDashboard(today), api.getDay(today),
+      FOCUS_MODULE_IDS.includes(id) ? api.getFocus(today) : null]);
     if (modulePage !== id) return;
     day = todayData;
+    if (focus) focusData = focus;
     const area = dashboard.areas.find((a) => a.id === id);
     const fresh = document.createElement("div");
     fresh.innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id));
@@ -1829,8 +1978,9 @@ function bindTimerEvents(view) {
       closePops(true);
       return;
     }
-    // Enter in a popover never starts the timer: in the search it picks the first match,
-    // in the exact box it sets the length and closes.
+    // Enter in a popover doesn't start the timer by itself: in the search it picks the first
+    // match, in the exact box it sets the length and closes. (A pick made after Enter on the
+    // module pages' minutes does start it; see openTaskPicker.)
     if (event.key === "Enter" && event.target.matches("[data-task-search]")) {
       event.preventDefault();
       const pop = event.target.closest(".pop");
@@ -1878,13 +2028,10 @@ function bindTimerEvents(view) {
     store(FOCUS_AREA_KEY, area);
     const holder = form.querySelector(".focus-task-picker");
     if (!holder) return;
-    const chosen = holder.querySelector("select")?.value || null;
     const id = watch ? "watch-task" : "focus-task";
     const goals = area === "study" ? studyGoalNames() : [];
-    const current = holder.querySelector("input[type='hidden']")?.value || chosen;
-    holder.innerHTML = holder.querySelector("[data-task-pop]")
-      ? renderTaskPopover(id, (day && day.tasks) || [], goals, current || null, taskSources(area))
-      : renderFocusTaskPicker(id, (day && day.tasks) || [], goals, chosen);
+    const current = holder.querySelector("input[type='hidden']")?.value || null;
+    holder.innerHTML = renderTaskPopover(id, (day && day.tasks) || [], goals, current, taskSources(area));
     drawEstimate(holder.closest("form"));
   });
 
@@ -1927,6 +2074,7 @@ function bindTimerEvents(view) {
     const exists = [...pop.querySelectorAll("[data-task-pick]")]
       .some((row) => row.dataset.taskPick.toLowerCase() === typed.toLowerCase());
     const create = pop.querySelector("[data-task-create]");
+    pop.toggleAttribute("data-searching", query !== "");
     create.hidden = typed === "" || exists;
     create.querySelector("[data-task-create-name]").textContent = typed;
     pop.querySelector("[data-task-pop-note]").textContent = "";
@@ -1951,6 +2099,11 @@ function bindTimerEvents(view) {
     if (event.target.id !== "focus-form") return;
     event.preventDefault();
     const form = event.target;
+    const duration = form.querySelector("[data-duration]");
+    if (duration) {
+      if (!commitDuration(duration)) return;
+      closeDuration(duration);
+    }
     const picked = form.querySelector('input[name="focus-minutes"]:checked');
     const own = form.querySelector("#focus-own");
     const minutes = own.value ? Number(own.value) : picked ? Number(picked.value) : 25;
@@ -2080,16 +2233,32 @@ $("error-dismiss").addEventListener("click", () => {
 
 // --- Focus tasks ---
 
+// With both Study and Work on, a new task is added to one of them (the choice is kept
+// between redraws). With one on, tasks go to it; with neither, they have no module.
+function drawTaskArea() {
+  const options = focusAreaOptions();
+  const holder = $("task-area");
+  const kept = holder.querySelector("input:checked")?.value;
+  const chosen = options.some((o) => o.id === kept) ? kept : options[0]?.id;
+  holder.innerHTML = options.length > 1 ? renderFocusAreaPicker(options, chosen, "task-area") : "";
+}
+
+function newTaskArea() {
+  const enabled = enabledFocusAreas();
+  const picked = $("task-area").querySelector("input:checked")?.value;
+  return enabled.includes(picked) ? picked : enabled.length === 1 ? enabled[0] : null;
+}
+
+// A task as stored: { text, done } plus its module when it has one.
+const newTask = (text, area) => ({ text, done: false, ...(area ? { area } : {}) });
+
 $("task-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const text = $("task-text").value.trim();
   if (!text) return showFormError("task-error", "Type a task first.");
-  if (day.tasks.length >= MAX_TASKS) {
-    return showFormError("task-error", `You can have up to ${MAX_TASKS} focus tasks a day. Finish or untick one first.`);
-  }
   showFormError("task-error", "");
   safely(async () => {
-    await saveToday({ tasks: [...day.tasks, { text, done: false }] });
+    await saveToday({ tasks: [...day.tasks, newTask(text, newTaskArea())] });
     $("task-text").value = "";
   });
 });
@@ -2098,7 +2267,9 @@ $("task-form").addEventListener("submit", (event) => {
 $("tasks").addEventListener("click", (event) => {
   const button = event.target.closest("[data-focus-task]");
   if (!button) return;
-  pendingFocusTask = day.tasks[Number(button.dataset.focusTask)]?.text || null;
+  const task = day.tasks[Number(button.dataset.focusTask)];
+  pendingFocusTask = task?.text || null;
+  if (task?.area) store(FOCUS_AREA_KEY, task.area); // the Focus page opens on the task's module
   location.hash = "#/focus";
 });
 
@@ -2112,9 +2283,10 @@ $("tasks").addEventListener("change", (event) => {
 // Yesterday's unfinished tasks: a click adds one to today.
 $("carry-over").addEventListener("click", (event) => {
   const button = event.target.closest("[data-carry]");
-  if (!button || day.tasks.length >= MAX_TASKS) return;
-  const text = carryOver[Number(button.dataset.carry)];
-  safely(() => saveToday({ tasks: [...day.tasks, { text, done: false }] }));
+  if (!button) return;
+  const item = carryOver[Number(button.dataset.carry)];
+  // A task from before tasks had a module joins the one picked above.
+  safely(() => saveToday({ tasks: [...day.tasks, newTask(item.text, item.area || newTaskArea())] }));
 });
 
 // --- Check-in ---

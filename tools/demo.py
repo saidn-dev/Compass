@@ -35,11 +35,14 @@ HOST = "127.0.0.1"
 DEMO_DB = ROOT / "demo.db"
 DAYS = 84
 
-TASKS = [
-    "Finish the networks assignment", "Revise trees and heaps", "Email the client the invoice",
-    "Fix the nav bug on the client site", "Read chapter 6", "Book the exam slot",
-    "Push the portfolio update", "Past paper: 2024", "Call the bank", "Plan next week's shifts",
-]
+# Each task belongs to a focus module, as tasks added on Home do.
+TASK_AREAS = {
+    "Finish the networks assignment": "study", "Revise trees and heaps": "study",
+    "Email the client the invoice": "work", "Fix the nav bug on the client site": "work",
+    "Read chapter 6": "study", "Book the exam slot": "study", "Push the portfolio update": "work",
+    "Past paper: 2024": "study", "Call the bank": "work", "Plan next week's shifts": "work",
+}
+TASKS = list(TASK_AREAS)
 NOTES = [
     "Good focus this morning. The library is quieter before 10.",
     "Client wants the booking form by Friday.",
@@ -124,7 +127,8 @@ def demo_day(day: date, back: int, rng: random.Random) -> dict | None:
         "mood": mood, "tags": tags, "rest": sick,
         "habits": {"walk": exercise or rng.random() < 0.35, "read": rng.random() < 0.6,
                    "phone": not caffeine and rng.random() < 0.7},
-        "tasks": [{"text": text, "done": rng.random() < 0.7} for text in rng.sample(TASKS, rng.randint(1, 3))],
+        "tasks": [{"text": text, "done": rng.random() < 0.7, "area": TASK_AREAS[text]}
+                  for text in rng.sample(TASKS, rng.randint(1, 3))],
         "note": rng.choice(NOTES) if rng.random() < 0.3 else "",
     }
     if sick:
@@ -133,11 +137,11 @@ def demo_day(day: date, back: int, rng: random.Random) -> dict | None:
         # Today is only half filled in, as it would be in the morning.
         entry.update(study_hours=None, work_hours=None, tags=[], rest=False,
                      habits={"walk": True}, note="",
-                     tasks=[{"text": "Revise trees and heaps", "done": False}])
+                     tasks=[{"text": "Revise trees and heaps", "done": False, "area": "study"}])
     if back == 1:
-        entry["tasks"] = [{"text": "Finish the networks assignment", "done": False},
-                          {"text": "Email the client the invoice", "done": True},
-                          {"text": "Read chapter 6", "done": False}]
+        entry["tasks"] = [{"text": "Finish the networks assignment", "done": False, "area": "study"},
+                          {"text": "Email the client the invoice", "done": True, "area": "work"},
+                          {"text": "Read chapter 6", "done": False, "area": "study"}]
     return entry
 
 

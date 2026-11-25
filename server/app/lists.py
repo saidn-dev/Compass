@@ -1,8 +1,8 @@
 """Rules for habits, focus tasks and goals.
 
-Toggle a habit, add/toggle tasks (max 3 a day), add goals (max 3).
+Toggle a habit, add/toggle tasks (as many a day as you like), add goals (max 3).
 """
-from app.models import MAX_TASK_TEXT, MAX_TASKS, NUMERIC_FIELDS, Goal
+from app.models import MAX_TASK_TEXT, NUMERIC_FIELDS, Goal
 
 MAX_GOALS = 3
 
@@ -36,19 +36,10 @@ def habit_completion(days: list[dict], habits: list[dict]) -> float | None:
     return done / (len(logged) * len(habits)) * 100
 
 
-def check_tasks(raw: dict) -> None:
-    """Reject a day sent with more focus tasks than allowed (instead of dropping some)."""
-    tasks = raw.get("tasks")
-    if isinstance(tasks, list) and len(tasks) > MAX_TASKS:
-        raise ValueError(f"You can have up to {MAX_TASKS} focus tasks a day.")
-
-
 def add_task(day: dict, text: str) -> dict:
     text = text.strip()[:MAX_TASK_TEXT]
     if not text:
         raise ValueError("A task needs some text.")
-    if len(day["tasks"]) >= MAX_TASKS:
-        raise ValueError(f"You can have up to {MAX_TASKS} focus tasks a day.")
     return {**day, "tasks": [*day["tasks"], {"text": text, "done": False}]}
 
 

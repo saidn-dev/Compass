@@ -15,7 +15,7 @@ Each feature lists what it needs first. Build top to bottom: a feature starts on
 | Feature | Needs |
 |---|---|
 | Onboarding (pick up to 5 modules, default targets) | Life areas, Database |
-| Focus tasks (max 3 a day) | Day entry cleaning |
+| Focus tasks (no daily limit) | Day entry cleaning |
 | Habits and weekly completion | Day entry cleaning |
 | Goals (max 3) | Database |
 | Daily brief (3-4 sentences plus the numbers used) | Life areas, Onboarding, Database |

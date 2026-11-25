@@ -62,6 +62,7 @@ The user kept some of Binnacle and disliked the rest. Reference: the Opal iOS ap
 All content is real app data from the API. Nothing is invented; a gap reads "not logged", never 0.
 
 ## Constraints
+- Home Wi-Fi access (2026-11-25): the user will use Compass on their phone too. `start.py --lan` listens on the home network behind a passcode (`server/app/lan.py`); the laptop needs none. Without `--lan`, 127.0.0.1 only. The sleep stamps ("Going to bed" / "I'm up") come next, then the morning card with usual-time chips.
 - 127.0.0.1 only: no CDN, web fonts or icon fonts. One exception (2026-11-22): the timer's seven-segment face, DSEG7 Classic Bold, is a local file in `web/fonts/` (SIL Open Font License, `web/fonts/DSEG-LICENSE.txt`), used for the timer only.
 - Plain HTML, CSS and vanilla JS in one `index.html`; the Python server owns every rule.
 - Dark theme only, contrast 4.5:1 or more, every input labelled, keyboard-only works.

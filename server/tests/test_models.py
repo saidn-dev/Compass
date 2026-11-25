@@ -52,7 +52,7 @@ def test_steps_from_before_movement_was_removed_are_dropped():
 
 # --- tasks ---
 
-def test_tasks_keep_first_three_non_blank():
+def test_tasks_keep_every_non_blank_one():
     raw = {"tasks": [
         {"text": "a"}, {"text": "  "}, {"text": "b", "done": True}, {"text": "c"}, {"text": "d"},
     ]}
@@ -61,6 +61,7 @@ def test_tasks_keep_first_three_non_blank():
         {"text": "a", "done": False},
         {"text": "b", "done": True},
         {"text": "c", "done": False},
+        {"text": "d", "done": False},
     ]
 
 

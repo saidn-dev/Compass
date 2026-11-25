@@ -13,7 +13,7 @@ A local, single-user life dashboard. You log a few numbers a day (sleep, study, 
 | **Daily brief** | 3-4 rules-based sentences: the area furthest behind, one pattern, one action under 30 minutes |
 | **Insights** | Weekly review against the week before, patterns from the last 4 weeks, and streaks |
 | **Check-in** | Mood (1-5), tags for the day and a rest-day box; rest days lower that week's Study and Work targets |
-| **Focus, habits, goals, notes** | Up to 3 tasks a day (yesterday's unfinished ones offered again), a 7-day habit grid, up to 3 goals, a daily note |
+| **Focus, habits, goals, notes** | Focus tasks, as many as you like (yesterday's unfinished ones offered again), a 7-day habit grid, up to 3 goals, a daily note |
 | **Focus timer** | On the Study, Work and Focus pages: 15, 25 or 50 minutes on one of today's tasks, a pomodoro cycle with breaks, and a notification at each change. Session minutes add to that day's hours, and each session can be removed |
 | **Focus page** | One place to start the shared Study/Work timer (Timer or Stopwatch), with today and this-week totals by area and a 14-day session log; its stats page has Day/Week/Month views with a focus split ring, the year grid, a level and badges. A daily focus goal, notes on sessions, estimated pomos per task, and break, auto-start and strict-mode options in Settings |
 | **Your data** | Export to one JSON file, import it back, or delete everything |
@@ -22,7 +22,7 @@ Default targets: Sleep 7.5 h a night, Study 12 h a week, Work 16 h a week. **A b
 
 ## Privacy
 
-Compass talks only to its own server, with no CDN, web fonts or analytics. The server listens on `127.0.0.1` only, rejects foreign `Host` and `Origin` headers, accepts only JSON writes, and needs an `X-Confirm: delete-all` header to delete your data. Data lives in `compass.db`, which git ignores.
+Compass talks only to its own server, with no CDN, web fonts or analytics. By default the server listens on `127.0.0.1` only (see *Phone on the same Wi-Fi* for the one exception), rejects foreign `Host` and `Origin` headers, accepts only JSON writes, and needs an `X-Confirm: delete-all` header to delete your data. Data lives in `compass.db`, which git ignores.
 
 ## Getting started
 
@@ -35,6 +35,15 @@ python start.py
 ```
 
 The first run creates `.venv` and installs the packages, then opens `http://127.0.0.1:8765/`. Options: `--port 8766`, `--no-browser`. Back up your data with **Settings → Export**.
+
+### Phone on the same Wi-Fi
+
+```bash
+python start.py --set-passcode   # once; 6+ characters, stored only as a hash in compass-lan.json
+python start.py --lan            # prints the address to open on the phone
+```
+
+The laptop never needs the passcode; other devices get a sign-in page and stay signed in for 90 days. Setting a new passcode signs every device out. Five wrong passcodes pause sign-in, longer each time. Only plain IP addresses on the home network are accepted as the address, and the traffic is not encrypted, so use it on your own Wi-Fi only. On the phone, **Add to Home Screen** gives Compass its own icon. If a firewall is on, allow the port from your home network (for ufw: `sudo ufw allow from 192.168.0.0/16 to any port 8765 proto tcp`).
 
 ### Demo data
 

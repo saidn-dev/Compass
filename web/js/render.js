@@ -288,13 +288,15 @@ export function renderGoals(goals) {
 
 // focusable: Study or Work is on, so each open task gets a Focus button that opens the
 // Focus page with that task picked (TickTick's "Start Focus" on a task).
-export function renderTasks(tasks, focusable = false) {
+// showArea: both are on, so each task says which one it belongs to.
+export function renderTasks(tasks, focusable = false, showArea = false) {
   if (tasks.length === 0) return `<p class="empty">Nothing planned yet.</p>`;
 
   const items = tasks.map((t, i) => `<li class="task${t.done ? " is-done" : ""}">
     <label>
       <input type="checkbox" data-index="${i}"${t.done ? " checked" : ""}>
       <span class="task-text">${escapeHtml(t.text)}</span>
+      ${showArea && SESSION_AREAS[t.area] ? `<span class="task-area">${SESSION_AREAS[t.area]}</span>` : ""}
     </label>
     ${focusable && !t.done ? `<button type="button" class="btn btn-ghost btn-small task-focus" data-focus-task="${i}"
       aria-label="Focus on ${escapeHtml(t.text)}">Focus</button>` : ""}
@@ -934,25 +936,6 @@ function focusRing(timer, now) {
   </div>`;
 }
 
-// The task picker. tasks: today's focus tasks; goals: study goal names, offered as tasks too,
-// so a session counts toward that goal's pace; chosen: the task to select.
-export function renderFocusTaskPicker(id, tasks, goals, chosen) {
-  const open = tasks.filter((t) => !t.done).map((t) => t.text);
-  const option = (text) => `<option value="${escapeHtml(text)}"${chosen === text ? " selected" : ""}>${escapeHtml(text)}</option>`;
-  const goalNames = goals.filter((name) => !open.includes(name));
-  const options = goalNames.length > 0
-    ? `${open.length > 0 ? `<optgroup label="Today's focus">${open.map(option).join("")}</optgroup>` : ""}`
-      + `<optgroup label="Study goals">${goalNames.map(option).join("")}</optgroup>`
-    : open.map(option).join("");
-  return `<div class="field">
-      <label for="${id}">Task</label>
-      <select id="${id}" name="task">
-        <option value="">No task</option>
-        ${options}
-      </select>
-    </div>`;
-}
-
 // The task names of recent sessions in one area, newest first and each once: the task
 // popover's Recent tab. log: the Focus page's days, newest first.
 export function recentTasks(log, area, limit = 8) {
@@ -969,16 +952,18 @@ export function recentTasks(log, area, limit = 8) {
 // The Focus page's task picker, after TickTick's: "No task ›" opens a popover with Recent,
 // Task and Habit tabs, a search box and grouped rows. The choice is kept in a hidden input
 // with the form's task id, so the start form reads it as before.
-// sources: { recent: [names], habits: [names] }.
+// sources: { recent: [names], habits: [names], area, showHabits }. With an area, only that
+// module's tasks are listed (and older tasks that have no module yet). showHabits: false
+// drops the Habit tab, as the module pages do.
 export function renderTaskPopover(id, tasks, goals, chosen, sources = {}) {
-  const { recent = [], habits = [], estimates = {}, pomos = {} } = sources;
+  const { recent = [], habits = [], estimates = {}, pomos = {}, area = null, showHabits = true } = sources;
   const tally = (text) => {
     const done = pomos[text] || 0;
     const planned = estimates[text] || 0;
     if (!done && !planned) return "";
     return `<span class="task-pop-pomos" aria-label="${planned ? `${done} of ${planned} pomos` : `${done} ${done === 1 ? "pomo" : "pomos"}`}">${planned ? `${done}/${planned}` : done}</span>`;
   };
-  const open = tasks.filter((t) => !t.done).map((t) => t.text);
+  const open = tasks.filter((t) => !t.done && (!area || !t.area || t.area === area)).map((t) => t.text);
   const goalNames = goals.filter((name) => !open.includes(name));
   const pid = escapeHtml(id);
   const row = (text) => `<li><button type="button" class="task-pop-row" data-task-pick="${escapeHtml(text)}" aria-pressed="${chosen === text}">
@@ -990,7 +975,7 @@ export function renderTaskPopover(id, tasks, goals, chosen, sources = {}) {
   const panes = [
     ["recent", "Recent", group("", recent) || empty("No recent tasks yet.")],
     ["task", "Task", (group("Today", open) + group("Study goals", goalNames)) || empty("No tasks for today. Add them on Home.")],
-    ["habit", "Habit", group("", habits) || empty("No habits yet.")],
+    ...(showHabits ? [["habit", "Habit", group("", habits) || empty("No habits yet.")]] : []),
   ];
   const tabs = panes.map(([key, label]) => `<button type="button" class="segment" role="tab" id="${pid}-pop-tab-${key}"
         aria-controls="${pid}-pop-panel-${key}" aria-selected="${key === "task"}" tabindex="${key === "task" ? 0 : -1}" data-tab="${key}">${label}</button>`).join("");
@@ -1033,18 +1018,28 @@ export function renderFocusAreaPicker(options, selected, name) {
 
 const FOCUS_MODES = [["timer", "Timer"], ["stopwatch", "Stopwatch"]];
 
+// The session length as a badge ("25 Min." and a pencil) that opens in place into a
+// minutes card and a check. #focus-own holds the minutes the form starts with.
+const PENCIL = `<svg class="duration-icon duration-pencil" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>`;
+const CHECK = `<svg class="duration-icon duration-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+function durationControl(minutes) {
+  return `<div class="duration" data-duration data-open="false" role="group" aria-label="Session length">
+      <input type="hidden" id="focus-own" name="focus-own" value="${minutes}">
+      <label class="duration-card duration-mins">
+        <input class="duration-num" name="duration-mins" type="text" inputmode="numeric" maxlength="3" value="${minutes}" tabindex="-1" aria-label="Minutes" aria-describedby="focus-own-hint">
+        <span class="duration-unit">Min.</span>
+      </label>
+      <button type="button" class="duration-card duration-toggle" data-duration-toggle aria-expanded="false" aria-label="Change length">${PENCIL}${CHECK}</button>
+    </div>`;
+}
+
 // The start forms, in two tabs: Timer (a set length, counted down in rounds of sessions and
 // breaks) and Stopwatch (counts up until stopped). mode: the tab to show first.
 // areaOptions, when given, adds a Study/Work switch to both forms; the checked radio is
 // read at submit time so changing it doesn't need a full panel redraw.
-function focusStartForm(areaId, timer, tasks, goals = [], mode = "timer", areaOptions = null) {
+function focusStartForm(areaId, timer, tasks, goals = [], mode = "timer", areaOptions = null, sources = {}) {
   const done = timer.phase === "done" && timer.area === areaId;
   const minutes = done ? timer.minutes : 25;
-  const own = LENGTHS.includes(minutes) ? "" : String(minutes);
-  const lengths = LENGTHS.map((n) => `<label class="mood-option">
-      <input type="radio" name="focus-minutes" value="${n}"${n === minutes ? " checked" : ""}>
-      <span>${n}<span class="visually-hidden"> minutes</span></span>
-    </label>`).join("");
   const chosen = done ? timer.task : null;
   const area = escapeHtml(areaId);
   const picker = areaOptions ? renderFocusAreaPicker(areaOptions, areaId, "focus-area") : "";
@@ -1057,21 +1052,10 @@ function focusStartForm(areaId, timer, tasks, goals = [], mode = "timer", areaOp
   <form id="focus-form" class="focus-form" data-area="${area}" novalidate>
     ${picker}
     ${done ? `<p class="focus-note">Round done: ${roundSize(timer)} sessions. Take a proper break.</p>` : ""}
-    <div class="focus-lengths-row">
-      <fieldset class="mood focus-lengths">
-        <legend>Minutes</legend>
-        <div class="mood-options">${lengths}</div>
-      </fieldset>
-      <div class="field focus-own">
-        <label for="focus-own">Your own</label>
-        <div class="input-unit">
-          <input id="focus-own" name="focus-own" type="number" min="1" max="${MAX_MINUTES}" step="1" inputmode="numeric" value="${own}" aria-describedby="focus-own-hint">
-          <span class="unit">min</span>
-        </div>
-      </div>
-    </div>
+    ${durationControl(minutes)}
     <p class="hint" id="focus-own-hint">1 to ${MAX_MINUTES} minutes. Rounds of sessions with breaks between.</p>
-    <div class="focus-task-picker">${renderFocusTaskPicker("focus-task", tasks, formGoals, chosen)}</div>
+    <div class="focus-task-picker">${renderTaskPopover("focus-task", tasks, formGoals, chosen, { ...sources, showHabits: false })}</div>
+    <div class="task-estimate-slot" data-task-estimate-slot>${renderTaskEstimate(chosen, sources.pomos?.[chosen] || 0, sources.estimates?.[chosen] || 0)}</div>
     <div class="form-actions">
       <button type="submit" class="btn btn-main">${done ? "Start another round" : "Start"}</button>
     </div>
@@ -1081,7 +1065,7 @@ function focusStartForm(areaId, timer, tasks, goals = [], mode = "timer", areaOp
   <form id="watch-form" class="focus-form" data-area="${area}" novalidate>
     ${watchPicker}
     <p class="hint">Counts up until you stop it, for up to ${MAX_MINUTES / 60} hours. Stop saves the whole minutes.</p>
-    <div class="focus-task-picker">${renderFocusTaskPicker("watch-task", tasks, formGoals, chosen)}</div>
+    <div class="focus-task-picker">${renderTaskPopover("watch-task", tasks, formGoals, chosen, { ...sources, showHabits: false })}</div>
     <div class="form-actions">
       <button type="submit" class="btn btn-main">Start stopwatch</button>
     </div>
@@ -1093,7 +1077,7 @@ function focusStartForm(areaId, timer, tasks, goals = [], mode = "timer", areaOp
 // timer: the state from timer.js; tasks: today's focus tasks; message: a short note to show;
 // goals: study goal names for the task picker (Study only); mode: "timer" or "stopwatch",
 // the tab the start forms open on.
-export function renderFocusPanel(areaId, timer, tasks, now, message = "", goals = [], mode = "timer", areaOptions = null) {
+export function renderFocusPanel(areaId, timer, tasks, now, message = "", goals = [], mode = "timer", areaOptions = null, sources = {}) {
   const note = message ? `<p class="focus-message">${escapeHtml(message)}</p>` : "";
   const busy = ["focus", "break", "away", "watch"].includes(timer.phase);
   // On the Focus page the running timer chooses the area; while idle the radio does.
@@ -1108,7 +1092,7 @@ export function renderFocusPanel(areaId, timer, tasks, now, message = "", goals 
       <button type="button" class="btn btn-ghost" data-focus="drop">Discard session</button>
     </div>${note}`;
   }
-  if (!busy) return `${focusStartForm(areaId, timer, tasks, goals, mode, areaOptions)}${note}`;
+  if (!busy) return `${focusStartForm(areaId, timer, tasks, goals, mode, areaOptions, sources)}${note}`;
 
   const paused = isPaused(timer);
   const watch = timer.phase === "watch";
@@ -1971,10 +1955,10 @@ export function renderCheckIn(day, tags) {
     </label>`;
 }
 
-// Yesterday's unfinished focus tasks, each as a button that adds it to today.
-export function renderCarryOver(texts) {
-  if (texts.length === 0) return "";
-  const buttons = texts.map((text, i) => `<button type="button" class="btn btn-small" data-carry="${i}">+ ${escapeHtml(text)}</button>`).join("");
+// Yesterday's unfinished focus tasks ({ text, area }), each as a button that adds it to today.
+export function renderCarryOver(items) {
+  if (items.length === 0) return "";
+  const buttons = items.map((item, i) => `<button type="button" class="btn btn-small" data-carry="${i}">+ ${escapeHtml(item.text)}</button>`).join("");
   return `<p class="hint">From yesterday:</p><div class="button-row">${buttons}</div>`;
 }
 

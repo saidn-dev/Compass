@@ -4,7 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>Compass</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -269,9 +275,10 @@
           <section data-order="3" class="panel panel-focus" aria-labelledby="focus-title">
             <h2 id="focus-title">Today's focus</h2>
             <div id="tasks"></div>
+            <div class="task-area-picker" id="task-area"></div>
             <form id="task-form" class="inline-form" novalidate>
               <label for="task-text" class="visually-hidden">New focus task</label>
-              <input id="task-text" name="text" type="text" maxlength="200" placeholder="Add a task (up to 3)" autocomplete="off">
+              <input id="task-text" name="text" type="text" maxlength="200" placeholder="Add a task" autocomplete="off">
               <button type="submit" class="btn">Add</button>
             </form>
             <p class="form-error" id="task-error" role="alert" hidden></p>
