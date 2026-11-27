@@ -100,6 +100,11 @@ Claude's calls (change them freely): dates are read in the browser (`web/js/date
 
 Design: `docs/specs/2026-11-22-focus-page-design.md`. Sessions stay Study or Work only and are still written by the existing session routes. Home remains a summary, but its focus line now links to `#/focus`, so the 2026-11-18 decision that the timer does not live on Home is narrowed to: the timer lives on Focus and the module pages.
 
+### v2 stage 2c: Sleep stamps (built 2026-11-27)
+| Feature | Needs |
+|---|---|
+| **Going to bed** / **I'm up** buttons on the Sleep log card (sleep schedule only): a tap saves this moment's time; a bedtime from noon on is saved on tomorrow, the day you wake up; the tapped button becomes Undo (I'm up merges both into one), Undo asks for a second tap and steps back one tap at a time, steps kept until noon | Sleep log, Home Wi-Fi access |
+
 ### v2 stage 3: Reminders and other pages
 | Feature | Needs |
 |---|---|

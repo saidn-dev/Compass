@@ -59,7 +59,7 @@ After the first run, this starts a second copy on port 8770 with 12 weeks of mad
 ```bash
 pip install -r server/requirements-dev.txt   # inside .venv
 python -m pytest server/tests                # 589 tests
-node --test "web/tests/*.test.js"            # 103 tests
+node --test "web/tests/*.test.js"            # 186 tests
 ```
 
 While the server runs, `http://127.0.0.1:8765/docs` lists every API endpoint and lets you try them.

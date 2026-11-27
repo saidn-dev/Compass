@@ -12,7 +12,7 @@ import {
   renderCheckIn, renderCarryOver, renderInsights,
   renderStartingPoint, renderProjection, renderFirstSession,
   renderFocusCard, renderFocusPanel, renderFocusPage, renderFocusStatsPage, renderStatsPeriod, renderFocusSummary, renderTaskEstimate, renderFocusAreaPicker, durationText,
-  timeDigits, renderTaskPopover, recentTasks,
+  timeDigits, renderTaskPopover, recentTasks, escapeHtml,
 } from "./render.js";
 import { pageFromHash, hashFor } from "./route.js";
 import { parseDate } from "./dates.js";
@@ -21,6 +21,7 @@ import {
   ADJUST_STEP, adjust,
   IDLE, roundSize, isStrict, startSession, pause, resume, reset, finishEarly, skipBreak, stopCycle, tick,
   keepAway, dropAway, fromSaved, isRunning, isPaused, readoutText, ringShare, startWatch, isLength, MAX_MINUTES,
+  sleepStamp,
 } from "./timer.js";
 
 const MAX_GOALS = 3;
@@ -190,7 +191,8 @@ async function loadModulePage(id) {
   if (focus) focusData = focus;
   const area = dashboard.areas.find((a) => a.id === id);
   $("module-title").textContent = area.label;
-  $("module-body").innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id));
+  $("module-body").innerHTML = renderModulePage(area, dashboard.dates, today, day, settings, focusPanel(id),
+    id === "sleep" ? stampState(stampSteps()) : "none");
   showChosenTabs();
 }
 
@@ -912,6 +914,90 @@ function sleepLogRule() {
   return settings.sleep_schedule ? { sleep_hours: null } : { bedtime: null, wake_time: null };
 }
 
+// "Going to bed" / "I'm up": saves this moment's time as last night's (or tonight's) sleep.
+// A bedtime from noon on is saved on tomorrow, the day you'll wake up (sleepStamp), so it
+// doesn't show in today's boxes; the status line says where it went.
+// Each tap is a step kept in localStorage, so Undo can take the steps back one at a time,
+// even after a refresh or overnight. Steps belong to one night: they last until noon of
+// the day they were saved on (or 30 minutes, for a wake-up after noon).
+const STAMPS_KEY = "compass.sleepStamps";
+const ARM_MS = 3000; // how long "Tap again to undo" waits for the second tap
+let stampBusy = false;
+let disarmTimer = null;
+
+function stampSteps(now = Date.now()) {
+  const night = sleepStamp("bedtime", now).date;
+  return (readStored(STAMPS_KEY) || []).filter((s) => s.date === night || now - s.at < 30 * 60_000);
+}
+
+// The row's look for some steps: "none", "bed" (Going to bed is Undo) or "up" (one Undo).
+function stampState(steps) {
+  const last = steps.at(-1);
+  return !last ? "none" : last.field === "wake_time" ? "up" : "bed";
+}
+
+async function putSleepTime(date, field, time) {
+  const stored = date === today ? day : await api.getDay(date);
+  const saved = await api.putDay(date, { ...stored, [field]: time, ...sleepLogRule() });
+  if (date === today) day = saved;
+  return stored[field];
+}
+
+// Morph the live row first, save, and redraw once the morph has played, so the redraw
+// (which draws the same state) never cuts it short.
+async function morphStamps(row, state, save) {
+  row.dataset.state = state;
+  row.querySelector('[data-stamp="bedtime"]').inert = state === "up";
+  const played = new Promise((done) => setTimeout(done, calm() ? 0 : 450));
+  const [said] = await Promise.all([save(), played]);
+  await loadModulePage(modulePage);
+  $("module-log-status").textContent = said;
+}
+
+function disarm(button) {
+  clearTimeout(disarmTimer);
+  if (button) delete button.dataset.armed;
+}
+
+async function tapStamp(button) {
+  const row = button.closest(".sleep-stamps");
+  const steps = stampSteps();
+  const field = button.dataset.stamp;
+  const isUndo = (row.dataset.state === "bed" && field === "bedtime") || (row.dataset.state === "up" && field === "wake_time");
+
+  if (isUndo && !button.dataset.armed) {
+    // First tap on Undo only asks; a second within 3 seconds takes the step back.
+    button.dataset.armed = "true";
+    disarmTimer = setTimeout(() => disarm(button), ARM_MS);
+    return;
+  }
+  disarm(button);
+  stampBusy = true;
+  try {
+    if (isUndo) {
+      const step = steps.at(-1);
+      await morphStamps(row, stampState(steps.slice(0, -1)), async () => {
+        await putSleepTime(step.date, step.field, step.before);
+        store(STAMPS_KEY, steps.slice(0, -1));
+        return step.before ? `Put back ${step.before}.` : `Took back ${step.time}.`;
+      });
+      return;
+    }
+    const now = Date.now();
+    const stamp = sleepStamp(field, now);
+    await morphStamps(row, field === "wake_time" ? "up" : "bed", async () => {
+      const before = await putSleepTime(stamp.date, stamp.field, stamp.time);
+      store(STAMPS_KEY, [...steps, { date: stamp.date, field, time: stamp.time, before, at: now }]);
+      if (field === "wake_time") return `Up at ${stamp.time}. Saved.`;
+      return stamp.tomorrow
+        ? `In bed at ${stamp.time}. Saved for tomorrow's log. Sleep well.`
+        : `In bed at ${stamp.time}. Saved. Sleep well.`;
+    });
+  } finally {
+    stampBusy = false;
+  }
+}
+
 // The page's log form: saves only this module's fields on today, then redraws the page.
 $("module-view").addEventListener("submit", (event) => {
   if (event.target.id !== "module-log-form") return;
@@ -931,6 +1017,7 @@ $("module-view").addEventListener("submit", (event) => {
   safely(async () => {
     const changes = readLogInputs(event.target.querySelectorAll("input"));
     if (event.target.dataset.area === "sleep") Object.assign(changes, sleepLogRule());
+    if (event.target.dataset.area === "sleep") store(STAMPS_KEY, []); // typed times replace the stamps
     day = await api.putDay(today, { ...day, ...changes });
     await loadModulePage(modulePage);
     // After the redraw, because the redraw replaces the status line.
@@ -955,6 +1042,9 @@ $("module-view").addEventListener("click", (event) => {
     $("module-edit").focus();
   } else if (event.target.closest("#module-study")) {
     changeStudyRows(event, $("module-study"), "mod");
+  } else if (event.target.closest("[data-stamp]") && !stampBusy) {
+    const button = event.target.closest("[data-stamp]");
+    safely(() => tapStamp(button)); // stampBusy: one tap, one save
   }
 });
 

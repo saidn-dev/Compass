@@ -729,10 +729,29 @@ function logTime(name, label, value) {
     </div>`;
 }
 
+// The sleep stamp buttons. Each carries its label, "Undo" and "Tap again to undo"; the
+// row's state picks which one shows (styles.css): "none", "bed" (Going to bed turned into
+// Undo) or "up" (both merged into one Undo). Undo needs a second tap (data-armed).
+function stampButton(field, label, hidden) {
+  return `<button type="button" class="btn stamp" data-stamp="${field}"${hidden ? " inert" : ""}>
+        <span class="stamp-face stamp-label">${label}</span>
+        <span class="stamp-face stamp-undo">Undo</span>
+        <span class="stamp-face stamp-confirm">Tap again to undo</span>
+      </button>`;
+}
+
+export function renderSleepStamps(state = "none") {
+  return `<div class="sleep-stamps" data-state="${escapeHtml(state)}">
+      ${stampButton("bedtime", "Going to bed", state === "up")}
+      ${stampButton("wake_time", "I'm up", false)}
+    </div>`;
+}
+
 // Today's log fields for one module. The names match the Home log form.
-function moduleLogFields(areaId, day, settings) {
+function moduleLogFields(areaId, day, settings, stampState) {
   if (areaId === "sleep" && settings.sleep_schedule) {
-    return `<div class="sleep-times">
+    return `${renderSleepStamps(stampState)}
+    <div class="sleep-times">
       ${logTime("bedtime", "In bed", day.bedtime)}
       ${logTime("wake_time", "Up", day.wake_time)}
       <output class="sleep-gap">${escapeHtml(gapText(day.bedtime, day.wake_time))}</output>
@@ -1773,7 +1792,7 @@ export function renderFocusPage(data, timer, tasks, now, message = "", options =
 // area: the module's entry from the dashboard; dates: the 7 days in area.series;
 // day: what is logged today; settings: for the sleep schedule and the work type;
 // focusTimer: the timer's HTML from renderFocusPanel (a fresh start form when not given).
-export function renderModulePage(area, dates, today, day, settings, focusTimer = "") {
+export function renderModulePage(area, dates, today, day, settings, focusTimer = "", stampState = "none") {
   const id = escapeHtml(area.id);
   const hasValue = area.value !== null && area.value !== undefined;
   const hasScore = area.score !== null && area.score !== undefined;
@@ -1835,7 +1854,7 @@ export function renderModulePage(area, dates, today, day, settings, focusTimer =
   const log = `<section class="panel module-log" aria-labelledby="module-log-title">
     <h2 id="module-log-title">${area.id === "sleep" ? "Log last night" : "Log today"}</h2>
     <form id="module-log-form" data-area="${id}" novalidate>
-      ${moduleLogFields(area.id, day, settings)}
+      ${moduleLogFields(area.id, day, settings, stampState)}
       <div class="form-actions">
         <button type="submit" class="btn ${timed ? "btn-primary" : "btn-main"}">Save</button>
         <p class="save-status" id="module-log-status" role="status" aria-live="polite"></p>

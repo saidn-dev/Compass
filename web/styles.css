@@ -711,6 +711,109 @@ body:not([data-page="onboarding"]) :is(main, .site-header-inner) {
   color: var(--text-muted);
 }
 
+/* Sleep stamps. A tapped button turns into Undo; after "I'm up" the two merge into one
+   wide Undo (the first column folds to 0fr). Each label swap slides the old face up and
+   the new one in from below. */
+.sleep-stamps {
+  --stamp-time: 420ms;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sleep-stamps[data-state="up"] {
+  grid-template-columns: 0fr 1fr;
+  column-gap: 0;
+}
+
+.sleep-stamps .stamp {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stamp-face {
+  grid-area: 1 / 1;
+  transform: translateY(80%);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.sleep-stamps[data-state="up"] [data-stamp="bedtime"] {
+  padding-inline: 0;
+  border-width: 0;
+  opacity: 0;
+}
+
+/* Which face shows: the label, Undo on the tapped button, or the second-tap check. */
+.stamp-label,
+.sleep-stamps[data-state="bed"] [data-stamp="bedtime"]:not([data-armed]) .stamp-undo,
+.sleep-stamps[data-state="up"] [data-stamp="wake_time"]:not([data-armed]) .stamp-undo,
+.stamp[data-armed] .stamp-confirm {
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+}
+
+.sleep-stamps[data-state="bed"] [data-stamp="bedtime"] .stamp-label,
+.sleep-stamps[data-state="up"] [data-stamp="wake_time"] .stamp-label,
+.stamp[data-armed] .stamp-undo {
+  transform: translateY(-80%);
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Undo is quieter than a stamp; the second-tap check is washed in the warning colour. */
+.sleep-stamps[data-state="bed"] [data-stamp="bedtime"],
+.sleep-stamps[data-state="up"] [data-stamp="wake_time"] {
+  background: transparent;
+  border-color: var(--border-hover);
+  color: var(--text-muted);
+}
+
+.sleep-stamps[data-state="bed"] [data-stamp="bedtime"]:hover,
+.sleep-stamps[data-state="up"] [data-stamp="wake_time"]:hover {
+  color: var(--text-hover);
+}
+
+.sleep-stamps .stamp[data-armed] {
+  background: color-mix(in oklab, var(--danger) 14%, transparent);
+  border-color: color-mix(in oklab, var(--danger) 55%, transparent);
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sleep-stamps {
+    transition: grid-template-columns var(--stamp-time) var(--ease-out), column-gap var(--stamp-time) var(--ease-out);
+  }
+
+  .sleep-stamps .stamp {
+    transition: padding var(--stamp-time) var(--ease-out), opacity 240ms var(--ease-out),
+      background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  }
+
+  .stamp-face {
+    transition: transform var(--stamp-time) cubic-bezier(0.3, 1.4, 0.6, 1), opacity 220ms ease,
+      visibility 0s linear 220ms;
+  }
+
+  .stamp-label,
+  .sleep-stamps[data-state="bed"] [data-stamp="bedtime"]:not([data-armed]) .stamp-undo,
+  .sleep-stamps[data-state="up"] [data-stamp="wake_time"]:not([data-armed]) .stamp-undo,
+  .stamp[data-armed] .stamp-confirm {
+    transition-delay: 0s;
+  }
+
+  .sleep-stamps[data-state="bed"] [data-stamp="bedtime"] .stamp-label,
+  .sleep-stamps[data-state="up"] [data-stamp="wake_time"] .stamp-label,
+  .stamp[data-armed] .stamp-undo {
+    transition-delay: 0s, 0s, 220ms;
+  }
+}
+
 .work-question {
   border: 0;
   margin: 0;

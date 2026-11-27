@@ -388,6 +388,8 @@ test("module page: log fields per module", () => {
   assert.ok(sched.includes('name="bedtime"') && sched.includes('name="wake_time"'));
   assert.ok(!sched.includes('name="sleep_hours"'));
   assert.ok(sched.includes("= 7.5 h a night"));
+  assert.ok(sched.includes('data-stamp="bedtime"') && sched.includes('data-stamp="wake_time"'));
+  assert.ok(!goal.includes("data-stamp"));
   const work = renderModulePage(entry({ id: "work", label: "Work", period: "this week" }), DATES, TODAY, DAY,
     { ...SETTINGS, work: { ...SETTINGS.work, kind: "job_hunting" } });
   assert.ok(work.includes('name="work_hours"') && work.includes("Job search") && work.includes("Log today"));
@@ -925,4 +927,14 @@ test("with both modules on, Home tags each task with its module", () => {
   assert.ok(renderTasks(tasks, true, true).includes('<span class="task-area">Study</span>'));
   assert.strictEqual(renderTasks(tasks, true, true).match(/task-area/g).length, 1);
   assert.ok(!renderTasks(tasks, true).includes("task-area"));
+});
+
+test("sleep stamps: the row carries its state; merged, Going to bed is inert", async () => {
+  const { renderSleepStamps } = await import("../js/render.js");
+  assert.match(renderSleepStamps(), /data-state="none"/);
+  assert.ok(!renderSleepStamps("bed").includes("inert"));
+  const up = renderSleepStamps("up");
+  assert.match(up, /data-state="up"/);
+  assert.match(up, /data-stamp="bedtime" inert/);
+  assert.ok(up.includes("Tap again to undo"));
 });

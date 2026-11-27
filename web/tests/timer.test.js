@@ -324,3 +324,24 @@ test("the options and a waiting state survive a reload; an old save without opti
   assert.deepStrictEqual(fromSaved(old).opts, DEFAULT_OPTIONS);
   assert.strictEqual(fromSaved({ ...JSON.parse(JSON.stringify(s)), round: 4 }), IDLE); // past a round of 3
 });
+
+test("sleep stamps: a bedtime from noon goes on tomorrow, before noon on today", async () => {
+  const { sleepStamp } = await import("../js/timer.js");
+  const at = (day, h, m) => new Date(2026, 10, day, h, m).getTime();
+  assert.deepStrictEqual(sleepStamp("bedtime", at(27, 23, 10)),
+    { date: "2026-11-28", field: "bedtime", time: "23:10", tomorrow: true });
+  assert.deepStrictEqual(sleepStamp("bedtime", at(28, 0, 40)),
+    { date: "2026-11-28", field: "bedtime", time: "00:40", tomorrow: false });
+  assert.strictEqual(sleepStamp("bedtime", at(27, 12, 0)).date, "2026-11-28");
+  assert.strictEqual(sleepStamp("bedtime", at(27, 11, 59)).date, "2026-11-27");
+  // The last day of a month and of a year roll over.
+  assert.strictEqual(sleepStamp("bedtime", at(30, 22, 0)).date, "2026-12-01");
+  assert.strictEqual(sleepStamp("bedtime", new Date(2026, 11, 31, 22, 0).getTime()).date, "2027-01-01");
+});
+
+test("sleep stamps: a wake-up always goes on today", async () => {
+  const { sleepStamp } = await import("../js/timer.js");
+  assert.deepStrictEqual(sleepStamp("wake_time", new Date(2026, 10, 28, 7, 5).getTime()),
+    { date: "2026-11-28", field: "wake_time", time: "07:05", tomorrow: false });
+  assert.strictEqual(sleepStamp("wake_time", new Date(2026, 10, 28, 13, 30).getTime()).date, "2026-11-28");
+});

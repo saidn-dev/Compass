@@ -79,6 +79,17 @@ export function clockText(ms) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// A sleep stamp: which day a "Going to bed" or "I'm up" tap is saved on, and the time.
+// A night is saved on the day you wake up, so a bedtime from noon on goes on tomorrow
+// (23:10 on the 27th belongs to the 28th) and one before noon goes on today (00:40).
+// A wake-up always goes on today.
+export function sleepStamp(kind, ms) {
+  const d = new Date(ms);
+  const next = kind === "bedtime" && d.getHours() >= 12;
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate() + (next ? 1 : 0), 12);
+  return { date: dateKey(day.getTime()), field: kind, time: clockText(ms), tomorrow: next };
+}
+
 // What is left, as "12:04". Part of a second counts as a whole one, so 0:00 only shows at the end.
 export function countdownText(ms) {
   const seconds = ms > 0 ? Math.ceil(ms / 1000) : 0;
